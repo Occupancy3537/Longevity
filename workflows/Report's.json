@@ -1,0 +1,2215 @@
+{
+  "updatedAt": "2026-08-24T03:27:35.223Z",
+  "createdAt": "2026-06-05T12:03:54.598Z",
+  "id": "1d13058e-195e-474d-a94b-a8d9fdc88753",
+  "name": "Report's",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 21,
+              "triggerAtMinute": 35
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -800,
+        512
+      ],
+      "id": "3489a144-7c20-40b3-9cee-c42d3ee2b18b",
+      "name": "Weekly"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ------------------------------------------------------------\n// Конфигурация\n// ------------------------------------------------------------\nconst NUMERIC_FIELDS = [\n  'Calories', 'Proteins', 'Carbs', 'Fats',\n  'Магний', 'Витамин D', 'Омега-3 (EPA/DHA)', 'Селен', 'Йод',\n  'Калий', 'Железо', 'Кальций', 'Витамин B12', 'Витамин К',\n  'Витамин Е', 'Цинк',\n  'Клетчатка', 'Холестерин',\n  'Добавленный сахар',\n  'Натрий',\n  'Кофеин',\n  'Алкоголь',\n  'Насыщенные жиры',\n  'Трансжиры',\n  'Вода',\n];\n\n// ------------------------------------------------------------\n// Вспомогательные функции\n// ------------------------------------------------------------\n\n/**\n * Безопасное преобразование строки в число\n */\nfunction toNumber(value) {\n  if (value === null || value === undefined || value === '') return 0;\n  const num = parseFloat(value);\n  return isNaN(num) ? 0 : num;\n}\n\n/**\n * Парсинг даты с учётом временной зоны и сдвига ±2 часа\n * Если время < 2:00, считаем предыдущим днём\n */\nfunction parseDateWithShift(dateStr) {\n  if (!dateStr) return null;\n  \n  let date;\n  if (dateStr instanceof Date) {\n    date = new Date(dateStr);\n  } else {\n    const str = String(dateStr).trim();\n    const isoMatch = str.match(/^(\\d{4}-\\d{2}-\\d{2})[T ]/);\n    if (isoMatch) {\n      date = new Date(str);\n    } else {\n      const ymdMatch = str.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n      if (ymdMatch) {\n        date = new Date(parseInt(ymdMatch[1]), parseInt(ymdMatch[2]) - 1, parseInt(ymdMatch[3]), 12, 0, 0);\n      } else {\n        const dmyMatch = str.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/);\n        if (dmyMatch) {\n          date = new Date(parseInt(dmyMatch[3]), parseInt(dmyMatch[2]) - 1, parseInt(dmyMatch[1]), 12, 0, 0);\n        } else {\n          date = new Date(str);\n        }\n      }\n    }\n  }\n  \n  if (isNaN(date.getTime())) return null;\n  \n  const hours = date.getHours();\n  if (hours < 2) {\n    date.setDate(date.getDate() - 1);\n  }\n  return date;\n}\n\n/**\n * Форматирование даты в YYYY-MM-DD\n */\nfunction formatDate(date) {\n  const year = date.getFullYear();\n  const month = String(date.getMonth() + 1).padStart(2, '0');\n  const day = String(date.getDate()).padStart(2, '0');\n  return `${year}-${month}-${day}`;\n}\n\n/**\n * Получить самую позднюю дату (без учёта сдвига, для определения окна)\n */\nfunction getMaxDate(rows) {\n  let maxDate = null;\n  rows.forEach(row => {\n    const date = parseDateWithShift(row.Date);\n    if (date && (!maxDate || date > maxDate)) {\n      maxDate = date;\n    }\n  });\n  return maxDate;\n}\n\n/**\n * Проверить, попадает ли дата в окно последних N дней (не включая maxDate)\n */\nfunction isWithinLastNDays(date, maxDate, nDays) {\n  if (!date || !maxDate) return false;\n  if (date >= maxDate) return false;\n  const diffTime = maxDate - date;\n  const diffDays = diffTime / (1000 * 60 * 60 * 24);\n  return diffDays > 0 && diffDays <= nDays;\n}\n\n/**\n * Расчёт коэффициента вариации (в процентах)\n */\nfunction calcVariation(values) {\n  if (values.length < 2) return null;\n  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;\n  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));\n  const variance = squaredDiffs.reduce((sum, v) => sum + v, 0) / values.length;\n  const stdDev = Math.sqrt(variance);\n  return (stdDev / mean) * 100;\n}\n\n// ------------------------------------------------------------\n// Основная логика\n// ------------------------------------------------------------\n\n// 1. Получить все строки из входа\nconst allRows = $input.all().map(item => item.json);\n\nif (allRows.length === 0) {\n  return [{ json: { error: 'Нет данных для анализа' } }];\n}\n\n// 2. Найти максимальную дату\nconst maxDate = getMaxDate(allRows);\nif (!maxDate) {\n  return [{ json: { error: 'Не удалось определить даты в данных' } }];\n}\n\n// 3. Отфильтровать записи за последние 7 дней ДО максимальной даты\nconst filteredRows = allRows.filter(row => {\n  const date = parseDateWithShift(row.Date);\n  if (!date) return false;\n  if (formatDate(date) === formatDate(maxDate)) return false;\n  return isWithinLastNDays(date, maxDate, 7);\n});\n\n// 4. Группировка по пользователям и дням\nconst userData = {};\n\nfilteredRows.forEach(row => {\n  const userId = row.User_ID;\n  if (!userId) return;\n  \n  const date = parseDateWithShift(row.Date);\n  if (!date) return;\n  const dateStr = formatDate(date);\n  \n  if (!userData[userId]) {\n    userData[userId] = { days: {} };\n  }\n  \n  if (!userData[userId].days[dateStr]) {\n    userData[userId].days[dateStr] = {\n      sums: {}\n    };\n    NUMERIC_FIELDS.forEach(field => {\n      userData[userId].days[dateStr].sums[field] = 0;\n    });\n  }\n  \n  const dayEntry = userData[userId].days[dateStr];\n  NUMERIC_FIELDS.forEach(field => {\n    dayEntry.sums[field] += toNumber(row[field]);\n  });\n});\n\n// 5. Для каждого пользователя рассчитать средние за день\nconst outputRows = [];\n\nObject.entries(userData).forEach(([userId, data]) => {\n  const days = Object.keys(data.days).sort();\n  const daysCount = days.length;\n  \n  if (daysCount === 0) return;\n  \n  const dailyValues = {};\n  NUMERIC_FIELDS.forEach(field => { dailyValues[field] = []; });\n  \n  days.forEach(dateStr => {\n    const dayData = data.days[dateStr];\n    NUMERIC_FIELDS.forEach(field => {\n      dailyValues[field].push(dayData.sums[field]);\n    });\n  });\n  \n  // Сумма за период (только для расчёта среднего)\n  const totals = {};\n  NUMERIC_FIELDS.forEach(field => {\n    totals[field] = dailyValues[field].reduce((sum, v) => sum + v, 0);\n  });\n  \n  // Среднее за день\n  const averages = {};\n  NUMERIC_FIELDS.forEach(field => {\n    averages[field] = daysCount > 0 ? totals[field] / daysCount : 0;\n  });\n  \n  // Стабильность по калориям\n  const calorieValues = dailyValues['Calories'];\n  const variation = calcVariation(calorieValues);\n  const stability = variation !== null ? Math.max(0, 100 - variation).toFixed(1) : null;\n  \n  // Формируем одну строку\n  const outputRow = {\n    'User_ID': userId,\n    'Date': formatDate(maxDate),\n    'Дней с данными': daysCount,\n    'Стабильность питания, %': stability ? `${stability}%` : 'недостаточно данных'\n  };\n  \n  NUMERIC_FIELDS.forEach(field => {\n    outputRow[field] = Number(averages[field].toFixed(1));\n  });\n  \n  outputRows.push(outputRow);\n});\n\nreturn outputRows.map(row => ({ json: row }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        512
+      ],
+      "id": "259cbaed-2dff-4c91-b04a-89234dca18fa",
+      "name": "Расчет_неделя"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1315707050,
+          "mode": "list",
+          "cachedResultName": "week_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1315707050"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "User_ID": "={{ $json.User_ID }}",
+            "Date": "={{ $json.Date }}",
+            "Дней с данными": "={{ $json['Дней с данными'] }}",
+            "Стабильность питания": "={{ $json['Стабильность питания, %'] }}",
+            "Calories": "={{ $json.Calories }}",
+            "Proteins": "={{ $json.Proteins }}",
+            "Carbs": "={{ $json.Carbs }}",
+            "Fats": "={{ $json.Fats }}",
+            "Магний": "={{ $json['Магний'] }}",
+            "Витамин D": "={{ $json['Витамин D'] }}",
+            "Омега-3 (EPA/DHA)": "={{ $json['Омега-3 (EPA/DHA)'] }}",
+            "Селен": "={{ $json['Селен'] }}",
+            "Йод": "={{ $json['Йод'] }}",
+            "Калий": "={{ $json['Калий'] }}",
+            "Железо": "={{ $json['Железо'] }}",
+            "Кальций": "={{ $json['Кальций'] }}",
+            "Витамин B12": "={{ $json['Витамин B12'] }}",
+            "Витамин К": "={{ $json['Витамин К'] }}",
+            "Витамин Е": "={{ $json['Витамин Е'] }}",
+            "Цинк": "={{ $json['Цинк'] }}",
+            "Клетчатка": "={{ $json['Клетчатка'] }}",
+            "Холестерин": "={{ $json['Холестерин'] }}",
+            "Добавленный сахар": "={{ $json['Добавленный сахар'] }}",
+            "Натрий": "={{ $json['Натрий'] }}",
+            "Кофеин": "={{ $json['Кофеин'] }}",
+            "Насыщенные жиры": "={{ $json['Насыщенные жиры'] }}",
+            "Трансжиры": "={{ $json['Трансжиры'] }}",
+            "Алкоголь, гр": "={{ $json['Алкоголь'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Дней с данными",
+              "displayName": "Дней с данными",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Стабильность питания",
+              "displayName": "Стабильность питания",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Calories",
+              "displayName": "Calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Proteins",
+              "displayName": "Proteins",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carbs",
+              "displayName": "Carbs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fats",
+              "displayName": "Fats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Магний",
+              "displayName": "Магний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин D",
+              "displayName": "Витамин D",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Омега-3 (EPA/DHA)",
+              "displayName": "Омега-3 (EPA/DHA)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Селен",
+              "displayName": "Селен",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Йод",
+              "displayName": "Йод",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Калий",
+              "displayName": "Калий",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Железо",
+              "displayName": "Железо",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Кальций",
+              "displayName": "Кальций",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин B12",
+              "displayName": "Витамин B12",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин К",
+              "displayName": "Витамин К",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин Е",
+              "displayName": "Витамин Е",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Цинк",
+              "displayName": "Цинк",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Клетчатка",
+              "displayName": "Клетчатка",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Холестерин",
+              "displayName": "Холестерин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Добавленный сахар",
+              "displayName": "Добавленный сахар",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Натрий",
+              "displayName": "Натрий",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Кофеин",
+              "displayName": "Кофеин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Алкоголь, гр",
+              "displayName": "Алкоголь, гр",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Насыщенные жиры",
+              "displayName": "Насыщенные жиры",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Трансжиры",
+              "displayName": "Трансжиры",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -224,
+        512
+      ],
+      "id": "ed9faaae-8277-43b1-84e0-75090e6045ea",
+      "name": "Запись_неделя",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -624,
+        512
+      ],
+      "id": "80ebe962-818f-4ed9-b157-d8ea8cb87099",
+      "name": "Get",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8956401",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        176
+      ],
+      "id": "e8e36571-3049-40b9-b6ff-bbb94befacfe",
+      "name": "Send a text message",
+      "webhookId": "d86daf09-ae5f-4a9b-92b1-90f06ed54937",
+      "credentials": {
+        "telegramApi": {
+          "id": "efFiNDygGmGLdiyM",
+          "name": "Отчет по питанию"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\nТы — эксперт по превентивной медицине, биохакингу и активному долголетию. Твой подопечный: Влад, 43 года, живет во Владивостоке. Он уже проделал огромную работу над своим рационом, отлично понимает базу питания и строго контролирует добавленный сахар. Влад принимает витамин D3 2500. Учитывай, что холестерин из еды не считается вредным по последним исследованиям. Смотри на холестерин как на отягчающий фактор только при наличии большого количества насыщеных или трансжиров.\nСейчас {{ $json.season }} (месяц {{ $json.month }}).\n\nДанные по питанию за сегодня:\nЗавтрак: {{ $json.Breakfast_Meals }}\nОбед: {{ $json.Lunch_Meals }}\nПерекус: {{ $json.Snack_Meals }}\nУжин: {{ $json.Dinner_Meals }}\n\nИтоговые цифры по нутриентам: {{ JSON.stringify($json) }}\n(Применяй стандартные медицинские единицы измерения).\n\nТвоя задача:\n\nОценка и похвала: Начни с позитива. Подсвети 2-3 сильные стороны сегодняшнего рациона. Влад молодец, дай ему позитивное подкрепление за его труд.\n\nАдекватная аналитика: Найди 1 зону для улучшения. ВАЖНО: КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕТСЯ ругать за высокий пищевой холестерин (яйца, морепродукты), если уровень насыщенных и трансжиров находится в пределах нормы. Фокусируйся на балансе жиров, а не на цифре общего холестерина.\n\nСупер-лайфхаки: Дай один конкретный совет по сочетаемости съеденных сегодня блюд (что сработало круто, или как улучшить усвоение витаминов).\n\nАнти-эйдж совет на завтра: Предложи ОДНО блюдо. ВАЖНО: каждый день блюдо должно быть РАЗНЫМ.\n\nФормат:\nНачни с \"Привет, Влад! 👋\".\nПиши простым человеческим языком. Коротко, конкретно, 3-4 абзаца. Никаких сложных метафор, гипербол и заумных терминов. Без Markdown, используй эмодзи для структуры"
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        176,
+        176
+      ],
+      "id": "80cd6643-febe-499a-9430-917aecf9d3be",
+      "name": "Анализ Питания"
+    },
+    {
+      "parameters": {
+        "model": "minimax/minimax-m3",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        176,
+        368
+      ],
+      "id": "e2b89e54-463e-4c4c-8e58-1268f1cd200a",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// === НАСТРОЙКИ ===\nconst TIMEZONE_OFFSET_HOURS = 10; // Владивосток (UTC+10)\nconst DATE_FIELD = 'Date';\nconst USER_FIELD = 'User_ID';\nconst TARGET_USERS = ['Влад Васюк', '8956401', 'Влад'];\n\n// === ПАРСИНГ ДАТ ===\nfunction parseDate(raw) {\n  if (!raw) return null;\n  if (raw instanceof Date) {\n    const d = new Date(raw);\n    return isNaN(d.getTime()) ? null : d;\n  }\n  const str = String(raw).trim();\n  if (!str) return null;\n  const isoMatch = str.match(/^(\\d{4}-\\d{2}-\\d{2})[T ]/);\n  if (isoMatch) {\n    const d = new Date(str);\n    return isNaN(d.getTime()) ? null : d;\n  }\n  const ymd = str.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  if (ymd) return new Date(+ymd[1], +ymd[2]-1, +ymd[3], 12, 0, 0);\n  const dmy = str.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/);\n  if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1], 12, 0, 0);\n  const num = parseFloat(str);\n  if (!isNaN(num) && num > 40000 && num < 100000) {\n    return new Date((num - 25569) * 86400000);\n  }\n  return null;\n}\n\n// === ЛОГИКА ===\nconst nowUtc = Date.now();\nconst vlNow = new Date(nowUtc + TIMEZONE_OFFSET_HOURS * 3600000);\nconst startUtc = Date.UTC(vlNow.getUTCFullYear(), vlNow.getUTCMonth(), vlNow.getUTCDate()) - TIMEZONE_OFFSET_HOURS * 3600000;\n\nconst allItems = $input.all();\nconst uniqueDates = new Set();\nconst filtered = [];\n\nfor (const item of allItems) {\n  const userName = String(item.json[USER_FIELD] || '').trim();\n  if (!TARGET_USERS.includes(userName)) continue;\n\n  const rowDate = parseDate(item.json[DATE_FIELD]);\n  if (!rowDate) continue;\n\n  const rowUtc = rowDate.getTime();\n  if (rowUtc >= startUtc && rowUtc <= nowUtc) {\n    const vd = new Date(rowUtc + TIMEZONE_OFFSET_HOURS * 3600000);\n    uniqueDates.add(vd.toISOString().split('T')[0]);\n\n    // Определение приема пищи по времени (Владивосток)\n    const hour = vd.getUTCHours();\n    let mealCat = 'snack';\n    if (hour >= 6 && hour < 12) mealCat = 'breakfast';\n    else if (hour >= 12 && hour < 16) mealCat = 'lunch';\n    else if (hour >= 18 && hour < 23) mealCat = 'dinner';\n    else mealCat = 'snack'; // всё остальное - перекусы\n\n    const mealDesc = item.json.Meal_description || \"\";\n\n    filtered.push({\n      json: {\n        ...item.json,\n        daysTracked: uniqueDates.size,\n        meal_breakfast: mealCat === 'breakfast' ? mealDesc : \"\",\n        meal_lunch: mealCat === 'lunch' ? mealDesc : \"\",\n        meal_snack: mealCat === 'snack' ? mealDesc : \"\",\n        meal_dinner: mealCat === 'dinner' ? mealDesc : \"\"\n      }\n    });\n  }\n}\n\nif (filtered.length === 0) {\n  return [{ json: { noData: true, daysTracked: 0 } }];\n}\n\nreturn filtered;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        176
+      ],
+      "id": "f4831770-cf8b-4b47-9e62-0aa5caf8d254",
+      "name": "Фильтрация"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 21,
+              "triggerAtMinute": 45
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -816,
+        176
+      ],
+      "id": "e51ff7d2-60ac-416d-a236-0ed018d47f4a",
+      "name": "Daily Report"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "User_ID": "={{ $('Summarize').item.json.appended_User_ID[0] }}",
+            "Date": "={{ $now }}",
+            "Calories": "={{ $json.Calories }}",
+            "Proteins": "={{ $json.Proteins }}",
+            "Carbs": "={{ $json.Carbs }}",
+            "Fats": "={{ $json.Fats }}",
+            "Магний": "={{ $json['Магний'] }}",
+            "Витамин D": "={{ $json['Витамин_D'] }}",
+            "Омега-3 (EPA/DHA)": "={{ $json['Омега-3_(EPA/DHA)'] }}",
+            "Селен": "={{ $json['Селен'] }}",
+            "Йод": "={{ $json['Йод'] }}",
+            "Калий": "={{ $json['Калий'] }}",
+            "Железо": "={{ $json['Железо'] }}",
+            "Кальций": "={{ $json['Кальций'] }}",
+            "Витамин B12": "={{ $json['Витамин_B12'] }}",
+            "Витамин К": "={{ $json['Витамин_К'] }}",
+            "Витамин Е": "={{ $json['Витамин_Е'] }}",
+            "Цинк": "={{ $json['Цинк'] }}",
+            "Клетчатка": "={{ $json['Клетчатка'] }}",
+            "Холестерин": "={{ $json['Холестерин'] }}",
+            "Добавленный сахар": "={{ $json['Добавленный_сахар'] }}",
+            "Натрий": "={{ $json['Натрий'] }}",
+            "Кофеин": "={{ $json['Кофеин'] }}",
+            "Насыщенные жиры": "={{ $json['Насыщенные_жиры'] }}",
+            "Трансжиры": "={{ $json['Трансжиры'] }}",
+            "Алкоголь, гр": "={{ $json['Алкоголь'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Calories",
+              "displayName": "Calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Proteins",
+              "displayName": "Proteins",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carbs",
+              "displayName": "Carbs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fats",
+              "displayName": "Fats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Магний",
+              "displayName": "Магний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин D",
+              "displayName": "Витамин D",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Омега-3 (EPA/DHA)",
+              "displayName": "Омега-3 (EPA/DHA)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Селен",
+              "displayName": "Селен",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Йод",
+              "displayName": "Йод",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Калий",
+              "displayName": "Калий",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Железо",
+              "displayName": "Железо",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Кальций",
+              "displayName": "Кальций",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин B12",
+              "displayName": "Витамин B12",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин К",
+              "displayName": "Витамин К",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин Е",
+              "displayName": "Витамин Е",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Цинк",
+              "displayName": "Цинк",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Клетчатка",
+              "displayName": "Клетчатка",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Холестерин",
+              "displayName": "Холестерин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Добавленный сахар",
+              "displayName": "Добавленный сахар",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Натрий",
+              "displayName": "Натрий",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Кофеин",
+              "displayName": "Кофеин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Алкоголь, гр",
+              "displayName": "Алкоголь, гр",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Насыщенные жиры",
+              "displayName": "Насыщенные жиры",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Трансжиры",
+              "displayName": "Трансжиры",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        16,
+        16
+      ],
+      "id": "870a8385-6bec-4db3-925b-aecfcb7ba399",
+      "name": "Запись_день",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -656,
+        176
+      ],
+      "id": "32db7f1c-f299-4db2-956c-d5c03aad2d1b",
+      "name": "Get rows",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "sum",
+              "field": "Calories"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Proteins"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Carbs"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Fats"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Магний"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Витамин D"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Омега-3 (EPA/DHA)"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Селен"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Йод"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Калий"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Железо"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Кальций"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Витамин B12"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Витамин К"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Витамин Е"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Цинк"
+            },
+            {
+              "aggregation": "sum",
+              "field": "daysTracked"
+            },
+            {
+              "aggregation": "append",
+              "field": "User_ID"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Клетчатка"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Добавленный сахар"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Натрий"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Кофеин"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Алкоголь"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Насыщенные жиры"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Трансжиры"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Холестерин"
+            },
+            {
+              "aggregation": "append",
+              "field": "meal_breakfast"
+            },
+            {
+              "aggregation": "append",
+              "field": "meal_lunch"
+            },
+            {
+              "aggregation": "append",
+              "field": "meal_snack"
+            },
+            {
+              "aggregation": "append",
+              "field": "meal_dinner"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1.1,
+      "position": [
+        -320,
+        176
+      ],
+      "id": "e339cb08-3015-4d4c-a40a-324dccffaca2",
+      "name": "Summarize"
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $input.first().json;\n\nif (summary.noData) {\n  return [{ json: { text: \"⚠️ За сегодня не найдено записей о питании. Не забудь поесть и записать!\" } }];\n}\n\nconst days = summary.max_daysTracked || 1;\nconst result = {};\n\n// === ПРОБРАСЫВАЕМ USER_ID ===\nif (summary.appended_User_ID && Array.isArray(summary.appended_User_ID)) {\n  result.User_ID = summary.appended_User_ID[0];\n} else if (summary.User_ID) {\n  result.User_ID = summary.User_ID;\n} else {\n  result.User_ID = \"Неизвестный пользователь\"; \n}\n\n// === ОБРАБОТКА ЧИСЛОВЫХ ДАННЫХ ===\nfor (const [key, value] of Object.entries(summary)) {\n  if (key.startsWith('sum_')) {\n    const cleanKey = key.replace('sum_', '');\n    if (typeof value === 'number') {\n      result[cleanKey] = Math.round(value / days); \n    }\n  }\n}\nresult.daysTracked = days;\n\n// === ФОРМИРУЕМ СПИСКИ ПО ПРИЕМАМ ПИЩИ ===\nfunction formatMeals(arr) {\n  if (!arr || !Array.isArray(arr)) return \"Нет данных\";\n  const valid = arr.filter(m => m && String(m).trim() !== '');\n  if (valid.length > 0) return \"- \" + valid.join('\\n- ');\n  return \"Нет данных\";\n}\n\nresult.Breakfast_Meals = formatMeals(summary.appended_meal_breakfast);\nresult.Lunch_Meals = formatMeals(summary.appended_meal_lunch);\nresult.Snack_Meals = formatMeals(summary.appended_meal_snack);\nresult.Dinner_Meals = formatMeals(summary.appended_meal_dinner);\n\n// === ОПРЕДЕЛЕНИЕ СЕЗОНА ===\nconst vlNow = new Date(Date.now() + 10 * 3600000);\nconst month = vlNow.getUTCMonth(); \nconst seasons = ['зима', 'зима', 'весна', 'весна', 'весна', 'лето', 'лето', 'лето', 'осень', 'осень', 'осень', 'зима'];\nresult.season = seasons[month];\nresult.month = month + 1;\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        176
+      ],
+      "id": "8c1b25de-869c-46bb-8b30-6cb85402b548",
+      "name": "Расчет среднего"
+    }
+  ],
+  "connections": {
+    "Weekly": {
+      "main": [
+        [
+          {
+            "node": "Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Расчет_неделя": {
+      "main": [
+        [
+          {
+            "node": "Запись_неделя",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get": {
+      "main": [
+        [
+          {
+            "node": "Расчет_неделя",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Анализ Питания": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Анализ Питания",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Фильтрация": {
+      "main": [
+        [
+          {
+            "node": "Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Report": {
+      "main": [
+        [
+          {
+            "node": "Get rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get rows": {
+      "main": [
+        [
+          {
+            "node": "Фильтрация",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize": {
+      "main": [
+        [
+          {
+            "node": "Расчет среднего",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Расчет среднего": {
+      "main": [
+        [
+          {
+            "node": "Запись_день",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Анализ Питания",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {},
+  "meta": {},
+  "pinData": {},
+  "versionId": "80ec3c4d-edc6-46d4-a1bd-603013947ee1",
+  "activeVersionId": "80ec3c4d-edc6-46d4-a1bd-603013947ee1",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-06-05T12:03:54.599Z",
+      "createdAt": "2026-06-05T12:03:54.599Z",
+      "role": "workflow:owner",
+      "workflowId": "1d13058e-195e-474d-a94b-a8d9fdc88753",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-06-30T01:41:26.000Z",
+    "createdAt": "2026-06-30T01:41:21.666Z",
+    "versionId": "80ec3c4d-edc6-46d4-a1bd-603013947ee1",
+    "workflowId": "1d13058e-195e-474d-a94b-a8d9fdc88753",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "weeks",
+                "triggerAtHour": 21,
+                "triggerAtMinute": 35
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -800,
+          512
+        ],
+        "id": "3489a144-7c20-40b3-9cee-c42d3ee2b18b",
+        "name": "Weekly"
+      },
+      {
+        "parameters": {
+          "jsCode": "// ------------------------------------------------------------\n// Конфигурация\n// ------------------------------------------------------------\nconst NUMERIC_FIELDS = [\n  'Calories', 'Proteins', 'Carbs', 'Fats',\n  'Магний', 'Витамин D', 'Омега-3 (EPA/DHA)', 'Селен', 'Йод',\n  'Калий', 'Железо', 'Кальций', 'Витамин B12', 'Витамин К',\n  'Витамин Е', 'Цинк',\n  'Клетчатка', 'Холестерин',\n  'Добавленный сахар',\n  'Натрий',\n  'Кофеин',\n  'Алкоголь',\n  'Насыщенные жиры',\n  'Трансжиры',\n  'Вода',\n];\n\n// ------------------------------------------------------------\n// Вспомогательные функции\n// ------------------------------------------------------------\n\n/**\n * Безопасное преобразование строки в число\n */\nfunction toNumber(value) {\n  if (value === null || value === undefined || value === '') return 0;\n  const num = parseFloat(value);\n  return isNaN(num) ? 0 : num;\n}\n\n/**\n * Парсинг даты с учётом временной зоны и сдвига ±2 часа\n * Если время < 2:00, считаем предыдущим днём\n */\nfunction parseDateWithShift(dateStr) {\n  if (!dateStr) return null;\n  \n  let date;\n  if (dateStr instanceof Date) {\n    date = new Date(dateStr);\n  } else {\n    const str = String(dateStr).trim();\n    const isoMatch = str.match(/^(\\d{4}-\\d{2}-\\d{2})[T ]/);\n    if (isoMatch) {\n      date = new Date(str);\n    } else {\n      const ymdMatch = str.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n      if (ymdMatch) {\n        date = new Date(parseInt(ymdMatch[1]), parseInt(ymdMatch[2]) - 1, parseInt(ymdMatch[3]), 12, 0, 0);\n      } else {\n        const dmyMatch = str.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/);\n        if (dmyMatch) {\n          date = new Date(parseInt(dmyMatch[3]), parseInt(dmyMatch[2]) - 1, parseInt(dmyMatch[1]), 12, 0, 0);\n        } else {\n          date = new Date(str);\n        }\n      }\n    }\n  }\n  \n  if (isNaN(date.getTime())) return null;\n  \n  const hours = date.getHours();\n  if (hours < 2) {\n    date.setDate(date.getDate() - 1);\n  }\n  return date;\n}\n\n/**\n * Форматирование даты в YYYY-MM-DD\n */\nfunction formatDate(date) {\n  const year = date.getFullYear();\n  const month = String(date.getMonth() + 1).padStart(2, '0');\n  const day = String(date.getDate()).padStart(2, '0');\n  return `${year}-${month}-${day}`;\n}\n\n/**\n * Получить самую позднюю дату (без учёта сдвига, для определения окна)\n */\nfunction getMaxDate(rows) {\n  let maxDate = null;\n  rows.forEach(row => {\n    const date = parseDateWithShift(row.Date);\n    if (date && (!maxDate || date > maxDate)) {\n      maxDate = date;\n    }\n  });\n  return maxDate;\n}\n\n/**\n * Проверить, попадает ли дата в окно последних N дней (не включая maxDate)\n */\nfunction isWithinLastNDays(date, maxDate, nDays) {\n  if (!date || !maxDate) return false;\n  if (date >= maxDate) return false;\n  const diffTime = maxDate - date;\n  const diffDays = diffTime / (1000 * 60 * 60 * 24);\n  return diffDays > 0 && diffDays <= nDays;\n}\n\n/**\n * Расчёт коэффициента вариации (в процентах)\n */\nfunction calcVariation(values) {\n  if (values.length < 2) return null;\n  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;\n  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));\n  const variance = squaredDiffs.reduce((sum, v) => sum + v, 0) / values.length;\n  const stdDev = Math.sqrt(variance);\n  return (stdDev / mean) * 100;\n}\n\n// ------------------------------------------------------------\n// Основная логика\n// ------------------------------------------------------------\n\n// 1. Получить все строки из входа\nconst allRows = $input.all().map(item => item.json);\n\nif (allRows.length === 0) {\n  return [{ json: { error: 'Нет данных для анализа' } }];\n}\n\n// 2. Найти максимальную дату\nconst maxDate = getMaxDate(allRows);\nif (!maxDate) {\n  return [{ json: { error: 'Не удалось определить даты в данных' } }];\n}\n\n// 3. Отфильтровать записи за последние 7 дней ДО максимальной даты\nconst filteredRows = allRows.filter(row => {\n  const date = parseDateWithShift(row.Date);\n  if (!date) return false;\n  if (formatDate(date) === formatDate(maxDate)) return false;\n  return isWithinLastNDays(date, maxDate, 7);\n});\n\n// 4. Группировка по пользователям и дням\nconst userData = {};\n\nfilteredRows.forEach(row => {\n  const userId = row.User_ID;\n  if (!userId) return;\n  \n  const date = parseDateWithShift(row.Date);\n  if (!date) return;\n  const dateStr = formatDate(date);\n  \n  if (!userData[userId]) {\n    userData[userId] = { days: {} };\n  }\n  \n  if (!userData[userId].days[dateStr]) {\n    userData[userId].days[dateStr] = {\n      sums: {}\n    };\n    NUMERIC_FIELDS.forEach(field => {\n      userData[userId].days[dateStr].sums[field] = 0;\n    });\n  }\n  \n  const dayEntry = userData[userId].days[dateStr];\n  NUMERIC_FIELDS.forEach(field => {\n    dayEntry.sums[field] += toNumber(row[field]);\n  });\n});\n\n// 5. Для каждого пользователя рассчитать средние за день\nconst outputRows = [];\n\nObject.entries(userData).forEach(([userId, data]) => {\n  const days = Object.keys(data.days).sort();\n  const daysCount = days.length;\n  \n  if (daysCount === 0) return;\n  \n  const dailyValues = {};\n  NUMERIC_FIELDS.forEach(field => { dailyValues[field] = []; });\n  \n  days.forEach(dateStr => {\n    const dayData = data.days[dateStr];\n    NUMERIC_FIELDS.forEach(field => {\n      dailyValues[field].push(dayData.sums[field]);\n    });\n  });\n  \n  // Сумма за период (только для расчёта среднего)\n  const totals = {};\n  NUMERIC_FIELDS.forEach(field => {\n    totals[field] = dailyValues[field].reduce((sum, v) => sum + v, 0);\n  });\n  \n  // Среднее за день\n  const averages = {};\n  NUMERIC_FIELDS.forEach(field => {\n    averages[field] = daysCount > 0 ? totals[field] / daysCount : 0;\n  });\n  \n  // Стабильность по калориям\n  const calorieValues = dailyValues['Calories'];\n  const variation = calcVariation(calorieValues);\n  const stability = variation !== null ? Math.max(0, 100 - variation).toFixed(1) : null;\n  \n  // Формируем одну строку\n  const outputRow = {\n    'User_ID': userId,\n    'Date': formatDate(maxDate),\n    'Дней с данными': daysCount,\n    'Стабильность питания, %': stability ? `${stability}%` : 'недостаточно данных'\n  };\n  \n  NUMERIC_FIELDS.forEach(field => {\n    outputRow[field] = Number(averages[field].toFixed(1));\n  });\n  \n  outputRows.push(outputRow);\n});\n\nreturn outputRows.map(row => ({ json: row }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -432,
+          512
+        ],
+        "id": "259cbaed-2dff-4c91-b04a-89234dca18fa",
+        "name": "Расчет_неделя"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1315707050,
+            "mode": "list",
+            "cachedResultName": "week_sum",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1315707050"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "User_ID": "={{ $json.User_ID }}",
+              "Date": "={{ $json.Date }}",
+              "Дней с данными": "={{ $json['Дней с данными'] }}",
+              "Стабильность питания": "={{ $json['Стабильность питания, %'] }}",
+              "Calories": "={{ $json.Calories }}",
+              "Proteins": "={{ $json.Proteins }}",
+              "Carbs": "={{ $json.Carbs }}",
+              "Fats": "={{ $json.Fats }}",
+              "Магний": "={{ $json['Магний'] }}",
+              "Витамин D": "={{ $json['Витамин D'] }}",
+              "Омега-3 (EPA/DHA)": "={{ $json['Омега-3 (EPA/DHA)'] }}",
+              "Селен": "={{ $json['Селен'] }}",
+              "Йод": "={{ $json['Йод'] }}",
+              "Калий": "={{ $json['Калий'] }}",
+              "Железо": "={{ $json['Железо'] }}",
+              "Кальций": "={{ $json['Кальций'] }}",
+              "Витамин B12": "={{ $json['Витамин B12'] }}",
+              "Витамин К": "={{ $json['Витамин К'] }}",
+              "Витамин Е": "={{ $json['Витамин Е'] }}",
+              "Цинк": "={{ $json['Цинк'] }}",
+              "Клетчатка": "={{ $json['Клетчатка'] }}",
+              "Холестерин": "={{ $json['Холестерин'] }}",
+              "Добавленный сахар": "={{ $json['Добавленный сахар'] }}",
+              "Натрий": "={{ $json['Натрий'] }}",
+              "Кофеин": "={{ $json['Кофеин'] }}",
+              "Насыщенные жиры": "={{ $json['Насыщенные жиры'] }}",
+              "Трансжиры": "={{ $json['Трансжиры'] }}",
+              "Алкоголь, гр": "={{ $json['Алкоголь'] }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "User_ID",
+                "displayName": "User_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Дней с данными",
+                "displayName": "Дней с данными",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Стабильность питания",
+                "displayName": "Стабильность питания",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Calories",
+                "displayName": "Calories",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Proteins",
+                "displayName": "Proteins",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Carbs",
+                "displayName": "Carbs",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Fats",
+                "displayName": "Fats",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Магний",
+                "displayName": "Магний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин D",
+                "displayName": "Витамин D",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Омега-3 (EPA/DHA)",
+                "displayName": "Омега-3 (EPA/DHA)",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Селен",
+                "displayName": "Селен",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Йод",
+                "displayName": "Йод",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Калий",
+                "displayName": "Калий",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Железо",
+                "displayName": "Железо",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Кальций",
+                "displayName": "Кальций",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин B12",
+                "displayName": "Витамин B12",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин К",
+                "displayName": "Витамин К",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин Е",
+                "displayName": "Витамин Е",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Цинк",
+                "displayName": "Цинк",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Клетчатка",
+                "displayName": "Клетчатка",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Холестерин",
+                "displayName": "Холестерин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Добавленный сахар",
+                "displayName": "Добавленный сахар",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Натрий",
+                "displayName": "Натрий",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Кофеин",
+                "displayName": "Кофеин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Алкоголь, гр",
+                "displayName": "Алкоголь, гр",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Насыщенные жиры",
+                "displayName": "Насыщенные жиры",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Трансжиры",
+                "displayName": "Трансжиры",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {
+            "useAppend": true
+          }
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -224,
+          512
+        ],
+        "id": "ed9faaae-8277-43b1-84e0-75090e6045ea",
+        "name": "Запись_неделя",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -624,
+          512
+        ],
+        "id": "80ebe962-818f-4ed9-b157-d8ea8cb87099",
+        "name": "Get",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "8956401",
+          "text": "={{ $json.text }}",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          464,
+          176
+        ],
+        "id": "e8e36571-3049-40b9-b6ff-bbb94befacfe",
+        "name": "Send a text message",
+        "webhookId": "d86daf09-ae5f-4a9b-92b1-90f06ed54937",
+        "credentials": {
+          "telegramApi": {
+            "id": "efFiNDygGmGLdiyM",
+            "name": "Отчет по питанию"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=\nТы — эксперт по превентивной медицине, биохакингу и активному долголетию. Твой подопечный: Влад, 43 года, живет во Владивостоке. Он уже проделал огромную работу над своим рационом, отлично понимает базу питания и строго контролирует добавленный сахар. Влад принимает витамин D3 2500. Учитывай, что холестерин из еды не считается вредным по последним исследованиям. Смотри на холестерин как на отягчающий фактор только при наличии большого количества насыщеных или трансжиров.\nСейчас {{ $json.season }} (месяц {{ $json.month }}).\n\nДанные по питанию за сегодня:\nЗавтрак: {{ $json.Breakfast_Meals }}\nОбед: {{ $json.Lunch_Meals }}\nПерекус: {{ $json.Snack_Meals }}\nУжин: {{ $json.Dinner_Meals }}\n\nИтоговые цифры по нутриентам: {{ JSON.stringify($json) }}\n(Применяй стандартные медицинские единицы измерения).\n\nТвоя задача:\n\nОценка и похвала: Начни с позитива. Подсвети 2-3 сильные стороны сегодняшнего рациона. Влад молодец, дай ему позитивное подкрепление за его труд.\n\nАдекватная аналитика: Найди 1 зону для улучшения. ВАЖНО: КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕТСЯ ругать за высокий пищевой холестерин (яйца, морепродукты), если уровень насыщенных и трансжиров находится в пределах нормы. Фокусируйся на балансе жиров, а не на цифре общего холестерина.\n\nСупер-лайфхаки: Дай один конкретный совет по сочетаемости съеденных сегодня блюд (что сработало круто, или как улучшить усвоение витаминов).\n\nАнти-эйдж совет на завтра: Предложи ОДНО блюдо. ВАЖНО: каждый день блюдо должно быть РАЗНЫМ.\n\nФормат:\nНачни с \"Привет, Влад! 👋\".\nПиши простым человеческим языком. Коротко, конкретно, 3-4 абзаца. Никаких сложных метафор, гипербол и заумных терминов. Без Markdown, используй эмодзи для структуры"
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4,
+        "position": [
+          176,
+          176
+        ],
+        "id": "80cd6643-febe-499a-9430-917aecf9d3be",
+        "name": "Анализ Питания"
+      },
+      {
+        "parameters": {
+          "model": "minimax/minimax-m3",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          176,
+          368
+        ],
+        "id": "e2b89e54-463e-4c4c-8e58-1268f1cd200a",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// === НАСТРОЙКИ ===\nconst TIMEZONE_OFFSET_HOURS = 10; // Владивосток (UTC+10)\nconst DATE_FIELD = 'Date';\nconst USER_FIELD = 'User_ID';\nconst TARGET_USERS = ['Влад Васюк', '8956401', 'Влад'];\n\n// === ПАРСИНГ ДАТ ===\nfunction parseDate(raw) {\n  if (!raw) return null;\n  if (raw instanceof Date) {\n    const d = new Date(raw);\n    return isNaN(d.getTime()) ? null : d;\n  }\n  const str = String(raw).trim();\n  if (!str) return null;\n  const isoMatch = str.match(/^(\\d{4}-\\d{2}-\\d{2})[T ]/);\n  if (isoMatch) {\n    const d = new Date(str);\n    return isNaN(d.getTime()) ? null : d;\n  }\n  const ymd = str.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  if (ymd) return new Date(+ymd[1], +ymd[2]-1, +ymd[3], 12, 0, 0);\n  const dmy = str.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/);\n  if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1], 12, 0, 0);\n  const num = parseFloat(str);\n  if (!isNaN(num) && num > 40000 && num < 100000) {\n    return new Date((num - 25569) * 86400000);\n  }\n  return null;\n}\n\n// === ЛОГИКА ===\nconst nowUtc = Date.now();\nconst vlNow = new Date(nowUtc + TIMEZONE_OFFSET_HOURS * 3600000);\nconst startUtc = Date.UTC(vlNow.getUTCFullYear(), vlNow.getUTCMonth(), vlNow.getUTCDate()) - TIMEZONE_OFFSET_HOURS * 3600000;\n\nconst allItems = $input.all();\nconst uniqueDates = new Set();\nconst filtered = [];\n\nfor (const item of allItems) {\n  const userName = String(item.json[USER_FIELD] || '').trim();\n  if (!TARGET_USERS.includes(userName)) continue;\n\n  const rowDate = parseDate(item.json[DATE_FIELD]);\n  if (!rowDate) continue;\n\n  const rowUtc = rowDate.getTime();\n  if (rowUtc >= startUtc && rowUtc <= nowUtc) {\n    const vd = new Date(rowUtc + TIMEZONE_OFFSET_HOURS * 3600000);\n    uniqueDates.add(vd.toISOString().split('T')[0]);\n\n    // Определение приема пищи по времени (Владивосток)\n    const hour = vd.getUTCHours();\n    let mealCat = 'snack';\n    if (hour >= 6 && hour < 12) mealCat = 'breakfast';\n    else if (hour >= 12 && hour < 16) mealCat = 'lunch';\n    else if (hour >= 18 && hour < 23) mealCat = 'dinner';\n    else mealCat = 'snack'; // всё остальное - перекусы\n\n    const mealDesc = item.json.Meal_description || \"\";\n\n    filtered.push({\n      json: {\n        ...item.json,\n        daysTracked: uniqueDates.size,\n        meal_breakfast: mealCat === 'breakfast' ? mealDesc : \"\",\n        meal_lunch: mealCat === 'lunch' ? mealDesc : \"\",\n        meal_snack: mealCat === 'snack' ? mealDesc : \"\",\n        meal_dinner: mealCat === 'dinner' ? mealDesc : \"\"\n      }\n    });\n  }\n}\n\nif (filtered.length === 0) {\n  return [{ json: { noData: true, daysTracked: 0 } }];\n}\n\nreturn filtered;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -480,
+          176
+        ],
+        "id": "f4831770-cf8b-4b47-9e62-0aa5caf8d254",
+        "name": "Фильтрация"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "triggerAtHour": 21,
+                "triggerAtMinute": 45
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -816,
+          176
+        ],
+        "id": "e51ff7d2-60ac-416d-a236-0ed018d47f4a",
+        "name": "Daily Report"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 742673642,
+            "mode": "list"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "User_ID": "={{ $('Summarize').item.json.appended_User_ID[0] }}",
+              "Date": "={{ $now }}",
+              "Calories": "={{ $json.Calories }}",
+              "Proteins": "={{ $json.Proteins }}",
+              "Carbs": "={{ $json.Carbs }}",
+              "Fats": "={{ $json.Fats }}",
+              "Магний": "={{ $json['Магний'] }}",
+              "Витамин D": "={{ $json['Витамин_D'] }}",
+              "Омега-3 (EPA/DHA)": "={{ $json['Омега-3_(EPA/DHA)'] }}",
+              "Селен": "={{ $json['Селен'] }}",
+              "Йод": "={{ $json['Йод'] }}",
+              "Калий": "={{ $json['Калий'] }}",
+              "Железо": "={{ $json['Железо'] }}",
+              "Кальций": "={{ $json['Кальций'] }}",
+              "Витамин B12": "={{ $json['Витамин_B12'] }}",
+              "Витамин К": "={{ $json['Витамин_К'] }}",
+              "Витамин Е": "={{ $json['Витамин_Е'] }}",
+              "Цинк": "={{ $json['Цинк'] }}",
+              "Клетчатка": "={{ $json['Клетчатка'] }}",
+              "Холестерин": "={{ $json['Холестерин'] }}",
+              "Добавленный сахар": "={{ $json['Добавленный_сахар'] }}",
+              "Натрий": "={{ $json['Натрий'] }}",
+              "Кофеин": "={{ $json['Кофеин'] }}",
+              "Насыщенные жиры": "={{ $json['Насыщенные_жиры'] }}",
+              "Трансжиры": "={{ $json['Трансжиры'] }}",
+              "Алкоголь, гр": "={{ $json['Алкоголь'] }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "User_ID",
+                "displayName": "User_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Calories",
+                "displayName": "Calories",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Proteins",
+                "displayName": "Proteins",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Carbs",
+                "displayName": "Carbs",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Fats",
+                "displayName": "Fats",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Магний",
+                "displayName": "Магний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин D",
+                "displayName": "Витамин D",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Омега-3 (EPA/DHA)",
+                "displayName": "Омега-3 (EPA/DHA)",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Селен",
+                "displayName": "Селен",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Йод",
+                "displayName": "Йод",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Калий",
+                "displayName": "Калий",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Железо",
+                "displayName": "Железо",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Кальций",
+                "displayName": "Кальций",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин B12",
+                "displayName": "Витамин B12",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин К",
+                "displayName": "Витамин К",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин Е",
+                "displayName": "Витамин Е",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Цинк",
+                "displayName": "Цинк",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Клетчатка",
+                "displayName": "Клетчатка",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Холестерин",
+                "displayName": "Холестерин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Добавленный сахар",
+                "displayName": "Добавленный сахар",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Натрий",
+                "displayName": "Натрий",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Кофеин",
+                "displayName": "Кофеин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Алкоголь, гр",
+                "displayName": "Алкоголь, гр",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Насыщенные жиры",
+                "displayName": "Насыщенные жиры",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Трансжиры",
+                "displayName": "Трансжиры",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          16,
+          16
+        ],
+        "id": "870a8385-6bec-4db3-925b-aecfcb7ba399",
+        "name": "Запись_день",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list"
+          },
+          "filtersUI": {
+            "values": []
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -656,
+          176
+        ],
+        "id": "32db7f1c-f299-4db2-956c-d5c03aad2d1b",
+        "name": "Get rows",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fieldsToSummarize": {
+            "values": [
+              {
+                "aggregation": "sum",
+                "field": "Calories"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Proteins"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Carbs"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Fats"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Магний"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Витамин D"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Омега-3 (EPA/DHA)"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Селен"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Йод"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Калий"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Железо"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Кальций"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Витамин B12"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Витамин К"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Витамин Е"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Цинк"
+              },
+              {
+                "aggregation": "sum",
+                "field": "daysTracked"
+              },
+              {
+                "aggregation": "append",
+                "field": "User_ID"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Клетчатка"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Добавленный сахар"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Натрий"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Кофеин"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Алкоголь"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Насыщенные жиры"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Трансжиры"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Холестерин"
+              },
+              {
+                "aggregation": "append",
+                "field": "meal_breakfast"
+              },
+              {
+                "aggregation": "append",
+                "field": "meal_lunch"
+              },
+              {
+                "aggregation": "append",
+                "field": "meal_snack"
+              },
+              {
+                "aggregation": "append",
+                "field": "meal_dinner"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.summarize",
+        "typeVersion": 1.1,
+        "position": [
+          -320,
+          176
+        ],
+        "id": "e339cb08-3015-4d4c-a40a-324dccffaca2",
+        "name": "Summarize"
+      },
+      {
+        "parameters": {
+          "jsCode": "const summary = $input.first().json;\n\nif (summary.noData) {\n  return [{ json: { text: \"⚠️ За сегодня не найдено записей о питании. Не забудь поесть и записать!\" } }];\n}\n\nconst days = summary.max_daysTracked || 1;\nconst result = {};\n\n// === ПРОБРАСЫВАЕМ USER_ID ===\nif (summary.appended_User_ID && Array.isArray(summary.appended_User_ID)) {\n  result.User_ID = summary.appended_User_ID[0];\n} else if (summary.User_ID) {\n  result.User_ID = summary.User_ID;\n} else {\n  result.User_ID = \"Неизвестный пользователь\"; \n}\n\n// === ОБРАБОТКА ЧИСЛОВЫХ ДАННЫХ ===\nfor (const [key, value] of Object.entries(summary)) {\n  if (key.startsWith('sum_')) {\n    const cleanKey = key.replace('sum_', '');\n    if (typeof value === 'number') {\n      result[cleanKey] = Math.round(value / days); \n    }\n  }\n}\nresult.daysTracked = days;\n\n// === ФОРМИРУЕМ СПИСКИ ПО ПРИЕМАМ ПИЩИ ===\nfunction formatMeals(arr) {\n  if (!arr || !Array.isArray(arr)) return \"Нет данных\";\n  const valid = arr.filter(m => m && String(m).trim() !== '');\n  if (valid.length > 0) return \"- \" + valid.join('\\n- ');\n  return \"Нет данных\";\n}\n\nresult.Breakfast_Meals = formatMeals(summary.appended_meal_breakfast);\nresult.Lunch_Meals = formatMeals(summary.appended_meal_lunch);\nresult.Snack_Meals = formatMeals(summary.appended_meal_snack);\nresult.Dinner_Meals = formatMeals(summary.appended_meal_dinner);\n\n// === ОПРЕДЕЛЕНИЕ СЕЗОНА ===\nconst vlNow = new Date(Date.now() + 10 * 3600000);\nconst month = vlNow.getUTCMonth(); \nconst seasons = ['зима', 'зима', 'весна', 'весна', 'весна', 'лето', 'лето', 'лето', 'осень', 'осень', 'осень', 'зима'];\nresult.season = seasons[month];\nresult.month = month + 1;\n\nreturn [{ json: result }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -160,
+          176
+        ],
+        "id": "8c1b25de-869c-46bb-8b30-6cb85402b548",
+        "name": "Расчет среднего"
+      }
+    ],
+    "connections": {
+      "Weekly": {
+        "main": [
+          [
+            {
+              "node": "Get",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Расчет_неделя": {
+        "main": [
+          [
+            {
+              "node": "Запись_неделя",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get": {
+        "main": [
+          [
+            {
+              "node": "Расчет_неделя",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Анализ Питания": {
+        "main": [
+          [
+            {
+              "node": "Send a text message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Анализ Питания",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Фильтрация": {
+        "main": [
+          [
+            {
+              "node": "Summarize",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Daily Report": {
+        "main": [
+          [
+            {
+              "node": "Get rows",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get rows": {
+        "main": [
+          [
+            {
+              "node": "Фильтрация",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Summarize": {
+        "main": [
+          [
+            {
+              "node": "Расчет среднего",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Расчет среднего": {
+        "main": [
+          [
+            {
+              "node": "Запись_день",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Анализ Питания",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 80ec3c4d",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
