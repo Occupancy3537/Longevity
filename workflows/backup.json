@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-25T01:18:31.610Z",
+  "updatedAt": "2026-08-25T01:38:29.657Z",
   "createdAt": "2026-08-25T00:47:14.573Z",
   "id": "W0ub98leTYfLz6MH",
   "name": "backup",
@@ -46,24 +46,37 @@
     {
       "parameters": {
         "resource": "file",
-        "operation": "get",
-        "owner": "Occupancy3537",
-        "repository": "Longevity",
-        "filePath": "=workflows/{{ $json.name }}.json",
-        "additionalParameters": {}
+        "operation": "__CUSTOM_API_CALL__",
+        "owner": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
       },
       "id": "d61cfa33-5f16-4c60-b34b-428c75f77b85",
       "name": "Check if File Exists",
       "type": "n8n-nodes-base.github",
       "typeVersion": 1,
       "position": [
-        80,
-        256
+        -64,
+        32
       ],
       "settings": {
         "continueOnFail": true
       },
-      "webhookId": "f3232391-0eca-4089-8408-abc9fc5e8e03"
+      "webhookId": "f3232391-0eca-4089-8408-abc9fc5e8e03",
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -103,7 +116,13 @@
         512,
         144
       ],
-      "webhookId": "be5a5c2a-76af-42ad-a185-e6c56d63beee"
+      "webhookId": "be5a5c2a-76af-42ad-a185-e6c56d63beee",
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      }
     },
     {
       "parameters": {
@@ -122,7 +141,36 @@
         512,
         352
       ],
-      "webhookId": "fc290bbf-14ce-431c-9405-6b32d1d22aba"
+      "webhookId": "fc290bbf-14ce-431c-9405-6b32d1d22aba",
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/Occupancy3537/Longevity/contents/workflows/{{ encodeURIComponent($json.name) }}.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        80,
+        256
+      ],
+      "id": "e060e255-b29f-4cf4-bcfc-38e951a78a74",
+      "name": "HTTP Request",
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -141,7 +189,7 @@
       "main": [
         [
           {
-            "node": "Check if File Exists",
+            "node": "HTTP Request",
             "type": "main",
             "index": 0
           }
@@ -150,13 +198,7 @@
     },
     "Check if File Exists": {
       "main": [
-        [
-          {
-            "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "If": {
@@ -176,6 +218,17 @@
           }
         ]
       ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -187,7 +240,7 @@
     "templateCredsSetupCompleted": true
   },
   "pinData": {},
-  "versionId": "b2cd1eac-0e67-4354-b606-e3405765addc",
+  "versionId": "c446775b-3341-4010-aac5-2cdeaa4d2723",
   "activeVersionId": null,
   "triggerCount": 0,
   "shared": [
