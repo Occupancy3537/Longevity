@@ -1,0 +1,274 @@
+{
+  "updatedAt": "2026-08-25T02:04:12.749Z",
+  "createdAt": "2026-08-25T00:47:14.573Z",
+  "id": "W0ub98leTYfLz6MH",
+  "name": "backup",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "2a3402cf-f505-4b14-8257-2c5fdbe82369",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -784,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "filters": {},
+        "requestOptions": {}
+      },
+      "id": "cf3e254b-744b-425c-a630-4f424a9b21ad",
+      "name": "Get many workflows",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        112
+      ],
+      "credentials": {
+        "n8nApi": {
+          "id": "a2gKP9vHOkCb3q7Q",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "for (let item of $input.all()) {\n  const cleanJson = JSON.stringify(item.json, null, 2);\n  item.json.backup_name = item.json.name;\n  item.json.backup_base64 = Buffer.from(cleanJson).toString('base64');\n}\nreturn $input.all();"
+      },
+      "id": "8580b571-932d-47fb-ad14-e998feaeba65",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/Occupancy3537/Longevity/contents/workflows/{{ encodeURIComponent($json.backup_name) }}.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "57e57301-8dd6-4e9e-bca7-8bab7b862cab",
+      "name": "Check if File Exists",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -176,
+        112
+      ],
+      "settings": {
+        "continueOnFail": true
+      },
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.github_api.sha }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "13716754-890e-4c04-90a5-5df022ce011b",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        16,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/Occupancy3537/Longevity/contents/workflows/{{ encodeURIComponent($json.backup_name) }}.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "=Update backup: {{ $json.backup_name }}"
+            },
+            {
+              "name": "sha",
+              "value": "={{ $json.github_api.sha }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.backup_base64 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e44da1b7-bdab-416a-87d7-2a1bb473988e",
+      "name": "Update File via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/Occupancy3537/Longevity/contents/workflows/{{ encodeURIComponent($json.backup_name) }}.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "=Create backup: {{ $json.backup_name }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.backup_base64 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "27a3444d-11be-4629-972b-8fdf1293b7ff",
+      "name": "Create File via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        224,
+        208
+      ],
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many workflows": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Check if File Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if File Exists": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update File via API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create File via API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "9821ec06-9f8c-4deb-9ab4-ee3f5bdd9462",
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-08-25T00:47:14.576Z",
+      "createdAt": "2026-08-25T00:47:14.576Z",
+      "role": "workflow:owner",
+      "workflowId": "W0ub98leTYfLz6MH",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": null,
+  "tags": []
+}
