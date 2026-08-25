@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-25T01:10:31.943Z",
+  "updatedAt": "2026-08-25T01:18:31.610Z",
   "createdAt": "2026-08-25T00:47:14.573Z",
   "id": "W0ub98leTYfLz6MH",
   "name": "backup",
@@ -14,28 +14,28 @@
           ]
         }
       },
+      "id": "e08b63f5-10ed-4b7d-9ee2-64a0ea7a2933",
+      "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.3,
+      "typeVersion": 1,
       "position": [
-        -144,
-        0
-      ],
-      "id": "11d407a0-f33a-4919-9c07-7a6be4070889",
-      "name": "Schedule Trigger"
+        -368,
+        256
+      ]
     },
     {
       "parameters": {
         "filters": {},
         "requestOptions": {}
       },
+      "id": "ec67b287-595d-44b5-9775-7c166c4d780a",
+      "name": "Get many workflows",
       "type": "n8n-nodes-base.n8n",
       "typeVersion": 1,
       "position": [
-        64,
-        0
+        -144,
+        256
       ],
-      "id": "f6902fc2-66fe-4eeb-826e-5259eb5c5d84",
-      "name": "Get many workflows",
       "credentials": {
         "n8nApi": {
           "id": "a2gKP9vHOkCb3q7Q",
@@ -46,35 +46,83 @@
     {
       "parameters": {
         "resource": "file",
-        "owner": {
-          "__rl": true,
-          "value": "Occupancy3537",
-          "mode": "name"
-        },
-        "repository": {
-          "__rl": true,
-          "value": "Longevity",
-          "mode": "name"
-        },
+        "operation": "get",
+        "owner": "Occupancy3537",
+        "repository": "Longevity",
         "filePath": "=workflows/{{ $json.name }}.json",
-        "fileContent": "={{ JSON.stringify($json, null, 2) }}",
-        "commitMessage": "=Backup workflow: {{ $json.name }}"
+        "additionalParameters": {}
       },
+      "id": "d61cfa33-5f16-4c60-b34b-428c75f77b85",
+      "name": "Check if File Exists",
       "type": "n8n-nodes-base.github",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
-        272,
-        0
+        80,
+        256
       ],
-      "id": "239aa162-fa1d-4900-9bd0-e2de839df992",
-      "name": "Create a file",
-      "webhookId": "b7fd4560-62b8-4502-bf47-a6199dfdf8ae",
-      "credentials": {
-        "githubApi": {
-          "id": "jnY2yaE7uyPr210p",
-          "name": "GitHub account"
+      "settings": {
+        "continueOnFail": true
+      },
+      "webhookId": "f3232391-0eca-4089-8408-abc9fc5e8e03"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.sha }}",
+              "operation": "isNotEmpty"
+            }
+          ]
         }
-      }
+      },
+      "id": "545f5892-eef7-4cb6-8a6d-18b7283cc5ff",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        304,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "edit",
+        "owner": "Occupancy3537",
+        "repository": "Longevity",
+        "filePath": "=workflows/{{ $('Get many workflows').item.json.name }}.json",
+        "fileContent": "={{ JSON.stringify($('Get many workflows').item.json, null, 2) }}",
+        "commitMessage": "=Update workflow backup: {{ $('Get many workflows').item.json.name }}"
+      },
+      "id": "c0b1a400-13d9-4c64-8d95-73a20ea9e74c",
+      "name": "Update File",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        512,
+        144
+      ],
+      "webhookId": "be5a5c2a-76af-42ad-a185-e6c56d63beee"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "owner": "Occupancy3537",
+        "repository": "Longevity",
+        "filePath": "=workflows/{{ $('Get many workflows').item.json.name }}.json",
+        "fileContent": "={{ JSON.stringify($('Get many workflows').item.json, null, 2) }}",
+        "commitMessage": "=Create workflow backup: {{ $('Get many workflows').item.json.name }}"
+      },
+      "id": "b671f313-5b29-4356-a419-0cafd4d1680b",
+      "name": "Create File",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        512,
+        352
+      ],
+      "webhookId": "fc290bbf-14ce-431c-9405-6b32d1d22aba"
     }
   ],
   "connections": {
@@ -93,7 +141,36 @@
       "main": [
         [
           {
-            "node": "Create a file",
+            "node": "Check if File Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if File Exists": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create File",
             "type": "main",
             "index": 0
           }
@@ -110,7 +187,7 @@
     "templateCredsSetupCompleted": true
   },
   "pinData": {},
-  "versionId": "0164aaa0-bbfa-445e-95cc-cb4102397bb8",
+  "versionId": "b2cd1eac-0e67-4354-b606-e3405765addc",
   "activeVersionId": null,
   "triggerCount": 0,
   "shared": [
