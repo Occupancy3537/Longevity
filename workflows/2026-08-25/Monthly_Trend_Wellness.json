@@ -1,0 +1,3256 @@
+{
+  "updatedAt": "2026-08-13T05:46:10.748Z",
+  "createdAt": "2026-08-12T22:12:29.682Z",
+  "id": "Rf85dnpHtPzO2iOl",
+  "name": "Monthly_Trend_Wellness",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0737daaa-f42a-4c5e-b013-2418e0b3eb71",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list",
+          "cachedResultName": "day_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=742673642"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        -112
+      ],
+      "id": "f9921146-b586-4153-8754-17881c971d21",
+      "name": "Google Sheets Read: day_sum",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        128
+      ],
+      "id": "b55e02ad-d47c-42d6-968e-b424e2805c7a",
+      "name": "Google Sheets Read: Daily_Trends",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Параметры под домен — меняются между копией для nutrition и для wellness\nconst DOMAIN = 'nutrition';       // или 'wellness'\nconst DATE_FIELD = 'Date';        // day_sum: 'Date'; Daily_Trends: 'Дата'\n\nconst windows = $('Define Month Windows').first().json;\nconst items = $input.all().map(i => i.json);\n\nconst tagged = [];\nitems.forEach(r => {\n  const dateVal = (r[DATE_FIELD] || '').toString().slice(0, 7);\n  if (dateVal === windows.current_month) {\n    tagged.push({ ...r, __period: 'current', domain: DOMAIN });\n  } else if (dateVal === windows.previous_month) {\n    tagged.push({ ...r, __period: 'previous', domain: DOMAIN });\n  }\n});\n\nreturn tagged.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -112
+      ],
+      "id": "fe1f69a9-7dc7-420b-9715-880766c25cdc",
+      "name": "Split & Tag — Nutrition"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Параметры под домен — меняются между копией для nutrition и для wellness\nconst DOMAIN = 'wellness';       // или 'wellness'\nconst DATE_FIELD = 'Дата';        // day_sum: 'Date'; Daily_Trends: 'Дата'\n\nconst windows = $('Define Month Windows').first().json;\nconst items = $input.all().map(i => i.json);\n\nconst tagged = [];\nitems.forEach(r => {\n  const dateVal = (r[DATE_FIELD] || '').toString().slice(0, 7);\n  if (dateVal === windows.current_month) {\n    tagged.push({ ...r, __period: 'current', domain: DOMAIN });\n  } else if (dateVal === windows.previous_month) {\n    tagged.push({ ...r, __period: 'previous', domain: DOMAIN });\n  }\n});\n\nreturn tagged.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        128
+      ],
+      "id": "dfe8efeb-ed4f-46a7-a1ce-d50b2e769957",
+      "name": "Split & Tag — Wellness"
+    },
+    {
+      "parameters": {
+        "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nconst items = $input.all().map(i => i.json).filter(r => r.__period === 'current');\nif (items.length === 0) return [{ json: { warning: 'Нет строк за текущий месяц' } }];\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\nitems.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst sums = {}, counts = {};\nfieldSet.forEach(f => { sums[f] = 0; counts[f] = 0; });\n\nitems.forEach(r => {\n  fieldSet.forEach(f => {\n    const v = toNumber(r[f]);\n    if (v !== null) { sums[f] += v; counts[f] += 1; }\n  });\n});\n\nconst monthKey = $('Define Month Windows').first().json.current_month;\nconst totalRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'total' };\nconst avgRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'average' };\n\nfieldSet.forEach(f => {\n  totalRow[f] = Math.round(sums[f] * 100) / 100;\n  avgRow[f] = counts[f] > 0 ? Math.round((sums[f] / counts[f]) * 100) / 100 : null;\n});\n\nreturn [{ json: totalRow }, { json: avgRow }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -240
+      ],
+      "id": "f5c2a8a8-6fd6-481b-9fc6-e39498aebf98",
+      "name": "Aggregate Month — Nutrition"
+    },
+    {
+      "parameters": {
+        "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nconst items = $input.all().map(i => i.json).filter(r => r.__period === 'current');\nif (items.length === 0) return [{ json: { warning: 'Нет строк за текущий месяц' } }];\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\nitems.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst sums = {}, counts = {};\nfieldSet.forEach(f => { sums[f] = 0; counts[f] = 0; });\n\nitems.forEach(r => {\n  fieldSet.forEach(f => {\n    const v = toNumber(r[f]);\n    if (v !== null) { sums[f] += v; counts[f] += 1; }\n  });\n});\n\nconst monthKey = $('Define Month Windows').first().json.current_month;\nconst totalRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'total' };\nconst avgRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'average' };\n\nfieldSet.forEach(f => {\n  totalRow[f] = Math.round(sums[f] * 100) / 100;\n  avgRow[f] = counts[f] > 0 ? Math.round((sums[f] / counts[f]) * 100) / 100 : null;\n});\n\nreturn [{ json: totalRow }, { json: avgRow }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        112
+      ],
+      "id": "a21d6571-59ca-4482-a57c-6f7c432ef443",
+      "name": "Aggregate Month — Wellness"
+    },
+    {
+      "parameters": {
+        "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nfunction meanStd(values) {\n  const n = values.length;\n  if (n === 0) return { mean: null, std: null, n: 0 };\n  const mean = values.reduce((a, b) => a + b, 0) / n;\n  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / (n > 1 ? n - 1 : 1);\n  return { mean, std: Math.sqrt(variance), n };\n}\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG = 2.0;\nconst MIN_N = 10;\n\nconst DIRECTION = {\n  'Calories': 'neutral', 'Proteins': 'higher_better', 'Carbs': 'neutral', 'Fats': 'neutral',\n  'Магний': 'higher_better', 'Витамин D': 'higher_better', 'Омега-3 (EPA/DHA)': 'higher_better',\n  'Клетчатка': 'higher_better', 'Холестерин': 'lower_better', 'Добавленный сахар': 'lower_better',\n  'Натрий': 'lower_better', 'Насыщенные жиры': 'lower_better', 'Трансжиры': 'lower_better',\n  'Пульс_ночной_средний': 'lower_better', 'ВСР_ночная': 'higher_better',\n  'Оценка_сна_балл': 'higher_better', 'Стресс_дневной_средний': 'lower_better',\n  'Восстановление_BodyBattery': 'higher_better', 'VO2_Max': 'higher_better',\n  'Шаги_за_вчера': 'higher_better', 'Эффективность_сна_': 'higher_better'\n};\n\nconst items = $input.all().map(i => i.json);\nconst DOMAIN = items[0]?.domain || 'unknown';\nconst currentRows = items.filter(r => r.__period === 'current');\nconst prevRows = items.filter(r => r.__period === 'previous');\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\ncurrentRows.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst results = [];\nfieldSet.forEach(m => {\n  const curVals = currentRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  const prevVals = prevRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  if (curVals.length < MIN_N || prevVals.length < MIN_N) return;\n\n  const cur = meanStd(curVals);\n  const prev = meanStd(prevVals);\n  const se = Math.sqrt((cur.std ** 2) / cur.n + (prev.std ** 2) / prev.n);\n  if (se === 0 || isNaN(se)) return;\n  const z = (cur.mean - prev.mean) / se;\n  const absZ = Math.abs(z);\n\n  let severity = null;\n  if (absZ >= Z_STRONG) severity = 'strong';\n  else if (absZ >= Z_MODERATE) severity = 'moderate';\n  if (!severity) return;\n\n  const direction = DIRECTION[m] || 'neutral';\n  let interpretation = 'изменение';\n  if (direction === 'higher_better') interpretation = z > 0 ? 'улучшение' : 'ухудшение';\n  if (direction === 'lower_better') interpretation = z > 0 ? 'ухудшение' : 'улучшение';\n\n  results.push({\n    date_computed: DateTime.now().toISODate(),\n    domain: DOMAIN,\n    metric: m,\n    prev_month_mean: Math.round(prev.mean * 100) / 100,\n    this_month_mean: Math.round(cur.mean * 100) / 100,\n    z: Math.round(z * 100) / 100,\n    n_current: cur.n, n_previous: prev.n,\n    severity, direction, interpretation\n  });\n});\n\nreturn results.length ? results.map(r => ({ json: r })) : [{ json: { domain: DOMAIN, info: 'Значимых сдвигов нет' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -48
+      ],
+      "id": "a886b111-2d90-4076-99c3-4febbee6043f",
+      "name": "Compute Trend v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nfunction meanStd(values) {\n  const n = values.length;\n  if (n === 0) return { mean: null, std: null, n: 0 };\n  const mean = values.reduce((a, b) => a + b, 0) / n;\n  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / (n > 1 ? n - 1 : 1);\n  return { mean, std: Math.sqrt(variance), n };\n}\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG = 2.0;\nconst MIN_N = 10;\n\nconst DIRECTION = {\n  'Calories': 'neutral', 'Proteins': 'higher_better', 'Carbs': 'neutral', 'Fats': 'neutral',\n  'Магний': 'higher_better', 'Витамин D': 'higher_better', 'Омега-3 (EPA/DHA)': 'higher_better',\n  'Клетчатка': 'higher_better', 'Холестерин': 'lower_better', 'Добавленный сахар': 'lower_better',\n  'Натрий': 'lower_better', 'Насыщенные жиры': 'lower_better', 'Трансжиры': 'lower_better',\n  'Пульс_ночной_средний': 'lower_better', 'ВСР_ночная': 'higher_better',\n  'Оценка_сна_балл': 'higher_better', 'Стресс_дневной_средний': 'lower_better',\n  'Восстановление_BodyBattery': 'higher_better', 'VO2_Max': 'higher_better',\n  'Шаги_за_вчера': 'higher_better', 'Эффективность_сна_': 'higher_better'\n};\n\nconst items = $input.all().map(i => i.json);\nconst DOMAIN = items[0]?.domain || 'unknown';\nconst currentRows = items.filter(r => r.__period === 'current');\nconst prevRows = items.filter(r => r.__period === 'previous');\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\ncurrentRows.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst results = [];\nfieldSet.forEach(m => {\n  const curVals = currentRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  const prevVals = prevRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  if (curVals.length < MIN_N || prevVals.length < MIN_N) return;\n\n  const cur = meanStd(curVals);\n  const prev = meanStd(prevVals);\n  const se = Math.sqrt((cur.std ** 2) / cur.n + (prev.std ** 2) / prev.n);\n  if (se === 0 || isNaN(se)) return;\n  const z = (cur.mean - prev.mean) / se;\n  const absZ = Math.abs(z);\n\n  let severity = null;\n  if (absZ >= Z_STRONG) severity = 'strong';\n  else if (absZ >= Z_MODERATE) severity = 'moderate';\n  if (!severity) return;\n\n  const direction = DIRECTION[m] || 'neutral';\n  let interpretation = 'изменение';\n  if (direction === 'higher_better') interpretation = z > 0 ? 'улучшение' : 'ухудшение';\n  if (direction === 'lower_better') interpretation = z > 0 ? 'ухудшение' : 'улучшение';\n\n  results.push({\n    date_computed: DateTime.now().toISODate(),\n    domain: DOMAIN,\n    metric: m,\n    prev_month_mean: Math.round(prev.mean * 100) / 100,\n    this_month_mean: Math.round(cur.mean * 100) / 100,\n    z: Math.round(z * 100) / 100,\n    n_current: cur.n, n_previous: prev.n,\n    severity, direction, interpretation\n  });\n});\n\nreturn results.length ? results.map(r => ({ json: r })) : [{ json: { domain: DOMAIN, info: 'Значимых сдвигов нет' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        288
+      ],
+      "id": "452e8027-1684-4926-8478-765f83fa276d",
+      "name": "Compute Trend v"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        128
+      ],
+      "id": "9c3e031a-33cb-4d8d-ac42-54e8f3f9efc3",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ee79a9d3-fa5c-4273-a515-cc2eb0a51f51",
+              "leftValue": "={{ $json.severity !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1776,
+        128
+      ],
+      "id": "c92d6bf1-a01d-4f60-9edc-4cd6f709eb5c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 445440424,
+          "mode": "list",
+          "cachedResultName": "month_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=445440424"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Способ подсчета",
+              "displayName": "Способ подсчета",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Calories",
+              "displayName": "Calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Proteins",
+              "displayName": "Proteins",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carbs",
+              "displayName": "Carbs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fats",
+              "displayName": "Fats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Магний",
+              "displayName": "Магний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин D",
+              "displayName": "Витамин D",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Омега-3 (EPA/DHA)",
+              "displayName": "Омега-3 (EPA/DHA)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Селен",
+              "displayName": "Селен",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Йод",
+              "displayName": "Йод",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Калий",
+              "displayName": "Калий",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Железо",
+              "displayName": "Железо",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Кальций",
+              "displayName": "Кальций",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин B12",
+              "displayName": "Витамин B12",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин К",
+              "displayName": "Витамин К",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин Е",
+              "displayName": "Витамин Е",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Цинк",
+              "displayName": "Цинк",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Клетчатка",
+              "displayName": "Клетчатка",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Холестерин",
+              "displayName": "Холестерин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Добавленный сахар",
+              "displayName": "Добавленный сахар",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Натрий",
+              "displayName": "Натрий",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Кофеин",
+              "displayName": "Кофеин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Алкоголь, гр",
+              "displayName": "Алкоголь, гр",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Насыщенные жиры",
+              "displayName": "Насыщенные жиры",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Трансжиры",
+              "displayName": "Трансжиры",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1088,
+        -240
+      ],
+      "id": "c21f6b7f-bac7-44df-833b-8f344d8c2d39",
+      "name": "Google Sheets Append: month_sum",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 807323315,
+          "mode": "list",
+          "cachedResultName": "Month_Wellness_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=807323315"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Способ подсчета",
+              "displayName": "Способ подсчета",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_отбоя",
+              "displayName": "Время_отбоя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_подъема",
+              "displayName": "Время_подъема",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_в_кровати_мин",
+              "displayName": "Время_в_кровати_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Чистый_сон_мин",
+              "displayName": "Чистый_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Эффективность_сна_",
+              "displayName": "Эффективность_сна_",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Глубокий_сон_мин",
+              "displayName": "Глубокий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Глубокий_1_половина_мин",
+              "displayName": "Глубокий_1_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Глубокий_2_половина_мин",
+              "displayName": "Глубокий_2_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "REM_сон_мин",
+              "displayName": "REM_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Легкий_сон_мин",
+              "displayName": "Легкий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пробуждения_кол_во",
+              "displayName": "Пробуждения_кол_во",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Бодрствование_мин",
+              "displayName": "Бодрствование_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пульс_ночной_средний",
+              "displayName": "Пульс_ночной_средний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пульс_ночной_мин",
+              "displayName": "Пульс_ночной_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пульс_ночной_макс",
+              "displayName": "Пульс_ночной_макс",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Оценка_сна_балл",
+              "displayName": "Оценка_сна_балл",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Беспокойные_моменты",
+              "displayName": "Беспокойные_моменты",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дыхание_ночь_среднее",
+              "displayName": "Дыхание_ночь_среднее",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SpO2_ночь_среднее",
+              "displayName": "SpO2_ночь_среднее",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Температура_avg_C",
+              "displayName": "Температура_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Влажность_avg_%",
+              "displayName": "Влажность_avg_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PM25_avg",
+              "displayName": "PM25_avg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_время",
+              "displayName": "Ужин_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Завтрак_время",
+              "displayName": "Завтрак_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Окно_голода_до_сна_ч",
+              "displayName": "Окно_голода_до_сна_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Длительность_голода_ч",
+              "displayName": "Длительность_голода_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Ккал",
+              "displayName": "Ужин_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Белки_г",
+              "displayName": "Ужин_Белки_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Жиры_г",
+              "displayName": "Ужин_Жиры_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Углеводы_г",
+              "displayName": "Ужин_Углеводы_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Шаги_за_вчера",
+              "displayName": "Шаги_за_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_Ккал",
+              "displayName": "Тренировка_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_поздняя",
+              "displayName": "Тренировка_поздняя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Атмосферное_давление_ночь_hPa",
+              "displayName": "Атмосферное_давление_ночь_hPa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Лекарства_принимаемые",
+              "displayName": "Лекарства_принимаемые",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_последнего_кофе",
+              "displayName": "Время_последнего_кофе",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Алкоголь_гр",
+              "displayName": "Алкоголь_гр",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Жалобы_вчера",
+              "displayName": "Жалобы_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пометки",
+              "displayName": "Пометки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дефициты",
+              "displayName": "Дефициты",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экранное_время_всего_ч",
+              "displayName": "Экранное_время_всего_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экран_Продуктивно_ч",
+              "displayName": "Экран_Продуктивно_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экран_Отвлечения_ч",
+              "displayName": "Экран_Отвлечения_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Восстановление_BodyBattery",
+              "displayName": "Восстановление_BodyBattery",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Стресс_дневной_средний",
+              "displayName": "Стресс_дневной_средний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "VO2_Max",
+              "displayName": "VO2_Max",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дыхание_тип",
+              "displayName": "Дыхание_тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дыхание_мин",
+              "displayName": "Дыхание_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экран_перед_сном_мин",
+              "displayName": "Экран_перед_сном_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ВСР_ночная",
+              "displayName": "ВСР_ночная",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Ккал",
+              "displayName": "Питание_Всего_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Белки_г",
+              "displayName": "Питание_Всего_Белки_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Жиры_г",
+              "displayName": "Питание_Всего_Жиры_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Углеводы_г",
+              "displayName": "Питание_Всего_Углеводы_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_1_Тип",
+              "displayName": "Тренировка_1_Тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_1_Мин",
+              "displayName": "Тренировка_1_Мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_2_Тип",
+              "displayName": "Тренировка_2_Тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_2_Мин",
+              "displayName": "Тренировка_2_Мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_3_Тип",
+              "displayName": "Тренировка_3_Тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_3_Мин",
+              "displayName": "Тренировка_3_Мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Темп_тренировки_avg_C",
+              "displayName": "Темп_тренировки_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Темп_тренировки_min_C",
+              "displayName": "Темп_тренировки_min_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Темп_тренировки_max_C",
+              "displayName": "Темп_тренировки_max_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Training_Status",
+              "displayName": "Training_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Training_Acute_Load",
+              "displayName": "Training_Acute_Load",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Training_Chronic_Load",
+              "displayName": "Training_Chronic_Load",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Точка_росы_avg_C",
+              "displayName": "Точка_росы_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Атм_давление_Дельта_12ч",
+              "displayName": "Атм_давление_Дельта_12ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Атм_давление_Дельта_24ч",
+              "displayName": "Атм_давление_Дельта_24ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Освещенность_ч_сутки",
+              "displayName": "Освещенность_ч_сутки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Индекс_когнитивной_нагрузки",
+              "displayName": "Индекс_когнитивной_нагрузки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1072,
+        112
+      ],
+      "id": "777a2db1-ff98-4e56-9f83-e38c79452b3a",
+      "name": "Google Sheets Append: Month_Wellness_Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = DateTime.now();\nconst current = now.minus({ months: 1 });\nconst previous = now.minus({ months: 2 });\n\nreturn [{\n  json: {\n    current_month: current.toFormat('yyyy-MM'),\n    previous_month: previous.toFormat('yyyy-MM')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "2d6a850f-9553-4bdf-b751-d15e53953b18",
+      "name": "Define Month Windows"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1799359038,
+          "mode": "list",
+          "cachedResultName": "Monthly_Trend_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1799359038"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date_computed",
+              "displayName": "date_computed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "period_month",
+              "displayName": "period_month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metric",
+              "displayName": "metric",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prev_month_avg",
+              "displayName": "prev_month_avg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "this_month_avg",
+              "displayName": "this_month_avg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pct_change",
+              "displayName": "pct_change",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "severity",
+              "displayName": "severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direction",
+              "displayName": "direction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "interpretation",
+              "displayName": "interpretation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1568,
+        128
+      ],
+      "id": "4049bf8f-c064-4c5b-bf86-9bcb9e3cbeac",
+      "name": "Nutrinion_Monthly_Trend_Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8956401",
+        "text": "={{ (() => {\n  const items = $input.all().map(i => i.json).filter(r => r.severity);\n  const strong = items.filter(r => r.severity === 'strong');\n  const top = (strong.length ? strong : items).slice(0, 6);\n\n  const lines = top.map(r => {\n    const arrow = r.interpretation === 'улучшение' ? '📈' : r.interpretation === 'ухудшение' ? '📉' : '↔️';\n    return `${arrow} ${r.metric} (${r.domain}): ${r.prev_month_mean} → ${r.this_month_mean}`;\n  });\n\n  return `📊 Месячный тренд за ${items[0]?.period_month || 'этот месяц'}\\n` +\n         `Сдвигов: ${items.length} (сильных: ${strong.length})\\n\\n` +\n         lines.join('\\n') +\n         `\\n\\nПолный разбор — в Gemini Spark.`;\n})() }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        16
+      ],
+      "id": "5bab0a25-d1aa-42a7-82ed-2da65e11b519",
+      "name": "Send a text message",
+      "webhookId": "03a3fd25-5a81-4a3f-a7d5-0bf9b8b6b543",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Define Month Windows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Read: day_sum": {
+      "main": [
+        [
+          {
+            "node": "Split & Tag — Nutrition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Read: Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Split & Tag — Wellness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split & Tag — Nutrition": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Month — Nutrition",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compute Trend v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split & Tag — Wellness": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Month — Wellness",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compute Trend v",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Month — Nutrition": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Append: month_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Month — Wellness": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Append: Month_Wellness_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Trend v2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Trend v": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Nutrinion_Monthly_Trend_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define Month Windows": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Read: day_sum",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets Read: Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nutrinion_Monthly_Trend_Log": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "fd9c8f7c-cc0f-40f7-ad88-0e78e24d4ae8",
+  "activeVersionId": "fd9c8f7c-cc0f-40f7-ad88-0e78e24d4ae8",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-08-12T22:12:29.688Z",
+      "createdAt": "2026-08-12T22:12:29.688Z",
+      "role": "workflow:owner",
+      "workflowId": "Rf85dnpHtPzO2iOl",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-13T05:56:55.000Z",
+    "createdAt": "2026-08-13T05:46:10.753Z",
+    "versionId": "fd9c8f7c-cc0f-40f7-ad88-0e78e24d4ae8",
+    "workflowId": "Rf85dnpHtPzO2iOl",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "months",
+                "triggerAtHour": 10
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          0,
+          0
+        ],
+        "id": "0737daaa-f42a-4c5e-b013-2418e0b3eb71",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 742673642,
+            "mode": "list",
+            "cachedResultName": "day_sum",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=742673642"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          432,
+          -112
+        ],
+        "id": "f9921146-b586-4153-8754-17881c971d21",
+        "name": "Google Sheets Read: day_sum",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          432,
+          128
+        ],
+        "id": "b55e02ad-d47c-42d6-968e-b424e2805c7a",
+        "name": "Google Sheets Read: Daily_Trends",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Параметры под домен — меняются между копией для nutrition и для wellness\nconst DOMAIN = 'nutrition';       // или 'wellness'\nconst DATE_FIELD = 'Date';        // day_sum: 'Date'; Daily_Trends: 'Дата'\n\nconst windows = $('Define Month Windows').first().json;\nconst items = $input.all().map(i => i.json);\n\nconst tagged = [];\nitems.forEach(r => {\n  const dateVal = (r[DATE_FIELD] || '').toString().slice(0, 7);\n  if (dateVal === windows.current_month) {\n    tagged.push({ ...r, __period: 'current', domain: DOMAIN });\n  } else if (dateVal === windows.previous_month) {\n    tagged.push({ ...r, __period: 'previous', domain: DOMAIN });\n  }\n});\n\nreturn tagged.map(r => ({ json: r }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          640,
+          -112
+        ],
+        "id": "fe1f69a9-7dc7-420b-9715-880766c25cdc",
+        "name": "Split & Tag — Nutrition"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Параметры под домен — меняются между копией для nutrition и для wellness\nconst DOMAIN = 'wellness';       // или 'wellness'\nconst DATE_FIELD = 'Дата';        // day_sum: 'Date'; Daily_Trends: 'Дата'\n\nconst windows = $('Define Month Windows').first().json;\nconst items = $input.all().map(i => i.json);\n\nconst tagged = [];\nitems.forEach(r => {\n  const dateVal = (r[DATE_FIELD] || '').toString().slice(0, 7);\n  if (dateVal === windows.current_month) {\n    tagged.push({ ...r, __period: 'current', domain: DOMAIN });\n  } else if (dateVal === windows.previous_month) {\n    tagged.push({ ...r, __period: 'previous', domain: DOMAIN });\n  }\n});\n\nreturn tagged.map(r => ({ json: r }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          640,
+          128
+        ],
+        "id": "dfe8efeb-ed4f-46a7-a1ce-d50b2e769957",
+        "name": "Split & Tag — Wellness"
+      },
+      {
+        "parameters": {
+          "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nconst items = $input.all().map(i => i.json).filter(r => r.__period === 'current');\nif (items.length === 0) return [{ json: { warning: 'Нет строк за текущий месяц' } }];\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\nitems.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst sums = {}, counts = {};\nfieldSet.forEach(f => { sums[f] = 0; counts[f] = 0; });\n\nitems.forEach(r => {\n  fieldSet.forEach(f => {\n    const v = toNumber(r[f]);\n    if (v !== null) { sums[f] += v; counts[f] += 1; }\n  });\n});\n\nconst monthKey = $('Define Month Windows').first().json.current_month;\nconst totalRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'total' };\nconst avgRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'average' };\n\nfieldSet.forEach(f => {\n  totalRow[f] = Math.round(sums[f] * 100) / 100;\n  avgRow[f] = counts[f] > 0 ? Math.round((sums[f] / counts[f]) * 100) / 100 : null;\n});\n\nreturn [{ json: totalRow }, { json: avgRow }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          864,
+          -240
+        ],
+        "id": "f5c2a8a8-6fd6-481b-9fc6-e39498aebf98",
+        "name": "Aggregate Month — Nutrition"
+      },
+      {
+        "parameters": {
+          "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nconst items = $input.all().map(i => i.json).filter(r => r.__period === 'current');\nif (items.length === 0) return [{ json: { warning: 'Нет строк за текущий месяц' } }];\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\nitems.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst sums = {}, counts = {};\nfieldSet.forEach(f => { sums[f] = 0; counts[f] = 0; });\n\nitems.forEach(r => {\n  fieldSet.forEach(f => {\n    const v = toNumber(r[f]);\n    if (v !== null) { sums[f] += v; counts[f] += 1; }\n  });\n});\n\nconst monthKey = $('Define Month Windows').first().json.current_month;\nconst totalRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'total' };\nconst avgRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'average' };\n\nfieldSet.forEach(f => {\n  totalRow[f] = Math.round(sums[f] * 100) / 100;\n  avgRow[f] = counts[f] > 0 ? Math.round((sums[f] / counts[f]) * 100) / 100 : null;\n});\n\nreturn [{ json: totalRow }, { json: avgRow }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          112
+        ],
+        "id": "a21d6571-59ca-4482-a57c-6f7c432ef443",
+        "name": "Aggregate Month — Wellness"
+      },
+      {
+        "parameters": {
+          "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nfunction meanStd(values) {\n  const n = values.length;\n  if (n === 0) return { mean: null, std: null, n: 0 };\n  const mean = values.reduce((a, b) => a + b, 0) / n;\n  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / (n > 1 ? n - 1 : 1);\n  return { mean, std: Math.sqrt(variance), n };\n}\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG = 2.0;\nconst MIN_N = 10;\n\nconst DIRECTION = {\n  'Calories': 'neutral', 'Proteins': 'higher_better', 'Carbs': 'neutral', 'Fats': 'neutral',\n  'Магний': 'higher_better', 'Витамин D': 'higher_better', 'Омега-3 (EPA/DHA)': 'higher_better',\n  'Клетчатка': 'higher_better', 'Холестерин': 'lower_better', 'Добавленный сахар': 'lower_better',\n  'Натрий': 'lower_better', 'Насыщенные жиры': 'lower_better', 'Трансжиры': 'lower_better',\n  'Пульс_ночной_средний': 'lower_better', 'ВСР_ночная': 'higher_better',\n  'Оценка_сна_балл': 'higher_better', 'Стресс_дневной_средний': 'lower_better',\n  'Восстановление_BodyBattery': 'higher_better', 'VO2_Max': 'higher_better',\n  'Шаги_за_вчера': 'higher_better', 'Эффективность_сна_': 'higher_better'\n};\n\nconst items = $input.all().map(i => i.json);\nconst DOMAIN = items[0]?.domain || 'unknown';\nconst currentRows = items.filter(r => r.__period === 'current');\nconst prevRows = items.filter(r => r.__period === 'previous');\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\ncurrentRows.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst results = [];\nfieldSet.forEach(m => {\n  const curVals = currentRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  const prevVals = prevRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  if (curVals.length < MIN_N || prevVals.length < MIN_N) return;\n\n  const cur = meanStd(curVals);\n  const prev = meanStd(prevVals);\n  const se = Math.sqrt((cur.std ** 2) / cur.n + (prev.std ** 2) / prev.n);\n  if (se === 0 || isNaN(se)) return;\n  const z = (cur.mean - prev.mean) / se;\n  const absZ = Math.abs(z);\n\n  let severity = null;\n  if (absZ >= Z_STRONG) severity = 'strong';\n  else if (absZ >= Z_MODERATE) severity = 'moderate';\n  if (!severity) return;\n\n  const direction = DIRECTION[m] || 'neutral';\n  let interpretation = 'изменение';\n  if (direction === 'higher_better') interpretation = z > 0 ? 'улучшение' : 'ухудшение';\n  if (direction === 'lower_better') interpretation = z > 0 ? 'ухудшение' : 'улучшение';\n\n  results.push({\n    date_computed: DateTime.now().toISODate(),\n    domain: DOMAIN,\n    metric: m,\n    prev_month_mean: Math.round(prev.mean * 100) / 100,\n    this_month_mean: Math.round(cur.mean * 100) / 100,\n    z: Math.round(z * 100) / 100,\n    n_current: cur.n, n_previous: prev.n,\n    severity, direction, interpretation\n  });\n});\n\nreturn results.length ? results.map(r => ({ json: r })) : [{ json: { domain: DOMAIN, info: 'Значимых сдвигов нет' } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          -48
+        ],
+        "id": "a886b111-2d90-4076-99c3-4febbee6043f",
+        "name": "Compute Trend v2"
+      },
+      {
+        "parameters": {
+          "jsCode": "function toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nfunction meanStd(values) {\n  const n = values.length;\n  if (n === 0) return { mean: null, std: null, n: 0 };\n  const mean = values.reduce((a, b) => a + b, 0) / n;\n  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / (n > 1 ? n - 1 : 1);\n  return { mean, std: Math.sqrt(variance), n };\n}\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG = 2.0;\nconst MIN_N = 10;\n\nconst DIRECTION = {\n  'Calories': 'neutral', 'Proteins': 'higher_better', 'Carbs': 'neutral', 'Fats': 'neutral',\n  'Магний': 'higher_better', 'Витамин D': 'higher_better', 'Омега-3 (EPA/DHA)': 'higher_better',\n  'Клетчатка': 'higher_better', 'Холестерин': 'lower_better', 'Добавленный сахар': 'lower_better',\n  'Натрий': 'lower_better', 'Насыщенные жиры': 'lower_better', 'Трансжиры': 'lower_better',\n  'Пульс_ночной_средний': 'lower_better', 'ВСР_ночная': 'higher_better',\n  'Оценка_сна_балл': 'higher_better', 'Стресс_дневной_средний': 'lower_better',\n  'Восстановление_BodyBattery': 'higher_better', 'VO2_Max': 'higher_better',\n  'Шаги_за_вчера': 'higher_better', 'Эффективность_сна_': 'higher_better'\n};\n\nconst items = $input.all().map(i => i.json);\nconst DOMAIN = items[0]?.domain || 'unknown';\nconst currentRows = items.filter(r => r.__period === 'current');\nconst prevRows = items.filter(r => r.__period === 'previous');\n\nconst exclude = ['User_ID', 'Date', 'Дата', '__period', 'domain', 'row_number'];\nconst fieldSet = new Set();\ncurrentRows.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst results = [];\nfieldSet.forEach(m => {\n  const curVals = currentRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  const prevVals = prevRows.map(r => toNumber(r[m])).filter(v => v !== null);\n  if (curVals.length < MIN_N || prevVals.length < MIN_N) return;\n\n  const cur = meanStd(curVals);\n  const prev = meanStd(prevVals);\n  const se = Math.sqrt((cur.std ** 2) / cur.n + (prev.std ** 2) / prev.n);\n  if (se === 0 || isNaN(se)) return;\n  const z = (cur.mean - prev.mean) / se;\n  const absZ = Math.abs(z);\n\n  let severity = null;\n  if (absZ >= Z_STRONG) severity = 'strong';\n  else if (absZ >= Z_MODERATE) severity = 'moderate';\n  if (!severity) return;\n\n  const direction = DIRECTION[m] || 'neutral';\n  let interpretation = 'изменение';\n  if (direction === 'higher_better') interpretation = z > 0 ? 'улучшение' : 'ухудшение';\n  if (direction === 'lower_better') interpretation = z > 0 ? 'ухудшение' : 'улучшение';\n\n  results.push({\n    date_computed: DateTime.now().toISODate(),\n    domain: DOMAIN,\n    metric: m,\n    prev_month_mean: Math.round(prev.mean * 100) / 100,\n    this_month_mean: Math.round(cur.mean * 100) / 100,\n    z: Math.round(z * 100) / 100,\n    n_current: cur.n, n_previous: prev.n,\n    severity, direction, interpretation\n  });\n});\n\nreturn results.length ? results.map(r => ({ json: r })) : [{ json: { domain: DOMAIN, info: 'Значимых сдвигов нет' } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          288
+        ],
+        "id": "452e8027-1684-4926-8478-765f83fa276d",
+        "name": "Compute Trend v"
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          1360,
+          128
+        ],
+        "id": "9c3e031a-33cb-4d8d-ac42-54e8f3f9efc3",
+        "name": "Merge"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "ee79a9d3-fa5c-4273-a515-cc2eb0a51f51",
+                "leftValue": "={{ $json.severity !== undefined }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          1776,
+          128
+        ],
+        "id": "c92d6bf1-a01d-4f60-9edc-4cd6f709eb5c",
+        "name": "If"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 445440424,
+            "mode": "list",
+            "cachedResultName": "month_sum",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=445440424"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "User_ID",
+                "displayName": "User_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Способ подсчета",
+                "displayName": "Способ подсчета",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Calories",
+                "displayName": "Calories",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Proteins",
+                "displayName": "Proteins",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Carbs",
+                "displayName": "Carbs",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Fats",
+                "displayName": "Fats",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Магний",
+                "displayName": "Магний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин D",
+                "displayName": "Витамин D",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Омега-3 (EPA/DHA)",
+                "displayName": "Омега-3 (EPA/DHA)",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Селен",
+                "displayName": "Селен",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Йод",
+                "displayName": "Йод",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Калий",
+                "displayName": "Калий",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Железо",
+                "displayName": "Железо",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Кальций",
+                "displayName": "Кальций",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин B12",
+                "displayName": "Витамин B12",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин К",
+                "displayName": "Витамин К",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Витамин Е",
+                "displayName": "Витамин Е",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Цинк",
+                "displayName": "Цинк",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Клетчатка",
+                "displayName": "Клетчатка",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Холестерин",
+                "displayName": "Холестерин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Добавленный сахар",
+                "displayName": "Добавленный сахар",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Натрий",
+                "displayName": "Натрий",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Кофеин",
+                "displayName": "Кофеин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Алкоголь, гр",
+                "displayName": "Алкоголь, гр",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Насыщенные жиры",
+                "displayName": "Насыщенные жиры",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Трансжиры",
+                "displayName": "Трансжиры",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1088,
+          -240
+        ],
+        "id": "c21f6b7f-bac7-44df-833b-8f344d8c2d39",
+        "name": "Google Sheets Append: month_sum",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 807323315,
+            "mode": "list",
+            "cachedResultName": "Month_Wellness_Log",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=807323315"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "User_ID",
+                "displayName": "User_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Способ подсчета",
+                "displayName": "Способ подсчета",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_отбоя",
+                "displayName": "Время_отбоя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_подъема",
+                "displayName": "Время_подъема",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_в_кровати_мин",
+                "displayName": "Время_в_кровати_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Чистый_сон_мин",
+                "displayName": "Чистый_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Эффективность_сна_",
+                "displayName": "Эффективность_сна_",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Глубокий_сон_мин",
+                "displayName": "Глубокий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Глубокий_1_половина_мин",
+                "displayName": "Глубокий_1_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Глубокий_2_половина_мин",
+                "displayName": "Глубокий_2_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "REM_сон_мин",
+                "displayName": "REM_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Легкий_сон_мин",
+                "displayName": "Легкий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пробуждения_кол_во",
+                "displayName": "Пробуждения_кол_во",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Бодрствование_мин",
+                "displayName": "Бодрствование_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пульс_ночной_средний",
+                "displayName": "Пульс_ночной_средний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пульс_ночной_мин",
+                "displayName": "Пульс_ночной_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пульс_ночной_макс",
+                "displayName": "Пульс_ночной_макс",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Оценка_сна_балл",
+                "displayName": "Оценка_сна_балл",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Беспокойные_моменты",
+                "displayName": "Беспокойные_моменты",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дыхание_ночь_среднее",
+                "displayName": "Дыхание_ночь_среднее",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "SpO2_ночь_среднее",
+                "displayName": "SpO2_ночь_среднее",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Температура_avg_C",
+                "displayName": "Температура_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Влажность_avg_%",
+                "displayName": "Влажность_avg_%",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "PM25_avg",
+                "displayName": "PM25_avg",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_время",
+                "displayName": "Ужин_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Завтрак_время",
+                "displayName": "Завтрак_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Окно_голода_до_сна_ч",
+                "displayName": "Окно_голода_до_сна_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Длительность_голода_ч",
+                "displayName": "Длительность_голода_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Ккал",
+                "displayName": "Ужин_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Белки_г",
+                "displayName": "Ужин_Белки_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Жиры_г",
+                "displayName": "Ужин_Жиры_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Углеводы_г",
+                "displayName": "Ужин_Углеводы_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Шаги_за_вчера",
+                "displayName": "Шаги_за_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_Ккал",
+                "displayName": "Тренировка_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_поздняя",
+                "displayName": "Тренировка_поздняя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Атмосферное_давление_ночь_hPa",
+                "displayName": "Атмосферное_давление_ночь_hPa",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Лекарства_принимаемые",
+                "displayName": "Лекарства_принимаемые",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_последнего_кофе",
+                "displayName": "Время_последнего_кофе",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Алкоголь_гр",
+                "displayName": "Алкоголь_гр",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Жалобы_вчера",
+                "displayName": "Жалобы_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пометки",
+                "displayName": "Пометки",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дефициты",
+                "displayName": "Дефициты",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экранное_время_всего_ч",
+                "displayName": "Экранное_время_всего_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экран_Продуктивно_ч",
+                "displayName": "Экран_Продуктивно_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экран_Отвлечения_ч",
+                "displayName": "Экран_Отвлечения_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Восстановление_BodyBattery",
+                "displayName": "Восстановление_BodyBattery",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Стресс_дневной_средний",
+                "displayName": "Стресс_дневной_средний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "VO2_Max",
+                "displayName": "VO2_Max",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дыхание_тип",
+                "displayName": "Дыхание_тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дыхание_мин",
+                "displayName": "Дыхание_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экран_перед_сном_мин",
+                "displayName": "Экран_перед_сном_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "ВСР_ночная",
+                "displayName": "ВСР_ночная",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Ккал",
+                "displayName": "Питание_Всего_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Белки_г",
+                "displayName": "Питание_Всего_Белки_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Жиры_г",
+                "displayName": "Питание_Всего_Жиры_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Углеводы_г",
+                "displayName": "Питание_Всего_Углеводы_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_1_Тип",
+                "displayName": "Тренировка_1_Тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_1_Мин",
+                "displayName": "Тренировка_1_Мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_2_Тип",
+                "displayName": "Тренировка_2_Тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_2_Мин",
+                "displayName": "Тренировка_2_Мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_3_Тип",
+                "displayName": "Тренировка_3_Тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_3_Мин",
+                "displayName": "Тренировка_3_Мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Темп_тренировки_avg_C",
+                "displayName": "Темп_тренировки_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Темп_тренировки_min_C",
+                "displayName": "Темп_тренировки_min_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Темп_тренировки_max_C",
+                "displayName": "Темп_тренировки_max_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Training_Status",
+                "displayName": "Training_Status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Training_Acute_Load",
+                "displayName": "Training_Acute_Load",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Training_Chronic_Load",
+                "displayName": "Training_Chronic_Load",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Точка_росы_avg_C",
+                "displayName": "Точка_росы_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Атм_давление_Дельта_12ч",
+                "displayName": "Атм_давление_Дельта_12ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Атм_давление_Дельта_24ч",
+                "displayName": "Атм_давление_Дельта_24ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Освещенность_ч_сутки",
+                "displayName": "Освещенность_ч_сутки",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Индекс_когнитивной_нагрузки",
+                "displayName": "Индекс_когнитивной_нагрузки",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1072,
+          112
+        ],
+        "id": "777a2db1-ff98-4e56-9f83-e38c79452b3a",
+        "name": "Google Sheets Append: Month_Wellness_Log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const now = DateTime.now();\nconst current = now.minus({ months: 1 });\nconst previous = now.minus({ months: 2 });\n\nreturn [{\n  json: {\n    current_month: current.toFormat('yyyy-MM'),\n    previous_month: previous.toFormat('yyyy-MM')\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          192,
+          0
+        ],
+        "id": "2d6a850f-9553-4bdf-b751-d15e53953b18",
+        "name": "Define Month Windows"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1799359038,
+            "mode": "list",
+            "cachedResultName": "Monthly_Trend_Log",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1799359038"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "date_computed",
+                "displayName": "date_computed",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "period_month",
+                "displayName": "period_month",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "metric",
+                "displayName": "metric",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "prev_month_avg",
+                "displayName": "prev_month_avg",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "this_month_avg",
+                "displayName": "this_month_avg",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "pct_change",
+                "displayName": "pct_change",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "severity",
+                "displayName": "severity",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "direction",
+                "displayName": "direction",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "interpretation",
+                "displayName": "interpretation",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1568,
+          128
+        ],
+        "id": "4049bf8f-c064-4c5b-bf86-9bcb9e3cbeac",
+        "name": "Nutrinion_Monthly_Trend_Log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "8956401",
+          "text": "={{ (() => {\n  const items = $input.all().map(i => i.json).filter(r => r.severity);\n  const strong = items.filter(r => r.severity === 'strong');\n  const top = (strong.length ? strong : items).slice(0, 6);\n\n  const lines = top.map(r => {\n    const arrow = r.interpretation === 'улучшение' ? '📈' : r.interpretation === 'ухудшение' ? '📉' : '↔️';\n    return `${arrow} ${r.metric} (${r.domain}): ${r.prev_month_mean} → ${r.this_month_mean}`;\n  });\n\n  return `📊 Месячный тренд за ${items[0]?.period_month || 'этот месяц'}\\n` +\n         `Сдвигов: ${items.length} (сильных: ${strong.length})\\n\\n` +\n         lines.join('\\n') +\n         `\\n\\nПолный разбор — в Gemini Spark.`;\n})() }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          2048,
+          16
+        ],
+        "id": "5bab0a25-d1aa-42a7-82ed-2da65e11b519",
+        "name": "Send a text message",
+        "webhookId": "03a3fd25-5a81-4a3f-a7d5-0bf9b8b6b543",
+        "executeOnce": true,
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Define Month Windows",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Sheets Read: day_sum": {
+        "main": [
+          [
+            {
+              "node": "Split & Tag — Nutrition",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Sheets Read: Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Split & Tag — Wellness",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split & Tag — Nutrition": {
+        "main": [
+          [
+            {
+              "node": "Aggregate Month — Nutrition",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Compute Trend v2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split & Tag — Wellness": {
+        "main": [
+          [
+            {
+              "node": "Aggregate Month — Wellness",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Compute Trend v",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Aggregate Month — Nutrition": {
+        "main": [
+          [
+            {
+              "node": "Google Sheets Append: month_sum",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Aggregate Month — Wellness": {
+        "main": [
+          [
+            {
+              "node": "Google Sheets Append: Month_Wellness_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Compute Trend v2": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Compute Trend v": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "Nutrinion_Monthly_Trend_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Define Month Windows": {
+        "main": [
+          [
+            {
+              "node": "Google Sheets Read: day_sum",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Google Sheets Read: Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Nutrinion_Monthly_Trend_Log": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Send a text message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version fd9c8f7c",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
