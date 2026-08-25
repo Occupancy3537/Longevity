@@ -1,0 +1,241 @@
+{
+  "updatedAt": "2026-08-24T03:28:17.415Z",
+  "createdAt": "2026-08-15T00:05:18.400Z",
+  "id": "dp6Zs1on7UaZRSGv",
+  "name": "Страница наружу - Виджет",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "dashboard",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        16
+      ],
+      "id": "f67c2a1f-2590-40c7-b9e1-4cb3dd7570c1",
+      "name": "Webhook",
+      "webhookId": "b44dcf50-3c2b-4b34-aa06-581f955fc3ac"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html lang=\"ru\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Дневник питания</title>\n<style>\n  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');\n\n  :root{\n    --bg-0:#0F1417;\n    --bg-1:#161D21;\n    --bg-2:#1D262B;\n    --line:#2A353B;\n    --ink-0:#EAF0F1;\n    --ink-1:#9FB0B5;\n    --ink-2:#647377;\n    --teal:#5FCBBE;\n    --amber:#E8A94A;\n    --coral:#E17B6B;\n  }\n\n  *{box-sizing:border-box; margin:0; padding:0;}\n\n  body{\n    background:\n      radial-gradient(ellipse at 20% -10%, #1B2529 0%, transparent 55%),\n      var(--bg-0);\n    color:var(--ink-0);\n    font-family:'Inter', sans-serif;\n    min-height:100vh;\n    display:flex;\n    align-items:flex-start;\n    justify-content:center;\n    padding:28px 16px;\n  }\n\n  .panel{\n    width:min(400px, 94vw);\n    background:linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);\n    border:1px solid var(--line);\n    border-radius:14px;\n    overflow:hidden;\n    box-shadow:0 20px 60px -20px rgba(0,0,0,0.6);\n  }\n\n  /* ---------- header ---------- */\n  .head{\n    padding:16px 18px 14px;\n    border-bottom:1px solid var(--line);\n    display:flex;\n    align-items:baseline;\n    justify-content:space-between;\n  }\n  .head-title{\n    font-size:13px;\n    font-weight:600;\n    letter-spacing:0.06em;\n    text-transform:uppercase;\n    color:var(--ink-1);\n  }\n  .head-sub{\n    font-family:'JetBrains Mono', monospace;\n    font-size:11px;\n    color:var(--ink-2);\n    margin-top:2px;\n  }\n  .head-date{\n    font-family:'JetBrains Mono', monospace;\n    font-size:12px;\n    color:var(--ink-2);\n    letter-spacing:0.02em;\n  }\n\n  /* ---------- anomaly cards ---------- */\n  .anomalies-wrap{\n    margin:14px 18px 0;\n  }\n  .anomalies-head{\n    display:flex;\n    align-items:center;\n    justify-content:space-between;\n    margin-bottom:8px;\n  }\n  .anomalies-head-title{\n    font-size:11px;\n    font-weight:600;\n    letter-spacing:0.08em;\n    text-transform:uppercase;\n    color:var(--ink-2);\n  }\n  .anomalies-head-meta{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n  }\n\n  .a-card{\n    display:flex;\n    align-items:center;\n    gap:10px;\n    padding:9px 10px;\n    border-radius:10px;\n    background:var(--bg-2);\n    border:1px solid var(--line);\n    margin-bottom:6px;\n  }\n  .a-card:last-child{ margin-bottom:0; }\n\n  .a-trend-icon{\n    flex-shrink:0;\n    width:22px; height:22px;\n    display:flex; align-items:center; justify-content:center;\n  }\n\n  .a-mid{\n    flex:1;\n    min-width:0;\n  }\n  .a-label{\n    font-size:12px;\n    font-weight:500;\n    color:var(--ink-0);\n    white-space:nowrap;\n    overflow:hidden;\n    text-overflow:ellipsis;\n  }\n  .a-base{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n    margin-top:1px;\n  }\n\n  .a-spark{ flex-shrink:0; }\n\n  .a-val-wrap{\n    flex-shrink:0;\n    display:flex;\n    align-items:center;\n    gap:5px;\n    width:58px;\n    justify-content:flex-end;\n  }\n  .a-val{\n    font-family:'JetBrains Mono', monospace;\n    font-size:15px;\n    font-weight:600;\n    line-height:1;\n  }\n  .a-sev-dot{\n    width:6px; height:6px; border-radius:50%;\n    flex-shrink:0;\n  }\n  .a-sev-dot.strong{ background:var(--ink-1); }\n  .a-sev-dot.moderate{ background:transparent; border:1.2px solid var(--ink-2); }\n\n  /* ---------- ring grid ---------- */\n  .rings{\n    display:grid;\n    grid-template-columns:repeat(4, 1fr);\n    gap:2px;\n    background:var(--line);\n    margin-top:16px;\n  }\n  .ring-cell{\n    background:var(--bg-1);\n    padding:20px 8px 16px;\n    display:flex;\n    flex-direction:column;\n    align-items:center;\n    gap:10px;\n  }\n  .ring-cell svg{ display:block; }\n  .ring-track{ fill:none; stroke:var(--line); stroke-width:6; }\n  .ring-val{\n    fill:none;\n    stroke-width:6;\n    stroke-linecap:round;\n    transform-origin:50% 50%;\n    transform:rotate(-90deg);\n    transition:stroke-dashoffset 0.8s ease;\n  }\n  .ring-center{\n    font-family:'JetBrains Mono', monospace;\n    font-size:19px;\n    font-weight:700;\n    fill:var(--ink-0);\n  }\n  .ring-pct{\n    font-family:'JetBrains Mono', monospace;\n    font-size:9px;\n    fill:var(--ink-2);\n  }\n  .ring-label{\n    font-size:11px;\n    font-weight:500;\n    color:var(--ink-1);\n    letter-spacing:0.03em;\n  }\n  .ring-sub{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n  }\n\n  @media (max-width: 460px){\n    .rings{ grid-template-columns:repeat(2, 1fr); }\n    .a-label{ white-space:normal; }\n    body{ padding:12px 8px; }\n  }\n\n  /* ---------- footer ---------- */\n  .foot{\n    padding:12px 18px 16px;\n    display:flex;\n    align-items:center;\n    justify-content:space-between;\n    border-top:1px solid var(--line);\n    margin-top:6px;\n  }\n  .foot-status{\n    display:flex;\n    align-items:center;\n    gap:6px;\n    font-size:10px;\n    color:var(--ink-2);\n    font-family:'JetBrains Mono', monospace;\n  }\n  .dot{\n    width:6px; height:6px; border-radius:50%;\n    background:var(--teal);\n    box-shadow:0 0 8px var(--teal);\n    transition:background 0.3s, box-shadow 0.3s;\n  }\n  .foot-updated{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n  }\n</style>\n</head>\n<body>\n\n<div class=\"panel\">\n\n  <div class=\"head\">\n    <div>\n      <div class=\"head-title\">Дневник питания</div>\n      <div class=\"head-sub\" id=\"userName\">—</div>\n    </div>\n    <div class=\"head-date\" id=\"headDate\">—</div>\n  </div>\n\n  <div class=\"anomalies-wrap\" id=\"anomaliesWrap\" style=\"display:none;\">\n    <div class=\"anomalies-head\">\n      <span class=\"anomalies-head-title\">Отклонения</span>\n      <span class=\"anomalies-head-meta\" id=\"anomaliesMeta\"></span>\n    </div>\n    <div id=\"anomaliesList\"></div>\n  </div>\n\n  <div class=\"rings\" id=\"rings\"></div>\n\n  <div class=\"foot\">\n    <div class=\"foot-status\"><span class=\"dot\" id=\"statusDot\"></span> <span id=\"statusText\">live</span></div>\n    <div class=\"foot-updated\" id=\"lastUpdate\">—</div>\n  </div>\n\n</div>\n\n<script>\nconst WEBHOOK_URL = 'https://144.31.194.174.nip.io/webhook/today-nutrition?token=79TytaFim5VByE';\nconst REFRESH_MS = 5 * 60 * 1000; // 5 минут\n\nconst R = 30, C = 2 * Math.PI * R;\n\n// Надёжное округление — суммирование в n8n даёт \"хвосты\" плавающей точки\n// (3136.10000000000402), toFixed режет их и убирает лишние нули.\nfunction round(v, decimals){\n  if (v === undefined || v === null || isNaN(v)) return 0;\n  const n = Number(parseFloat(v).toFixed(decimals));\n  return n;\n}\n\nfunction ringSVG(pct, color){\n  const offset = C - (Math.min(pct,100)/100) * C;\n  return `\n    <svg width=\"76\" height=\"76\" viewBox=\"0 0 76 76\">\n      <circle class=\"ring-track\" cx=\"38\" cy=\"38\" r=\"${R}\"></circle>\n      <circle class=\"ring-val\" cx=\"38\" cy=\"38\" r=\"${R}\"\n        stroke=\"${color}\"\n        stroke-dasharray=\"${C}\"\n        stroke-dashoffset=\"${offset}\"></circle>\n    </svg>`;\n}\n\nfunction renderRings(data){\n  const s = data.summary;\n  const metrics = [\n    { label:\"Калории\",  val:round(s.calories.consumed, 0),        target:round(s.calories.target, 0),        unit:\"\",  color:\"var(--teal)\"  },\n    { label:\"Белки\",    val:round(s.macros.proteins.consumed, 0), target:round(s.macros.proteins.target, 0), unit:\"г\", color:\"var(--teal)\"  },\n    { label:\"Углеводы\", val:round(s.macros.carbs.consumed, 0),    target:round(s.macros.carbs.target, 0),    unit:\"г\", color:\"var(--amber)\" },\n    { label:\"Жиры\",     val:round(s.macros.fats.consumed, 0),     target:round(s.macros.fats.target, 0),     unit:\"г\", color:\"var(--coral)\" },\n  ];\n\n  const ringsEl = document.getElementById('rings');\n  ringsEl.innerHTML = '';\n  metrics.forEach(m=>{\n    const pct = m.target > 0 ? Math.round((m.val/m.target)*100) : 0;\n    const cell = document.createElement('div');\n    cell.className = 'ring-cell';\n    cell.innerHTML = `\n      <div style=\"position:relative; width:76px; height:76px;\">\n        ${ringSVG(pct, m.color)}\n        <div style=\"position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;\">\n          <div class=\"ring-center\">${pct}%</div>\n          <div class=\"ring-pct\">${m.val}${m.unit}</div>\n        </div>\n      </div>\n      <div style=\"text-align:center;\">\n        <div class=\"ring-label\">${m.label}</div>\n        <div class=\"ring-sub\">/ ${m.target}${m.unit}</div>\n      </div>\n    `;\n    ringsEl.appendChild(cell);\n  });\n}\n\n// Реальные hex-значения (не CSS var()) — нужны, чтобы приклеивать альфа-канал к цвету.\n// CSS var() нельзя конкатенировать со строкой прозрачности — это была причина\n// сплошного чёрного фона на предыдущей версии графика.\nconst COLOR = { teal:'#5FCBBE', coral:'#E17B6B', ink1:'#9FB0B5', ink2:'#647377' };\n\n// SVG-иконка тренда: цвет = положительное/отрицательное изменение (главный сигнал),\n// направление треугольника = вырос показатель или упал.\nfunction trendIcon(direction, isImprovement){\n  const color = isImprovement ? COLOR.teal : COLOR.coral;\n  const path = direction === 'up'\n    ? 'M11 4 L18 16 L4 16 Z'\n    : 'M11 18 L4 6 L18 6 Z';\n  return `<svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\">\n      <circle cx=\"11\" cy=\"11\" r=\"10\" fill=\"${color}22\"/>\n      <path d=\"${path}\" fill=\"${color}\"/>\n    </svg>`;\n}\n\n// Компактный график: 7 точек, линия + точки, последняя окрашена по улучшению/ухудшению.\n// Серая полоса на фоне — зона \"нормы\" (baseline ± 1.5·SD, тот же порог, что используется\n// для детекции умеренных отклонений). SD восстанавливаем из тех же данных, что уже есть:\n// z = (value - baseline) / SD  =>  SD = (value - baseline) / z.\n// Принудительный минимальный запас по Y, чтобы небольшие колебания нормы не схлопывались\n// в плоскую линию рядом с выбросом аномального дня.\nfunction sparkline(points, isImprovement, normalRange, direction){\n  const w = 64, h = 26, pad = 3;\n  const color = isImprovement ? COLOR.teal : COLOR.coral;\n\n  let rawMin = Math.min(...points), rawMax = Math.max(...points);\n  if (normalRange) {\n    rawMin = Math.min(rawMin, normalRange[0]);\n    rawMax = Math.max(rawMax, normalRange[1]);\n  }\n  const span = rawMax - rawMin;\n  const minSpan = Math.max(Math.abs(rawMax), 1) * 0.08;\n  const effSpan = Math.max(span, minSpan);\n  const mid = (rawMax + rawMin) / 2;\n  const min = mid - effSpan / 2, max = mid + effSpan / 2;\n  const range = (max - min) || 1;\n\n  const yOf = v => h - pad - ((v - min) / range) * (h - pad*2);\n  const stepX = (w - pad*2) / (points.length - 1);\n  const coords = points.map((p, i) => [pad + i * stepX, yOf(p)]);\n\n  const linePath = coords.map((c,i)=> (i===0?'M':'L') + c[0].toFixed(1) + ' ' + c[1].toFixed(1)).join(' ');\n\n  // Точка \"хорошая\" или \"плохая\" зависит от того, с какой стороны она вышла за норму\n  // и что для этой метрики лучше (direction: lower_better / higher_better / neutral).\n  function outlierColor(v){\n    if (!normalRange) return COLOR.ink2;\n    const [lo, hi] = normalRange;\n    if (v >= lo && v <= hi) return COLOR.ink2; // в норме\n    const wentAbove = v > hi;\n    if (direction === 'lower_better') return wentAbove ? COLOR.coral : COLOR.teal;\n    if (direction === 'higher_better') return wentAbove ? COLOR.teal : COLOR.coral;\n    return COLOR.coral; // neutral — направление не задаёт \"лучше/хуже\", просто отмечаем выброс\n  }\n\n  const dots = coords.map((c, i) => {\n    const isLast = i === coords.length - 1;\n\n    let fill, r;\n    if (isLast) {\n      fill = color; // последняя точка — по её собственному interpretation (уже посчитан z для неё)\n      r = 2.4;\n    } else {\n      fill = outlierColor(points[i]);\n      r = fill === COLOR.ink2 ? 1.4 : 2;\n    }\n\n    return `<circle cx=\"${c[0].toFixed(1)}\" cy=\"${c[1].toFixed(1)}\" r=\"${r}\" fill=\"${fill}\"/>`;\n  }).join('');\n\n  let bandRect = '';\n  if (normalRange) {\n    const yTop = Math.max(pad, yOf(normalRange[1]));\n    const yBot = Math.min(h - pad, yOf(normalRange[0]));\n    bandRect = `<rect x=\"${pad}\" y=\"${yTop.toFixed(1)}\" width=\"${(w-pad*2).toFixed(1)}\" height=\"${Math.max(yBot-yTop,0).toFixed(1)}\" fill=\"${COLOR.ink2}26\"/>`;\n  }\n\n  return `<svg class=\"a-spark\" width=\"${w}\" height=\"${h}\" viewBox=\"0 0 ${w} ${h}\">\n      ${bandRect}\n      <path d=\"${linePath}\" fill=\"none\" stroke=\"${COLOR.ink2}\" stroke-width=\"1.4\"/>\n      ${dots}\n    </svg>`;\n}\n\n// Временная генерация правдоподобного тренда — используется только как fallback,\n// если у метрики почему-то нет истории с бэкенда.\nfunction fakeTrend(baseline, current){\n  const pts = [];\n  for (let i = 0; i < 6; i++){\n    const jitter = (Math.sin(i * 1.7) * 0.5 + (Math.random()-0.5) * 0.3) * Math.abs(baseline) * 0.06;\n    pts.push(baseline + jitter);\n  }\n  pts.push(current);\n  return pts;\n}\n\nfunction renderAnomalies(anomalies){\n  const wrap = document.getElementById('anomaliesWrap');\n  if (!anomalies || anomalies.count === 0) {\n    wrap.style.display = 'none';\n    return;\n  }\n  wrap.style.display = 'block';\n  document.getElementById('anomaliesMeta').innerText = 'отчёт за ' + (anomalies.report_date || '—');\n\n  const listEl = document.getElementById('anomaliesList');\n  listEl.innerHTML = '';\n\n  (anomalies.raw || []).forEach(a => {\n    const isImprovement = a.interpretation === 'улучшение';\n    const direction = a.z >= 0 ? 'up' : 'down';\n    const trend = (a.history && a.history.length >= 2) ? a.history : fakeTrend(a.baseline_mean, a.value);\n    const valColor = isImprovement ? COLOR.teal : COLOR.coral;\n    const displayVal = round(a.value, 1);\n    const displayBase = round(a.baseline_mean, 2);\n\n    // Восстанавливаем SD из уже известных value/baseline/z, зона нормы = baseline ± 1.5·SD\n    const sd = a.z && a.z !== 0 ? Math.abs((a.value - a.baseline_mean) / a.z) : null;\n    const normalRange = sd ? [a.baseline_mean - 1.5*sd, a.baseline_mean + 1.5*sd] : null;\n\n    const card = document.createElement('div');\n    card.className = 'a-card';\n    card.innerHTML = `\n      <div class=\"a-trend-icon\">${trendIcon(direction, isImprovement)}</div>\n      <div class=\"a-mid\">\n        <div class=\"a-label\">${a.label}</div>\n        <div class=\"a-base\">baseline ${displayBase}</div>\n      </div>\n      ${sparkline(trend, isImprovement, normalRange, a.direction)}\n      <div class=\"a-val-wrap\">\n        <span class=\"a-sev-dot ${a.severity}\" title=\"${a.severity === 'strong' ? 'сильное' : 'умеренное'} отклонение\"></span>\n        <div class=\"a-val\" style=\"color:${valColor}\">${displayVal}</div>\n      </div>\n    `;\n    listEl.appendChild(card);\n  });\n}\n\nasync function fetchData(){\n  const dot = document.getElementById('statusDot');\n  const statusText = document.getElementById('statusText');\n  dot.style.background = 'var(--amber)';\n  dot.style.boxShadow = '0 0 8px var(--amber)';\n  statusText.innerText = 'обновление…';\n\n  try {\n    const res = await fetch(WEBHOOK_URL);\n    if (!res.ok) throw new Error('network');\n    const data = await res.json();\n\n    document.getElementById('userName').innerText = data.user || '—';\n    document.getElementById('headDate').innerText = data.date || '—';\n\n    renderRings(data);\n    renderAnomalies(data.anomalies);\n\n    dot.style.background = 'var(--teal)';\n    dot.style.boxShadow = '0 0 8px var(--teal)';\n    statusText.innerText = 'live';\n\n    const now = new Date();\n    document.getElementById('lastUpdate').innerText =\n      'обновлено ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');\n\n  } catch (e) {\n    dot.style.background = 'var(--coral)';\n    dot.style.boxShadow = '0 0 8px var(--coral)';\n    statusText.innerText = 'нет связи';\n    document.getElementById('lastUpdate').innerText = 'ошибка запроса';\n  }\n}\n\nfetchData();\nsetInterval(fetchData, REFRESH_MS);\n</script>\n\n</body>\n</html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        208,
+        0
+      ],
+      "id": "689fe4b9-e1a5-4dc4-8832-e6eed7615dff",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "21cac095-2c71-4176-afb4-95a46b3dbd8c",
+              "leftValue": "={{ $json.query.token }}",
+              "rightValue": "79TytaFim5VByE",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -32,
+        16
+      ],
+      "id": "595767ad-bfb8-43d5-a805-7f0140239256",
+      "name": "Token"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "9fd16887-d118-4851-b857-65fa76094674",
+  "activeVersionId": "212138da-e060-4a44-a213-a0ffc5bd4071",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-08-15T00:05:18.408Z",
+      "createdAt": "2026-08-15T00:05:18.408Z",
+      "role": "workflow:owner",
+      "workflowId": "dp6Zs1on7UaZRSGv",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-23T22:47:22.000Z",
+    "createdAt": "2026-08-21T01:06:57.816Z",
+    "versionId": "212138da-e060-4a44-a213-a0ffc5bd4071",
+    "workflowId": "dp6Zs1on7UaZRSGv",
+    "nodes": [
+      {
+        "parameters": {
+          "path": "dashboard",
+          "responseMode": "responseNode",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -240,
+          16
+        ],
+        "id": "f67c2a1f-2590-40c7-b9e1-4cb3dd7570c1",
+        "name": "Webhook",
+        "webhookId": "b44dcf50-3c2b-4b34-aa06-581f955fc3ac"
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "<!DOCTYPE html>\n<html lang=\"ru\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Дневник питания</title>\n<style>\n  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');\n\n  :root{\n    --bg-0:#0F1417;\n    --bg-1:#161D21;\n    --bg-2:#1D262B;\n    --line:#2A353B;\n    --ink-0:#EAF0F1;\n    --ink-1:#9FB0B5;\n    --ink-2:#647377;\n    --teal:#5FCBBE;\n    --amber:#E8A94A;\n    --coral:#E17B6B;\n  }\n\n  *{box-sizing:border-box; margin:0; padding:0;}\n\n  body{\n    background:\n      radial-gradient(ellipse at 20% -10%, #1B2529 0%, transparent 55%),\n      var(--bg-0);\n    color:var(--ink-0);\n    font-family:'Inter', sans-serif;\n    min-height:100vh;\n    display:flex;\n    align-items:flex-start;\n    justify-content:center;\n    padding:28px 16px;\n  }\n\n  .panel{\n    width:min(400px, 94vw);\n    background:linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);\n    border:1px solid var(--line);\n    border-radius:14px;\n    overflow:hidden;\n    box-shadow:0 20px 60px -20px rgba(0,0,0,0.6);\n  }\n\n  /* ---------- header ---------- */\n  .head{\n    padding:16px 18px 14px;\n    border-bottom:1px solid var(--line);\n    display:flex;\n    align-items:baseline;\n    justify-content:space-between;\n  }\n  .head-title{\n    font-size:13px;\n    font-weight:600;\n    letter-spacing:0.06em;\n    text-transform:uppercase;\n    color:var(--ink-1);\n  }\n  .head-sub{\n    font-family:'JetBrains Mono', monospace;\n    font-size:11px;\n    color:var(--ink-2);\n    margin-top:2px;\n  }\n  .head-date{\n    font-family:'JetBrains Mono', monospace;\n    font-size:12px;\n    color:var(--ink-2);\n    letter-spacing:0.02em;\n  }\n\n  /* ---------- anomaly cards ---------- */\n  .anomalies-wrap{\n    margin:14px 18px 0;\n  }\n  .anomalies-head{\n    display:flex;\n    align-items:center;\n    justify-content:space-between;\n    margin-bottom:8px;\n  }\n  .anomalies-head-title{\n    font-size:11px;\n    font-weight:600;\n    letter-spacing:0.08em;\n    text-transform:uppercase;\n    color:var(--ink-2);\n  }\n  .anomalies-head-meta{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n  }\n\n  .a-card{\n    display:flex;\n    align-items:center;\n    gap:10px;\n    padding:9px 10px;\n    border-radius:10px;\n    background:var(--bg-2);\n    border:1px solid var(--line);\n    margin-bottom:6px;\n  }\n  .a-card:last-child{ margin-bottom:0; }\n\n  .a-trend-icon{\n    flex-shrink:0;\n    width:22px; height:22px;\n    display:flex; align-items:center; justify-content:center;\n  }\n\n  .a-mid{\n    flex:1;\n    min-width:0;\n  }\n  .a-label{\n    font-size:12px;\n    font-weight:500;\n    color:var(--ink-0);\n    white-space:nowrap;\n    overflow:hidden;\n    text-overflow:ellipsis;\n  }\n  .a-base{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n    margin-top:1px;\n  }\n\n  .a-spark{ flex-shrink:0; }\n\n  .a-val-wrap{\n    flex-shrink:0;\n    display:flex;\n    align-items:center;\n    gap:5px;\n    width:58px;\n    justify-content:flex-end;\n  }\n  .a-val{\n    font-family:'JetBrains Mono', monospace;\n    font-size:15px;\n    font-weight:600;\n    line-height:1;\n  }\n  .a-sev-dot{\n    width:6px; height:6px; border-radius:50%;\n    flex-shrink:0;\n  }\n  .a-sev-dot.strong{ background:var(--ink-1); }\n  .a-sev-dot.moderate{ background:transparent; border:1.2px solid var(--ink-2); }\n\n  /* ---------- ring grid ---------- */\n  .rings{\n    display:grid;\n    grid-template-columns:repeat(4, 1fr);\n    gap:2px;\n    background:var(--line);\n    margin-top:16px;\n  }\n  .ring-cell{\n    background:var(--bg-1);\n    padding:20px 8px 16px;\n    display:flex;\n    flex-direction:column;\n    align-items:center;\n    gap:10px;\n  }\n  .ring-cell svg{ display:block; }\n  .ring-track{ fill:none; stroke:var(--line); stroke-width:6; }\n  .ring-val{\n    fill:none;\n    stroke-width:6;\n    stroke-linecap:round;\n    transform-origin:50% 50%;\n    transform:rotate(-90deg);\n    transition:stroke-dashoffset 0.8s ease;\n  }\n  .ring-center{\n    font-family:'JetBrains Mono', monospace;\n    font-size:19px;\n    font-weight:700;\n    fill:var(--ink-0);\n  }\n  .ring-pct{\n    font-family:'JetBrains Mono', monospace;\n    font-size:9px;\n    fill:var(--ink-2);\n  }\n  .ring-label{\n    font-size:11px;\n    font-weight:500;\n    color:var(--ink-1);\n    letter-spacing:0.03em;\n  }\n  .ring-sub{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n  }\n\n  @media (max-width: 460px){\n    .rings{ grid-template-columns:repeat(2, 1fr); }\n    .a-label{ white-space:normal; }\n    body{ padding:12px 8px; }\n  }\n\n  /* ---------- footer ---------- */\n  .foot{\n    padding:12px 18px 16px;\n    display:flex;\n    align-items:center;\n    justify-content:space-between;\n    border-top:1px solid var(--line);\n    margin-top:6px;\n  }\n  .foot-status{\n    display:flex;\n    align-items:center;\n    gap:6px;\n    font-size:10px;\n    color:var(--ink-2);\n    font-family:'JetBrains Mono', monospace;\n  }\n  .dot{\n    width:6px; height:6px; border-radius:50%;\n    background:var(--teal);\n    box-shadow:0 0 8px var(--teal);\n    transition:background 0.3s, box-shadow 0.3s;\n  }\n  .foot-updated{\n    font-family:'JetBrains Mono', monospace;\n    font-size:10px;\n    color:var(--ink-2);\n  }\n</style>\n</head>\n<body>\n\n<div class=\"panel\">\n\n  <div class=\"head\">\n    <div>\n      <div class=\"head-title\">Дневник питания</div>\n      <div class=\"head-sub\" id=\"userName\">—</div>\n    </div>\n    <div class=\"head-date\" id=\"headDate\">—</div>\n  </div>\n\n  <div class=\"anomalies-wrap\" id=\"anomaliesWrap\" style=\"display:none;\">\n    <div class=\"anomalies-head\">\n      <span class=\"anomalies-head-title\">Отклонения</span>\n      <span class=\"anomalies-head-meta\" id=\"anomaliesMeta\"></span>\n    </div>\n    <div id=\"anomaliesList\"></div>\n  </div>\n\n  <div class=\"rings\" id=\"rings\"></div>\n\n  <div class=\"foot\">\n    <div class=\"foot-status\"><span class=\"dot\" id=\"statusDot\"></span> <span id=\"statusText\">live</span></div>\n    <div class=\"foot-updated\" id=\"lastUpdate\">—</div>\n  </div>\n\n</div>\n\n<script>\nconst WEBHOOK_URL = 'https://144.31.194.174.nip.io/webhook/today-nutrition?token=79TytaFim5VByE';\nconst REFRESH_MS = 5 * 60 * 1000; // 5 минут\n\nconst R = 30, C = 2 * Math.PI * R;\n\n// Надёжное округление — суммирование в n8n даёт \"хвосты\" плавающей точки\n// (3136.10000000000402), toFixed режет их и убирает лишние нули.\nfunction round(v, decimals){\n  if (v === undefined || v === null || isNaN(v)) return 0;\n  const n = Number(parseFloat(v).toFixed(decimals));\n  return n;\n}\n\nfunction ringSVG(pct, color){\n  const offset = C - (Math.min(pct,100)/100) * C;\n  return `\n    <svg width=\"76\" height=\"76\" viewBox=\"0 0 76 76\">\n      <circle class=\"ring-track\" cx=\"38\" cy=\"38\" r=\"${R}\"></circle>\n      <circle class=\"ring-val\" cx=\"38\" cy=\"38\" r=\"${R}\"\n        stroke=\"${color}\"\n        stroke-dasharray=\"${C}\"\n        stroke-dashoffset=\"${offset}\"></circle>\n    </svg>`;\n}\n\nfunction renderRings(data){\n  const s = data.summary;\n  const metrics = [\n    { label:\"Калории\",  val:round(s.calories.consumed, 0),        target:round(s.calories.target, 0),        unit:\"\",  color:\"var(--teal)\"  },\n    { label:\"Белки\",    val:round(s.macros.proteins.consumed, 0), target:round(s.macros.proteins.target, 0), unit:\"г\", color:\"var(--teal)\"  },\n    { label:\"Углеводы\", val:round(s.macros.carbs.consumed, 0),    target:round(s.macros.carbs.target, 0),    unit:\"г\", color:\"var(--amber)\" },\n    { label:\"Жиры\",     val:round(s.macros.fats.consumed, 0),     target:round(s.macros.fats.target, 0),     unit:\"г\", color:\"var(--coral)\" },\n  ];\n\n  const ringsEl = document.getElementById('rings');\n  ringsEl.innerHTML = '';\n  metrics.forEach(m=>{\n    const pct = m.target > 0 ? Math.round((m.val/m.target)*100) : 0;\n    const cell = document.createElement('div');\n    cell.className = 'ring-cell';\n    cell.innerHTML = `\n      <div style=\"position:relative; width:76px; height:76px;\">\n        ${ringSVG(pct, m.color)}\n        <div style=\"position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;\">\n          <div class=\"ring-center\">${pct}%</div>\n          <div class=\"ring-pct\">${m.val}${m.unit}</div>\n        </div>\n      </div>\n      <div style=\"text-align:center;\">\n        <div class=\"ring-label\">${m.label}</div>\n        <div class=\"ring-sub\">/ ${m.target}${m.unit}</div>\n      </div>\n    `;\n    ringsEl.appendChild(cell);\n  });\n}\n\n// Реальные hex-значения (не CSS var()) — нужны, чтобы приклеивать альфа-канал к цвету.\n// CSS var() нельзя конкатенировать со строкой прозрачности — это была причина\n// сплошного чёрного фона на предыдущей версии графика.\nconst COLOR = { teal:'#5FCBBE', coral:'#E17B6B', ink1:'#9FB0B5', ink2:'#647377' };\n\n// SVG-иконка тренда: цвет = положительное/отрицательное изменение (главный сигнал),\n// направление треугольника = вырос показатель или упал.\nfunction trendIcon(direction, isImprovement){\n  const color = isImprovement ? COLOR.teal : COLOR.coral;\n  const path = direction === 'up'\n    ? 'M11 4 L18 16 L4 16 Z'\n    : 'M11 18 L4 6 L18 6 Z';\n  return `<svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\">\n      <circle cx=\"11\" cy=\"11\" r=\"10\" fill=\"${color}22\"/>\n      <path d=\"${path}\" fill=\"${color}\"/>\n    </svg>`;\n}\n\n// Компактный график: 7 точек, линия + точки, последняя окрашена по улучшению/ухудшению.\n// Серая полоса на фоне — зона \"нормы\" (baseline ± 1.5·SD, тот же порог, что используется\n// для детекции умеренных отклонений). SD восстанавливаем из тех же данных, что уже есть:\n// z = (value - baseline) / SD  =>  SD = (value - baseline) / z.\n// Принудительный минимальный запас по Y, чтобы небольшие колебания нормы не схлопывались\n// в плоскую линию рядом с выбросом аномального дня.\nfunction sparkline(points, isImprovement, normalRange, direction){\n  const w = 64, h = 26, pad = 3;\n  const color = isImprovement ? COLOR.teal : COLOR.coral;\n\n  let rawMin = Math.min(...points), rawMax = Math.max(...points);\n  if (normalRange) {\n    rawMin = Math.min(rawMin, normalRange[0]);\n    rawMax = Math.max(rawMax, normalRange[1]);\n  }\n  const span = rawMax - rawMin;\n  const minSpan = Math.max(Math.abs(rawMax), 1) * 0.08;\n  const effSpan = Math.max(span, minSpan);\n  const mid = (rawMax + rawMin) / 2;\n  const min = mid - effSpan / 2, max = mid + effSpan / 2;\n  const range = (max - min) || 1;\n\n  const yOf = v => h - pad - ((v - min) / range) * (h - pad*2);\n  const stepX = (w - pad*2) / (points.length - 1);\n  const coords = points.map((p, i) => [pad + i * stepX, yOf(p)]);\n\n  const linePath = coords.map((c,i)=> (i===0?'M':'L') + c[0].toFixed(1) + ' ' + c[1].toFixed(1)).join(' ');\n\n  // Точка \"хорошая\" или \"плохая\" зависит от того, с какой стороны она вышла за норму\n  // и что для этой метрики лучше (direction: lower_better / higher_better / neutral).\n  function outlierColor(v){\n    if (!normalRange) return COLOR.ink2;\n    const [lo, hi] = normalRange;\n    if (v >= lo && v <= hi) return COLOR.ink2; // в норме\n    const wentAbove = v > hi;\n    if (direction === 'lower_better') return wentAbove ? COLOR.coral : COLOR.teal;\n    if (direction === 'higher_better') return wentAbove ? COLOR.teal : COLOR.coral;\n    return COLOR.coral; // neutral — направление не задаёт \"лучше/хуже\", просто отмечаем выброс\n  }\n\n  const dots = coords.map((c, i) => {\n    const isLast = i === coords.length - 1;\n\n    let fill, r;\n    if (isLast) {\n      fill = color; // последняя точка — по её собственному interpretation (уже посчитан z для неё)\n      r = 2.4;\n    } else {\n      fill = outlierColor(points[i]);\n      r = fill === COLOR.ink2 ? 1.4 : 2;\n    }\n\n    return `<circle cx=\"${c[0].toFixed(1)}\" cy=\"${c[1].toFixed(1)}\" r=\"${r}\" fill=\"${fill}\"/>`;\n  }).join('');\n\n  let bandRect = '';\n  if (normalRange) {\n    const yTop = Math.max(pad, yOf(normalRange[1]));\n    const yBot = Math.min(h - pad, yOf(normalRange[0]));\n    bandRect = `<rect x=\"${pad}\" y=\"${yTop.toFixed(1)}\" width=\"${(w-pad*2).toFixed(1)}\" height=\"${Math.max(yBot-yTop,0).toFixed(1)}\" fill=\"${COLOR.ink2}26\"/>`;\n  }\n\n  return `<svg class=\"a-spark\" width=\"${w}\" height=\"${h}\" viewBox=\"0 0 ${w} ${h}\">\n      ${bandRect}\n      <path d=\"${linePath}\" fill=\"none\" stroke=\"${COLOR.ink2}\" stroke-width=\"1.4\"/>\n      ${dots}\n    </svg>`;\n}\n\n// Временная генерация правдоподобного тренда — используется только как fallback,\n// если у метрики почему-то нет истории с бэкенда.\nfunction fakeTrend(baseline, current){\n  const pts = [];\n  for (let i = 0; i < 6; i++){\n    const jitter = (Math.sin(i * 1.7) * 0.5 + (Math.random()-0.5) * 0.3) * Math.abs(baseline) * 0.06;\n    pts.push(baseline + jitter);\n  }\n  pts.push(current);\n  return pts;\n}\n\nfunction renderAnomalies(anomalies){\n  const wrap = document.getElementById('anomaliesWrap');\n  if (!anomalies || anomalies.count === 0) {\n    wrap.style.display = 'none';\n    return;\n  }\n  wrap.style.display = 'block';\n  document.getElementById('anomaliesMeta').innerText = 'отчёт за ' + (anomalies.report_date || '—');\n\n  const listEl = document.getElementById('anomaliesList');\n  listEl.innerHTML = '';\n\n  (anomalies.raw || []).forEach(a => {\n    const isImprovement = a.interpretation === 'улучшение';\n    const direction = a.z >= 0 ? 'up' : 'down';\n    const trend = (a.history && a.history.length >= 2) ? a.history : fakeTrend(a.baseline_mean, a.value);\n    const valColor = isImprovement ? COLOR.teal : COLOR.coral;\n    const displayVal = round(a.value, 1);\n    const displayBase = round(a.baseline_mean, 2);\n\n    // Восстанавливаем SD из уже известных value/baseline/z, зона нормы = baseline ± 1.5·SD\n    const sd = a.z && a.z !== 0 ? Math.abs((a.value - a.baseline_mean) / a.z) : null;\n    const normalRange = sd ? [a.baseline_mean - 1.5*sd, a.baseline_mean + 1.5*sd] : null;\n\n    const card = document.createElement('div');\n    card.className = 'a-card';\n    card.innerHTML = `\n      <div class=\"a-trend-icon\">${trendIcon(direction, isImprovement)}</div>\n      <div class=\"a-mid\">\n        <div class=\"a-label\">${a.label}</div>\n        <div class=\"a-base\">baseline ${displayBase}</div>\n      </div>\n      ${sparkline(trend, isImprovement, normalRange, a.direction)}\n      <div class=\"a-val-wrap\">\n        <span class=\"a-sev-dot ${a.severity}\" title=\"${a.severity === 'strong' ? 'сильное' : 'умеренное'} отклонение\"></span>\n        <div class=\"a-val\" style=\"color:${valColor}\">${displayVal}</div>\n      </div>\n    `;\n    listEl.appendChild(card);\n  });\n}\n\nasync function fetchData(){\n  const dot = document.getElementById('statusDot');\n  const statusText = document.getElementById('statusText');\n  dot.style.background = 'var(--amber)';\n  dot.style.boxShadow = '0 0 8px var(--amber)';\n  statusText.innerText = 'обновление…';\n\n  try {\n    const res = await fetch(WEBHOOK_URL);\n    if (!res.ok) throw new Error('network');\n    const data = await res.json();\n\n    document.getElementById('userName').innerText = data.user || '—';\n    document.getElementById('headDate').innerText = data.date || '—';\n\n    renderRings(data);\n    renderAnomalies(data.anomalies);\n\n    dot.style.background = 'var(--teal)';\n    dot.style.boxShadow = '0 0 8px var(--teal)';\n    statusText.innerText = 'live';\n\n    const now = new Date();\n    document.getElementById('lastUpdate').innerText =\n      'обновлено ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');\n\n  } catch (e) {\n    dot.style.background = 'var(--coral)';\n    dot.style.boxShadow = '0 0 8px var(--coral)';\n    statusText.innerText = 'нет связи';\n    document.getElementById('lastUpdate').innerText = 'ошибка запроса';\n  }\n}\n\nfetchData();\nsetInterval(fetchData, REFRESH_MS);\n</script>\n\n</body>\n</html>",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          208,
+          0
+        ],
+        "id": "689fe4b9-e1a5-4dc4-8832-e6eed7615dff",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "21cac095-2c71-4176-afb4-95a46b3dbd8c",
+                "leftValue": "={{ $json.query.token }}",
+                "rightValue": "79TytaFim5VByE",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals",
+                  "name": "filter.operator.equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          -32,
+          16
+        ],
+        "id": "595767ad-bfb8-43d5-a805-7f0140239256",
+        "name": "If"
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 212138da",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
