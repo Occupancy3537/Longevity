@@ -1,0 +1,57 @@
+name: Delete Old Backups
+
+on:
+  schedule:
+    # Запуск каждый день в 03:00 ночи по UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Позволяет запустить скрипт вручную по кнопке для теста
+
+permissions:
+  contents: write # Даем права на удаление файлов в репозитории
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Скачивание репозитория
+        uses: actions/checkout@v4
+
+      - name: Поиск и удаление бэкапов старше 30 дней
+        run: |
+          # Вычисляем дату, которая была 30 дней назад
+          CUTOFF_DATE=$(date -d "30 days ago" +%Y-%m-%d)
+          echo "Будут удалены бэкапы старше: $CUTOFF_DATE"
+          
+          # Если папки workflows не существует, выходим
+          [ -d "workflows" ] || exit 0
+
+          # Перебираем все папки внутри workflows/
+          for folder in workflows/*/; do
+            [ -d "$folder" ] || continue
+            
+            # Получаем имя папки (например, 2026-07-24)
+            FOLDER_NAME=$(basename "$folder")
+            
+            # Проверяем, что папка названа именно в формате даты (защита от случайного удаления)
+            if [[ $FOLDER_NAME =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+              # Сравниваем даты (в формате YYYY-MM-DD это работает как простое сравнение строк)
+              if [[ "$FOLDER_NAME" < "$CUTOFF_DATE" ]]; then
+                echo "Удаление старого бэкапа: $FOLDER_NAME"
+                git rm -r "$folder"
+              fi
+            fi
+          done
+
+      - name: Сохранение изменений (Commit & Push)
+        run: |
+          # Настраиваем системного бота GitHub для коммита
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Проверяем, есть ли файлы для удаления
+          if git diff --staged --quiet; then
+            echo "Нет старых бэкапов для удаления. Пропускаем коммит."
+          else
+            git commit -m "Автоматическая очистка: удалены бэкапы старше 30 дней"
+            git push
+          fi
