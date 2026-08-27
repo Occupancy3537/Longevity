@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>n8n Workflows Map — Longevity</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #242836;
+  --border: #2e3348;
+  --text: #e4e6f0;
+  --text2: #9499b3;
+  --accent: #6c5ce7;
+  --accent2: #a29bfe;
+  --green: #00b894;
+  --orange: #fdcb6e;
+  --red: #ff7675;
+  --blue: #74b9ff;
+  --pink: #fd79a8;
+  --teal: #00cec9;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1a1d27 0%, #2d1b4e 100%);
+  padding: 40px 20px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  font-size: 2.2em;
+  background: linear-gradient(135deg, var(--accent2), var(--teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+.header p { color: var(--text2); font-size: 1.05em; }
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.stat { text-align: center; }
+.stat-value { font-size: 1.8em; font-weight: 700; color: var(--accent2); }
+.stat-label { font-size: 0.8em; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Legend */
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 15px 20px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: var(--text2); }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px;
+  padding: 25px 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(108, 92, 231, 0.15);
+  border-color: var(--accent);
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.card.trigger-telegram::before { background: linear-gradient(90deg, #0088cc, #229ED9); }
+.card.trigger-schedule::before { background: linear-gradient(90deg, var(--orange), #e17055); }
+.card.trigger-webhook::before { background: linear-gradient(90deg, var(--green), #00cec9); }
+.card.trigger-manual::before { background: linear-gradient(90deg, var(--text2), #636e72); }
+.card.trigger-mixed::before { background: linear-gradient(90deg, var(--accent), var(--pink)); }
+
+.card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.card-icon { font-size: 1.8em; flex-shrink: 0; }
+.card-title { font-size: 1.05em; font-weight: 600; line-height: 1.3; }
+.card-badge {
+  display: inline-block;
+  font-size: 0.7em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+.badge-telegram { background: rgba(0,136,204,0.2); color: #229ED9; }
+.badge-schedule { background: rgba(253,203,110,0.15); color: var(--orange); }
+.badge-webhook { background: rgba(0,184,148,0.15); color: var(--green); }
+.badge-manual { background: rgba(148,153,179,0.15); color: var(--text2); }
+.badge-mixed { background: rgba(108,92,231,0.2); color: var(--accent2); }
+
+.card-desc { font-size: 0.88em; color: var(--text2); margin-bottom: 14px; line-height: 1.5; }
+
+.card-section { margin-bottom: 10px; }
+.card-section-title { font-size: 0.7em; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 6px; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag {
+  font-size: 0.75em;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.tag.ai { border-color: rgba(108,92,231,0.4); color: var(--accent2); }
+.tag.sheets { border-color: rgba(0,184,148,0.4); color: var(--green); }
+.tag.http { border-color: rgba(116,185,255,0.4); color: var(--blue); }
+.tag.telegram { border-color: rgba(0,136,204,0.4); color: #229ED9; }
+.tag.cache { border-color: rgba(253,203,110,0.4); color: var(--orange); }
+.tag.github { border-color: rgba(255,255,255,0.2); color: var(--text); }
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75em;
+  color: var(--text2);
+}
+.nodes-count { display: flex; align-items: center; gap: 4px; }
+.connection-line { color: var(--accent2); }
+
+/* Flow diagram */
+.flow-section {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+.flow-title {
+  font-size: 1.4em;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+  color: var(--text);
+}
+.flow-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 30px;
+  overflow-x: auto;
+}
+.flow-svg { min-width: 1200px; }
+
+/* Data flow arrows */
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.flow-label { font-size: 0.8em; color: var(--text2); width: 120px; flex-shrink: 0; text-align: right; }
+.flow-box {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.82em;
+  font-weight: 500;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.flow-arrow { color: var(--text2); font-size: 0.9em; }
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--text2);
+  font-size: 0.8em;
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+  .grid { grid-template-columns: 1fr; }
+  .header h1 { font-size: 1.6em; }
+  .stats { gap: 15px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧬 Longevity — n8n Workflows Map</h1>
+  <p>Полная карта автоматизации: питание, биохакинг, отчёты, мониторинг</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-value">17</div><div class="stat-label">Workflows</div></div>
+    <div class="stat"><div class="stat-value">198</div><div class="stat-label">Nodes total</div></div>
+    <div class="stat"><div class="stat-value">6</div><div class="stat-label">Triggers type</div></div>
+    <div class="stat"><div class="stat-value">4</div><div class="stat-label">Data sources</div></div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#0088cc"></div> Telegram Trigger</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fdcb6e"></div> Schedule Trigger</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00b894"></div> Webhook</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6c5ce7"></div> Mixed / Multiple</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#9499b3"></div> Manual / One-time</div>
+</div>
+
+<div class="grid">
+
+<!-- 1. Food dairy_v5 -->
+<div class="card trigger-telegram">
+  <div class="card-header">
+    <span class="card-icon">🍽️</span>
+    <div>
+      <div class="card-title">Food dairy_v5</div>
+      <span class="card-badge badge-telegram">Telegram</span>
+    </div>
+  </div>
+  <div class="card-desc">Telegram-бот дневника питания (актуальная версия). Принимает текст и фото еды, анализирует через AI-нутрициолога (OpenRouter), записывает в Google Sheets. Поддерживает редактирование и удаление записей через inline-кнопки. Агрегация за день/неделю.</div>
+  <div class="card-section">
+    <div class="card-section-title">Возможности</div>
+    <div class="tag-list">
+      <span class="tag ai">AI анализ фото</span>
+      <span class="tag ai">AI анализ текста</span>
+      <span class="tag sheets">Google Sheets</span>
+      <span class="tag telegram">Telegram API</span>
+      <span class="tag">28 нод</span>
+    </div>
+  </div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">→ Nutrition (запись)</span>
+      <span class="tag telegram">← Влад (Telegram)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 28 нод</span>
+    <span class="connection-line">● Актуальная версия</span>
+  </div>
+</div>
+
+<!-- 2. Food dairy_v3 -->
+<div class="card trigger-telegram">
+  <div class="card-header">
+    <span class="card-icon">🍽️</span>
+    <div>
+      <div class="card-title">Food dairy_v3</div>
+      <span class="card-badge badge-telegram">Telegram</span>
+    </div>
+  </div>
+  <div class="card-desc">Предыдущая версия дневника питания. Та же логика, но без ветки "Правка или Новая" (Switch для разделения update/append). Оставлена как бэкап.</div>
+  <div class="card-section">
+    <div class="card-section-title">Отличие от v5</div>
+    <div class="tag-list">
+      <span class="tag">Нет Switch "Правка/Новая"</span>
+      <span class="tag">26 нод (−2)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 26 нод</span>
+    <span class="connection-line">○ Бэкап</span>
+  </div>
+</div>
+
+<!-- 3. Anomaly_Detector -->
+<div class="card trigger-mixed">
+  <div class="card-header">
+    <span class="card-icon">🔍</span>
+    <div>
+      <div class="card-title">Anomaly_Detector / Correlations</div>
+      <span class="card-badge badge-mixed">Schedule (2x)</span>
+    </div>
+  </div>
+  <div class="card-desc">Детектор аномалий и корреляций. Два триггера: Daily (ежедневно) и Weekly (еженедельно). Читает Daily_Trends и Nutrition day_sum, вычисляет z-score аномалии, считает корреляции через внешний ML-сервис. Пишет логи в Google Sheets, алерты в Telegram.</div>
+  <div class="card-section">
+    <div class="card-section-title">Метрики</div>
+    <div class="tag-list">
+      <span class="tag">Сон (чистый, эффективность)</span>
+      <span class="tag">RHR, HRV (ВСР)</span>
+      <span class="tag">Body Battery</span>
+      <span class="tag">Стресс, Шаги</span>
+      <span class="tag">Питание (калории, БЖУ)</span>
+    </div>
+  </div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">← Daily_Trends</span>
+      <span class="tag sheets">← Nutrition day_sum</span>
+      <span class="tag http">→ ML API (analyze)</span>
+      <span class="tag sheets">→ Anomaly_log</span>
+      <span class="tag sheets">→ Digest_log</span>
+      <span class="tag telegram">→ Telegram (алерты)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 25 нод</span>
+    <span class="connection-line">● Ядро аналитики</span>
+  </div>
+</div>
+
+<!-- 4. Collect_Biohacking_Data -->
+<div class="card trigger-webhook">
+  <div class="card-header">
+    <span class="card-icon">📥</span>
+    <div>
+      <div class="card-title">Collect_Biohacking_Data</div>
+      <span class="card-badge badge-webhook">Webhook</span>
+    </div>
+  </div>
+  <div class="card-desc">Сборщик биохакинг-данных. Вызывается внешним расписанием (cron). Собирает: питание (Google Sheets), календарь Google, климат (Google Sheets), RescueTime (продуктивность), погоду (Open-Meteo). Вычисляет точку росы и перепады давления. Пишет в Daily_Trends.</div>
+  <div class="card-section">
+    <div class="card-section-title">Источники</div>
+    <div class="tag-list">
+      <span class="tag sheets">Google Sheets (Nutrition)</span>
+      <span class="tag">Google Calendar</span>
+      <span class="tag sheets">Google Sheets (Climate)</span>
+      <span class="tag http">RescueTime API</span>
+      <span class="tag http">Open-Meteo API</span>
+    </div>
+  </div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">→ Daily_Trends (appendOrUpdate)</span>
+      <span class="tag sheets">← Climate (чтение)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 11 нод</span>
+    <span class="connection-line">● Сбор данных</span>
+  </div>
+</div>
+
+<!-- 5. Dashboard -->
+<div class="card trigger-webhook">
+  <div class="card-header">
+    <span class="card-icon">📊</span>
+    <div>
+      <div class="card-title">Dashboard</div>
+      <span class="card-badge badge-webhook">Webhook</span>
+    </div>
+  </div>
+  <div class="card-desc">API для внешнего дашборда. GET /today-nutrition отдает агрегированные данные за сегодня: приёмы пищи, профиль, аномалии, тренды. Защита по токену. Формирует JSON-ответ для веб-виджета.</div>
+  <div class="card-section">
+    <div class="card-section-title">Эндпоинт</div>
+    <div class="tag-list">
+      <span class="tag http">GET /today-nutrition</span>
+      <span class="tag">Token проверка</span>
+    </div>
+  </div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">← Nutrition (Meals, Profile)</span>
+      <span class="tag sheets">← Anomaly_log</span>
+      <span class="tag sheets">← Daily_Trends</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 9 нод</span>
+    <span class="connection-line">● API endpoint</span>
+  </div>
+</div>
+
+<!-- 6. Get Yandex Climate -->
+<div class="card trigger-schedule">
+  <div class="card-header">
+    <span class="card-icon">🌡️</span>
+    <div>
+      <div class="card-title">Get Yandex Climate</div>
+      <span class="card-badge badge-schedule">Schedule (hourly)</span>
+    </div>
+  </div>
+  <div class="card-desc">Яндекс IoT: чтение температуры, влажности, PM2.5 из умного устройства. Каждый час. Пишет в Google Sheets (Climate). Старая версия (без "пробуждения" устройства).</div>
+  <div class="card-section">
+    <div class="card-section-title">API</div>
+    <div class="tag-list">
+      <span class="tag http">Yandex IoT API</span>
+      <span class="tag">deviceId: 1c92a9dc...</span>
+    </div>
+  </div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">→ Climate (append)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 4 ноды</span>
+    <span class="connection-line">○ Есть v2</span>
+  </div>
+</div>
+
+<!-- 7. Get Yandex Climate_2 -->
+<div class="card trigger-schedule">
+  <div class="card-header">
+    <span class="card-icon">🌡️</span>
+    <div>
+      <div class="card-title">Get Yandex Climate_2</div>
+      <span class="card-badge badge-schedule">Schedule (hourly)</span>
+    </div>
+  </div>
+  <div class="card-desc">Улучшенная версия климата. Перед чтением "будит" устройство (POST /devices/actions), ждёт 5 сек, затем читает. Надёжнее для спящих устройств. Пишет в Google Sheets (Climate).</div>
+  <div class="card-section">
+    <div class="card-section-title">Отличие от v1</div>
+    <div class="tag-list">
+      <span class="tag">Wake-up POST</span>
+      <span class="tag">Wait 5s</span>
+      <span class="tag">6 нод (+2)</span>
+    </div>
+  </div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">→ Climate (append)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 6 нод</span>
+    <span class="connection-line">● Актуальная версия</span>
+  </div>
+</div>
+
+<!-- 8. Monthly food report -->
+<div class="card trigger-schedule">
+  <div class="card-header">
+    <span class="card-icon">📅</span>
+    <div>
+      <div class="card-title">Monthly food report</div>
+      <span class="card-badge badge-schedule">Schedule (monthly)</span>
+    </div>
+  </div>
+  <div class="card-desc">Ежемесячный отчёт по питанию. Читает day_sum за прошлый месяц, агрегирует (сумма, среднее, min/max), пишет в month_sum. Вычисляет тренды сравнения с предыдущим месяцем.</div>
+  <div class="card-section">
+    <div class="card-section-title">Операции</div>
+    <div class="tag-list">
+      <span class="tag sheets">← day_sum (чтение)</span>
+      <span class="tag sheets">→ month_sum (append)</span>
+      <span class="tag sheets">← month_sum (тренд)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 6 нод</span>
+    <span class="connection-line">● Питание</span>
+  </div>
+</div>
+
+<!-- 9. Monthly_Trend_Wellness -->
+<div class="card trigger-schedule">
+  <div class="card-header">
+    <span class="card-icon">💚</span>
+    <div>
+      <div class="card-title">Monthly_Trend_Wellness</div>
+      <span class="card-badge badge-schedule">Schedule (monthly)</span>
+    </div>
+  </div>
+  <div class="card-desc">Ежемесячный тренд wellness + nutrition. Параллельно обрабатывает day_sum (питание) и Daily_Trends (сон, стресс, активность). Считает агрегаты и тренды для каждого домена, пишет логи, шлет сводку в Telegram.</div>
+  <div class="card-section">
+    <div class="card-section-title">Домены</div>
+    <div class="tag-list">
+      <span class="tag sheets">← day_sum (Nutrition)</span>
+      <span class="tag sheets">← Daily_Trends (Wellness)</span>
+      <span class="tag sheets">→ month_sum</span>
+      <span class="tag sheets">→ Month_Wellness_Log</span>
+      <span class="tag sheets">→ Nutrition_Monthly_Trend_Log</span>
+      <span class="tag telegram">→ Telegram</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 16 нод</span>
+    <span class="connection-line">● Комплексный</span>
+  </div>
+</div>
+
+<!-- 10. Reports -->
+<div class="card trigger-mixed">
+  <div class="card-header">
+    <span class="card-icon">📝</span>
+    <div>
+      <div class="card-title">Reports</div>
+      <span class="card-badge badge-mixed">Schedule (Weekly + Daily)</span>
+    </div>
+  </div>
+  <div class="card-desc">Два отчёта в одном workflow: Weekly (еженедельный анализ питания через AI) и Daily (ежедневная сводка). Weekly читает неделю данных, пишет отчёт, AI-анализ через OpenRouter, шлет в Telegram. Daily фильтрует записи за день, суммирует, пишет дневной отчёт.</div>
+  <div class="card-section">
+    <div class="card-section-title">Триггеры</div>
+    <div class="tag-list">
+      <span class="tag">Weekly → AI анализ недели</span>
+      <span class="tag">Daily → суммарный отчёт дня</span>
+    </div>
+  </div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">← Nutrition day_sum</span>
+      <span class="tag sheets">→ Reports (запись)</span>
+      <span class="tag ai">AI анализ (OpenRouter)</span>
+      <span class="tag telegram">→ Telegram</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 13 нод</span>
+    <span class="connection-line">● Отчёты + AI</span>
+  </div>
+</div>
+
+<!-- 11. Weekly Food Report -->
+<div class="card trigger-schedule">
+  <div class="card-header">
+    <span class="card-icon">📋</span>
+    <div>
+      <div class="card-title">Weekly Food Report</div>
+      <span class="card-badge badge-schedule">Schedule (weekly)</span>
+    </div>
+  </div>
+  <div class="card-desc">Еженедельный отчёт по питанию. Читает неделю данных, суммирует (Calories, Proteins, Carbs, Fats и др.), считает среднее, AI-анализ через OpenRouter (контекст региона Владивосток), шлет в Telegram.</div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">← Nutrition day_sum</span>
+      <span class="tag ai">AI анализ (OpenRouter)</span>
+      <span class="tag telegram">→ Telegram</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 8 нод</span>
+    <span class="connection-line">● Недельный отчёт</span>
+  </div>
+</div>
+
+<!-- 12. backup -->
+<div class="card trigger-schedule">
+  <div class="card-header">
+    <span class="card-icon">💾</span>
+    <div>
+      <div class="card-title">backup</div>
+      <span class="card-badge badge-schedule">Schedule</span>
+    </div>
+  </div>
+  <div class="card-desc">Автобэкап всех воркфлоу. Получает список всех workflows через n8n API, сохраняет в GitHub (репозиторий Longevity). Запускается по расписанию.</div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag">n8n API (Get workflows)</span>
+      <span class="tag github">→ GitHub (create file)</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 3 ноды</span>
+    <span class="connection-line">● Бэкап</span>
+  </div>
+</div>
+
+<!-- 13. Был ли завтрак? -->
+<div class="card trigger-webhook">
+  <div class="card-header">
+    <span class="card-icon">🥐</span>
+    <div>
+      <div class="card-title">Был ли завтрак?</div>
+      <span class="card-badge badge-webhook">Webhook</span>
+    </div>
+  </div>
+  <div class="card-desc">API-эндпоинт для проверки: был ли сегодня завтрак? GET /check-breakfast. Читает приёмы пищи за сегодня (по Владивостоку UTC+10), проверяет наличие записи завтрака, отвечает JSON.</div>
+  <div class="card-section">
+    <div class="card-section-title">Эндпоинт</div>
+    <div class="tag-list">
+      <span class="tag http">GET /check-breakfast</span>
+      <span class="tag sheets">← Nutrition Meals</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 4 ноды</span>
+    <span class="connection-line">● API endpoint</span>
+  </div>
+</div>
+
+<!-- 14. Вычисление дефицитов -->
+<div class="card trigger-mixed">
+  <div class="card-header">
+    <span class="card-icon">💊</span>
+    <div>
+      <div class="card-title">Вычисление дефицитов для рекомендации рецептов</div>
+      <span class="card-badge badge-mixed">Schedule + Webhook</span>
+    </div>
+  </div>
+  <div class="card-desc">Вычисляет дефициты нутриентов за 7 дней, AI Agent генерирует рекомендации рецептов (с учётом предпочтений: кедровые орехи, тыквенные семечки, псиллиум, кимчи). Кэширует в staticData. Webhook GET /recipes отдаёт кэш.</div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">← day_sum</span>
+      <span class="tag sheets">← Nutrient_Targets</span>
+      <span class="tag sheets">← Meals</span>
+      <span class="tag ai">AI Agent (OpenRouter)</span>
+      <span class="tag cache">→ Static Data (recipes)</span>
+      <span class="tag http">GET /recipes</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 11 нод</span>
+    <span class="connection-line">● AI + кэш</span>
+  </div>
+</div>
+
+<!-- 15. Получение данных питания в кэш -->
+<div class="card trigger-mixed">
+  <div class="card-header">
+    <span class="card-icon">⚡</span>
+    <div>
+      <div class="card-title">Получение данных питания в кэш для Дашборда</div>
+      <span class="card-badge badge-mixed">Schedule + Webhook</span>
+    </div>
+  </div>
+  <div class="card-desc">Кэширует недельные данные питания для быстрого доступа дашборда. Schedule (каждый час) пересчитывает агрегаты за 7 дней. Webhook GET /weekly-nutrients отдаёт кэш мгновенно (без задержки Google Sheets).</div>
+  <div class="card-section">
+    <div class="card-section-title">Связи</div>
+    <div class="tag-list">
+      <span class="tag sheets">← day_sum</span>
+      <span class="tag sheets">← Nutrient_Targets</span>
+      <span class="tag sheets">← Meals</span>
+      <span class="tag cache">→ Static Data (weeklyNutrients)</span>
+      <span class="tag http">GET /weekly-nutrients</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 8 нод</span>
+    <span class="connection-line">● Кэш + API</span>
+  </div>
+</div>
+
+<!-- 16. Страница наружу - Виджет -->
+<div class="card trigger-webhook">
+  <div class="card-header">
+    <span class="card-icon">🌐</span>
+    <div>
+      <div class="card-title">Страница наружу — Виджет</div>
+      <span class="card-badge badge-webhook">Webhook</span>
+    </div>
+  </div>
+  <div class="card-desc">Внешний HTML-виджет. GET /dashboard отдаёт HTML-страницу с визуализацией данных. Проверка токеном. Минимальный workflow (3 ноды).</div>
+  <div class="card-section">
+    <div class="card-section-title">Эндпоинт</div>
+    <div class="tag-list">
+      <span class="tag http">GET /dashboard</span>
+      <span class="tag">HTML response</span>
+      <span class="tag">Token проверка</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 3 ноды</span>
+    <span class="connection-line">● Frontend</span>
+  </div>
+</div>
+
+<!-- 17. Замена полей нутриентов -->
+<div class="card trigger-manual">
+  <div class="card-header">
+    <span class="card-icon">🔧</span>
+    <div>
+      <div class="card-title">Замена полей нутриентов (run once)</div>
+      <span class="card-badge badge-manual">Manual</span>
+    </div>
+  </div>
+  <div class="card-desc">Одноразовый скрипт миграции данных. ManualTrigger (запуск вручную). Меняет названия полей нутриентов в Google Sheets. 1 нода — чисто техническая задача.</div>
+  <div class="card-section">
+    <div class="card-section-title">Назначение</div>
+    <div class="tag-list">
+      <span class="tag">Миграция данных</span>
+      <span class="tag">Одноразовый запуск</span>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="nodes-count">📊 1 нода</span>
+    <span class="connection-line">○ Утилита</span>
+  </div>
+</div>
+
+</div>
+
+<!-- DATA FLOW SECTION -->
+<div class="flow-section">
+  <div class="flow-title">🔄 Потоки данных между системами</div>
+  <div class="flow-container">
+    <div class="flow-row">
+      <div class="flow-label">Источники данных</div>
+      <div class="flow-box" style="border-color:#0088cc;color:#229ED9">Telegram (Влад)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Food dairy_v5</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Google Sheets (Nutrition)</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-label">Внешние API</div>
+      <div class="flow-box" style="border-color:#74b9ff;color:#74b9ff">Open-Meteo</div>
+      <span class="flow-arrow">+</span>
+      <div class="flow-box" style="border-color:#74b9ff;color:#74b9ff">RescueTime</div>
+      <span class="flow-arrow">+</span>
+      <div class="flow-box" style="border-color:#74b9ff;color:#74b9ff">Yandex IoT</div>
+      <span class="flow-arrow">+</span>
+      <div class="flow-box" style="border-color:#74b9ff;color:#74b9ff">Google Calendar</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Collect_Biohacking_Data</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Google Sheets (Daily_Trends)</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-label">Аналитика</div>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Google Sheets (Daily_Trends)</div>
+      <span class="flow-arrow">+</span>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Google Sheets (Nutrition)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#6c5ce7;color:#a29bfe">Anomaly_Detector</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#fdcb6e;color:#fdcb6e">ML API (analyze)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Anomaly_log / Digest_log</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-label">Отчёты</div>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Google Sheets (Nutrition)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#fdcb6e;color:#fdcb6e">Reports / Weekly Report</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#6c5ce7;color:#a29bfe">AI (OpenRouter)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#0088cc;color:#229ED9">Telegram (отчёт)</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-label">Дашборд</div>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Google Sheets</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#00cec9;color:#00cec9">Кэш-воркфлоу (Static Data)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#00b894;color:#00b894">Webhook API</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#fd79a8;color:#fd79a8">HTML Виджет</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-label">Бэкап</div>
+      <div class="flow-box" style="border-color:#6c5ce7;color:#a29bfe">n8n API</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#fdcb6e;color:#fdcb6e">backup</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box" style="border-color:#9499b3;color:#e4e6f0">GitHub (репозиторий)</div>
+    </div>
+  </div>
+</div>
+
+<!-- CONNECTION MAP -->
+<div class="flow-section">
+  <div class="flow-title">🔗 Карта связей между workflow</div>
+  <div class="flow-container">
+    <svg class="flow-svg" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#6c5ce7"/>
+        </marker>
+        <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#00b894"/>
+        </marker>
+        <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#fdcb6e"/>
+        </marker>
+      </defs>
+      
+      <!-- Row 1: Input -->
+      <rect x="20" y="20" width="180" height="50" rx="8" fill="#1a1d27" stroke="#0088cc" stroke-width="1.5"/>
+      <text x="110" y="42" text-anchor="middle" fill="#229ED9" font-size="11" font-weight="600">Telegram (Влад)</text>
+      <text x="110" y="58" text-anchor="middle" fill="#9499b3" font-size="9">текст / фото</text>
+      
+      <rect x="260" y="20" width="180" height="50" rx="8" fill="#1a1d27" stroke="#0088cc" stroke-width="1.5"/>
+      <text x="350" y="42" text-anchor="middle" fill="#229ED9" font-size="11" font-weight="600">Food dairy_v5</text>
+      <text x="350" y="58" text-anchor="middle" fill="#9499b3" font-size="9">AI анализ → Sheets</text>
+      
+      <rect x="500" y="20" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00b894" stroke-width="1.5"/>
+      <text x="590" y="42" text-anchor="middle" fill="#00b894" font-size="11" font-weight="600">Google Sheets</text>
+      <text x="590" y="58" text-anchor="middle" fill="#9499b3" font-size="9">Nutrition (Meals, day_sum)</text>
+      
+      <rect x="740" y="20" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00b894" stroke-width="1.5"/>
+      <text x="830" y="42" text-anchor="middle" fill="#00b894" font-size="11" font-weight="600">Google Sheets</text>
+      <text x="830" y="58" text-anchor="middle" fill="#9499b3" font-size="9">Daily_Trends</text>
+      
+      <rect x="980" y="20" width="180" height="50" rx="8" fill="#1a1d27" stroke="#74b9ff" stroke-width="1.5"/>
+      <text x="1070" y="42" text-anchor="middle" fill="#74b9ff" font-size="11" font-weight="600">Внешние API</text>
+      <text x="1070" y="58" text-anchor="middle" fill="#9499b3" font-size="9">Weather, RescueTime, Yandex</text>
+      
+      <!-- Row 2: Processing -->
+      <rect x="20" y="140" width="180" height="50" rx="8" fill="#1a1d27" stroke="#6c5ce7" stroke-width="1.5"/>
+      <text x="110" y="162" text-anchor="middle" fill="#a29bfe" font-size="11" font-weight="600">Anomaly_Detector</text>
+      <text x="110" y="178" text-anchor="middle" fill="#9499b3" font-size="9">z-score + корреляции</text>
+      
+      <rect x="260" y="140" width="180" height="50" rx="8" fill="#1a1d27" stroke="#fdcb6e" stroke-width="1.5"/>
+      <text x="350" y="162" text-anchor="middle" fill="#fdcb6e" font-size="11" font-weight="600">Reports</text>
+      <text x="350" y="178" text-anchor="middle" fill="#9499b3" font-size="9">Weekly + Daily + AI</text>
+      
+      <rect x="500" y="140" width="180" height="50" rx="8" fill="#1a1d27" stroke="#fdcb6e" stroke-width="1.5"/>
+      <text x="590" y="162" text-anchor="middle" fill="#fdcb6e" font-size="11" font-weight="600">Weekly Food Report</text>
+      <text x="590" y="178" text-anchor="middle" fill="#9499b3" font-size="9">AI анализ недели</text>
+      
+      <rect x="740" y="140" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00cec9" stroke-width="1.5"/>
+      <text x="830" y="162" text-anchor="middle" fill="#00cec9" font-size="11" font-weight="600">Кэш (weeklyNutrients)</text>
+      <text x="830" y="178" text-anchor="middle" fill="#9499b3" font-size="9">Static Data → API</text>
+      
+      <rect x="980" y="140" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00b894" stroke-width="1.5"/>
+      <text x="1070" y="162" text-anchor="middle" fill="#00b894" font-size="11" font-weight="600">Collect_Biohacking</text>
+      <text x="1070" y="178" text-anchor="middle" fill="#9499b3" font-size="9">Сбор данных → Daily_Trends</text>
+      
+      <!-- Row 3: Output -->
+      <rect x="20" y="260" width="180" height="50" rx="8" fill="#1a1d27" stroke="#0088cc" stroke-width="1.5"/>
+      <text x="110" y="282" text-anchor="middle" fill="#229ED9" font-size="11" font-weight="600">Telegram (алерты)</text>
+      <text x="110" y="298" text-anchor="middle" fill="#9499b3" font-size="9">аномалии, отчёты</text>
+      
+      <rect x="260" y="260" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00b894" stroke-width="1.5"/>
+      <text x="350" y="282" text-anchor="middle" fill="#00b894" font-size="11" font-weight="600">Anomaly_log</text>
+      <text x="350" y="298" text-anchor="middle" fill="#9499b3" font-size="9">Google Sheets</text>
+      
+      <rect x="500" y="260" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00b894" stroke-width="1.5"/>
+      <text x="590" y="282" text-anchor="middle" fill="#00b894" font-size="11" font-weight="600">month_sum</text>
+      <text x="590" y="298" text-anchor="middle" fill="#9499b3" font-size="9">Monthly food report</text>
+      
+      <rect x="740" y="260" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00b894" stroke-width="1.5"/>
+      <text x="830" y="282" text-anchor="middle" fill="#00b894" font-size="11" font-weight="600">Webhook API</text>
+      <text x="830" y="298" text-anchor="middle" fill="#9499b3" font-size="9">/today-nutrition, /recipes</text>
+      
+      <rect x="980" y="260" width="180" height="50" rx="8" fill="#1a1d27" stroke="#fd79a8" stroke-width="1.5"/>
+      <text x="1070" y="282" text-anchor="middle" fill="#fd79a8" font-size="11" font-weight="600">HTML Виджет</text>
+      <text x="1070" y="298" text-anchor="middle" fill="#9499b3" font-size="9">/dashboard</text>
+      
+      <!-- Row 4: Additional -->
+      <rect x="20" y="380" width="180" height="50" rx="8" fill="#1a1d27" stroke="#6c5ce7" stroke-width="1.5"/>
+      <text x="110" y="402" text-anchor="middle" fill="#a29bfe" font-size="11" font-weight="600">Вычисление дефицитов</text>
+      <text x="110" y="418" text-anchor="middle" fill="#9499b3" font-size="9">AI Agent → рецепты</text>
+      
+      <rect x="260" y="380" width="180" height="50" rx="8" fill="#1a1d27" stroke="#00b894" stroke-width="1.5"/>
+      <text x="350" y="402" text-anchor="middle" fill="#00b894" font-size="11" font-weight="600">Был ли завтрак?</text>
+      <text x="350" y="418" text-anchor="middle" fill="#9499b3" font-size="9">GET /check-breakfast</text>
+      
+      <rect x="500" y="380" width="180" height="50" rx="8" fill="#1a1d27" stroke="#fdcb6e" stroke-width="1.5"/>
+      <text x="590" y="402" text-anchor="middle" fill="#fdcb6e" font-size="11" font-weight="600">Monthly_Trend_Wellness</text>
+      <text x="590" y="418" text-anchor="middle" fill="#9499b3" font-size="9">Тренды питание + сон</text>
+      
+      <rect x="740" y="380" width="180" height="50" rx="8" fill="#1a1d27" stroke="#9499b3" stroke-width="1.5"/>
+      <text x="830" y="402" text-anchor="middle" fill="#e4e6f0" font-size="11" font-weight="600">backup</text>
+      <text x="830" y="418" text-anchor="middle" fill="#9499b3" font-size="9">n8n API → GitHub</text>
+      
+      <rect x="980" y="380" width="180" height="50" rx="8" fill="#1a1d27" stroke="#9499b3" stroke-width="1.5"/>
+      <text x="1070" y="402" text-anchor="middle" fill="#e4e6f0" font-size="11" font-weight="600">Get Yandex Climate_2</text>
+      <text x="1070" y="418" text-anchor="middle" fill="#9499b3" font-size="9">Wake-up → чтение → Sheets</text>
+      
+      <!-- Arrows -->
+      <!-- Telegram → Food dairy -->
+      <line x1="110" y1="70" x2="110" y2="130" stroke="#6c5ce7" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <text x="50" y="105" fill="#9499b3" font-size="8">данные</text>
+      
+      <!-- Food dairy → Google Sheets Nutrition -->
+      <line x1="350" y1="70" x2="590" y2="70" stroke="#00b894" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      
+      <!-- Google Sheets Nutrition → Anomaly_Detector -->
+      <line x1="590" y1="70" x2="110" y2="140" stroke="#6c5ce7" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- Google Sheets Nutrition → Reports -->
+      <line x1="540" y1="70" x2="350" y2="140" stroke="#fdcb6e" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+      
+      <!-- Google Sheets Nutrition → Weekly Report -->
+      <line x1="600" y1="70" x2="590" y2="140" stroke="#fdcb6e" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+      
+      <!-- Google Sheets Nutrition → Кэш -->
+      <line x1="680" y1="70" x2="830" y2="140" stroke="#00cec9" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      
+      <!-- Google Sheets Nutrition → Вычисление дефицитов -->
+      <line x1="540" y1="70" x2="110" y2="380" stroke="#6c5ce7" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+      
+      <!-- Google Sheets Nutrition → Был ли завтрак -->
+      <line x1="500" y1="70" x2="350" y2="380" stroke="#00b894" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow-green)"/>
+      
+      <!-- Daily_Trends → Anomaly_Detector -->
+      <line x1="830" y1="70" x2="110" y2="140" stroke="#6c5ce7" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+      
+      <!-- Daily_Trends → Monthly_Trend_Wellness -->
+      <line x1="830" y1="70" x2="590" y2="380" stroke="#fdcb6e" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow-orange)"/>
+      
+      <!-- Внешние API → Collect_Biohacking -->
+      <line x1="1070" y1="70" x2="1070" y2="140" stroke="#74b9ff" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      
+      <!-- Collect_Biohacking → Daily_Trends -->
+      <line x1="1070" y1="190" x2="830" y2="70" stroke="#00b894" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      
+      <!-- Anomaly_Detector → Telegram -->
+      <line x1="110" y1="190" x2="110" y2="260" stroke="#0088cc" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- Anomaly_Detector → Anomaly_log -->
+      <line x1="200" y1="190" x2="350" y2="260" stroke="#00b894" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      
+      <!-- Reports → Telegram -->
+      <line x1="350" y1="190" x2="150" y2="260" stroke="#0088cc" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- Weekly Report → Telegram -->
+      <line x1="590" y1="190" x2="200" y2="260" stroke="#0088cc" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- Кэш → Webhook API -->
+      <line x1="830" y1="190" x2="830" y2="260" stroke="#00cec9" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      
+      <!-- Webhook API → HTML Виджет -->
+      <line x1="920" y1="285" x2="980" y2="285" stroke="#fd79a8" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- Monthly food report → month_sum -->
+      <line x1="590" y1="190" x2="590" y2="260" stroke="#00b894" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+      
+      <!-- Legend -->
+      <rect x="20" y="480" width="1160" height="200" rx="8" fill="#1a1d27" stroke="#2e3348" stroke-width="1"/>
+      <text x="40" y="505" fill="#e4e6f0" font-size="12" font-weight="600">Легенда</text>
+      
+      <rect x="40" y="520" width="14" height="14" rx="3" fill="#0088cc"/>
+      <text x="60" y="532" fill="#9499b3" font-size="10">Telegram-зависимые</text>
+      
+      <rect x="40" y="545" width="14" height="14" rx="3" fill="#fdcb6e"/>
+      <text x="60" y="557" fill="#9499b3" font-size="10">Schedule (расписание)</text>
+      
+      <rect x="40" y="570" width="14" height="14" rx="3" fill="#00b894"/>
+      <text x="60" y="582" fill="#9499b3" font-size="10">Webhook / Google Sheets</text>
+      
+      <rect x="40" y="595" width="14" height="14" rx="3" fill="#6c5ce7"/>
+      <text x="60" y="607" fill="#9499b3" font-size="10">AI / Аналитика / Mixed</text>
+      
+      <rect x="40" y="620" width="14" height="14" rx="3" fill="#74b9ff"/>
+      <text x="60" y="632" fill="#9499b3" font-size="10">Внешние API</text>
+      
+      <rect x="40" y="645" width="14" height="14" rx="3" fill="#00cec9"/>
+      <text x="60" y="657" fill="#9499b3" font-size="10">Кэш (Static Data)</text>
+      
+      <line x1="250" y1="527" x2="290" y2="527" stroke="#6c5ce7" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <text x="300" y="532" fill="#9499b3" font-size="10">Поток данных</text>
+      
+      <line x1="250" y1="552" x2="290" y2="552" stroke="#6c5ce7" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+      <text x="300" y="557" fill="#9499b3" font-size="10">Косвенная связь (чтение)</text>
+      
+      <text x="250" y="607" fill="#9499b3" font-size="10">Всего: 17 workflows, 198 нод, 4 источника данных</text>
+      <text x="250" y="632" fill="#9499b3" font-size="10">Данные хранятся в Google Sheets, бэкап в GitHub</text>
+      <text x="250" y="657" fill="#9499b3" font-size="10">AI: OpenRouter (нутрициолог, анализ отчётов, рецепты)</text>
+    </svg>
+  </div>
+</div>
+
+<!-- SUMMARY TABLE -->
+<div class="flow-section">
+  <div class="flow-title">📋 Сводная таблица по триггерам</div>
+  <div class="flow-container" style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:0.85em;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="padding:10px; text-align:left; color:var(--text2);">Workflow</th>
+          <th style="padding:10px; text-align:left; color:var(--text2);">Триггер</th>
+          <th style="padding:10px; text-align:left; color:var(--text2);">Назначение</th>
+          <th style="padding:10px; text-align:center; color:var(--text2);">Нод</th>
+          <th style="padding:10px; text-align:center; color:var(--text2);">Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🍽️ Food dairy_v5</td>
+          <td style="padding:10px;"><span style="color:#229ED9">●</span> Telegram</td>
+          <td style="padding:10px;">Дневник питания (фото/текст → AI → Sheets)</td>
+          <td style="padding:10px; text-align:center;">28</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🍽️ Food dairy_v3</td>
+          <td style="padding:10px;"><span style="color:#229ED9">●</span> Telegram</td>
+          <td style="padding:10px;">Предыдущая версия дневника</td>
+          <td style="padding:10px; text-align:center;">26</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--text2)">○ Бэкап</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🔍 Anomaly_Detector</td>
+          <td style="padding:10px;"><span style="color:#6c5ce7">●</span> Daily + Weekly</td>
+          <td style="padding:10px;">Поиск аномалий и корреляций</td>
+          <td style="padding:10px; text-align:center;">25</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">📥 Collect_Biohacking</td>
+          <td style="padding:10px;"><span style="color:#00b894">●</span> Webhook</td>
+          <td style="padding:10px;">Сбор данных: сон, погода, активность</td>
+          <td style="padding:10px; text-align:center;">11</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">📊 Dashboard</td>
+          <td style="padding:10px;"><span style="color:#00b894">●</span> Webhook</td>
+          <td style="padding:10px;">API для дашборда (/today-nutrition)</td>
+          <td style="padding:10px; text-align:center;">9</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🌡️ Get Yandex Climate_2</td>
+          <td style="padding:10px;"><span style="color:#fdcb6e">●</span> Schedule (1h)</td>
+          <td style="padding:10px;">Климат с Яндекс IoT (wake-up)</td>
+          <td style="padding:10px; text-align:center;">6</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🌡️ Get Yandex Climate</td>
+          <td style="padding:10px;"><span style="color:#fdcb6e">●</span> Schedule (1h)</td>
+          <td style="padding:10px;">Климат с Яндекс IoT (старая)</td>
+          <td style="padding:10px; text-align:center;">4</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--text2)">○ Дубль</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">📅 Monthly food report</td>
+          <td style="padding:10px;"><span style="color:#fdcb6e">●</span> Schedule (1m)</td>
+          <td style="padding:10px;">Помесячный отчёт питания</td>
+          <td style="padding:10px; text-align:center;">6</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">💚 Monthly_Trend_Wellness</td>
+          <td style="padding:10px;"><span style="color:#fdcb6e">●</span> Schedule (1m)</td>
+          <td style="padding:10px;">Тренды питание + wellness</td>
+          <td style="padding:10px; text-align:center;">16</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">📝 Reports</td>
+          <td style="padding:10px;"><span style="color:#6c5ce7">●</span> Weekly + Daily</td>
+          <td style="padding:10px;">Отчёты с AI-анализом</td>
+          <td style="padding:10px; text-align:center;">13</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">📋 Weekly Food Report</td>
+          <td style="padding:10px;"><span style="color:#fdcb6e">●</span> Schedule (1w)</td>
+          <td style="padding:10px;">Еженедельный AI-отчёт</td>
+          <td style="padding:10px; text-align:center;">8</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">💾 backup</td>
+          <td style="padding:10px;"><span style="color:#fdcb6e">●</span> Schedule</td>
+          <td style="padding:10px;">Бэкап всех workflows → GitHub</td>
+          <td style="padding:10px; text-align:center;">3</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🥐 Был ли завтрак?</td>
+          <td style="padding:10px;"><span style="color:#00b894">●</span> Webhook</td>
+          <td style="padding:10px;">API: проверка завтрака</td>
+          <td style="padding:10px; text-align:center;">4</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">💊 Вычисление дефицитов</td>
+          <td style="padding:10px;"><span style="color:#6c5ce7">●</span> Sched+Hook</td>
+          <td style="padding:10px;">AI рецепты по дефицитам</td>
+          <td style="padding:10px; text-align:center;">11</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">⚡ Кэш питания</td>
+          <td style="padding:10px;"><span style="color:#6c5ce7">●</span> Sched+Hook</td>
+          <td style="padding:10px;">Кэш нутриентов для API</td>
+          <td style="padding:10px; text-align:center;">8</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🌐 Страница наружу</td>
+          <td style="padding:10px;"><span style="color:#00b894">●</span> Webhook</td>
+          <td style="padding:10px;">HTML виджет (/dashboard)</td>
+          <td style="padding:10px; text-align:center;">3</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--green)">● Активен</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px;">🔧 Замена полей</td>
+          <td style="padding:10px;"><span style="color:#9499b3">●</span> Manual</td>
+          <td style="padding:10px;">Одноразовая миграция</td>
+          <td style="padding:10px; text-align:center;">1</td>
+          <td style="padding:10px; text-align:center;"><span style="color:var(--text2)">○ Утилита</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">
+  <p>🗓️ Август 2026 · Автоматически сгенерировано на основе n8n workflow JSON</p>
+  <p style="margin-top:5px">Репозиторий: <a href="https://github.com/Occupancy3537/Longevity" style="color:var(--accent2)">Occupancy3537/Longevity</a></p>
+</div>
+
+</body>
+</html>
