@@ -1,0 +1,79 @@
+name: Сравнение бэкапов и очистка дубликатов
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Сравнение последних двух бэкапов
+        run: |
+          shopt -s nullglob
+          FOLDERS=(workflows/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9])
+          COUNT=${#FOLDERS[@]}
+
+          if [ "$COUNT" -lt 2 ]; then
+            echo "Недостаточно папок для сравнения (найдено: $COUNT)"
+            exit 0
+          fi
+
+          # Сортируем и берём последние две
+          IFS=$'\n' SORTED=($(sort <<<"${FOLDERS[*]}")); unset IFS
+          PREV="${SORTED[-2]}"
+          LATEST="${SORTED[-1]}"
+          LATEST_NAME=$(basename "$LATEST")
+
+          echo "Предыдущий бэкап: $PREV"
+          echo "Последний бэкап:   $LATEST"
+
+          # Сравниваем (игнорируем незначительные различия в updatedAt)
+          DIFF_RAW=$(diff -r "$PREV" "$LATEST" 2>&1 || true)
+
+          # Фильтруем только строки updatedAt (это не реальные изменения)
+          DIFF_FILTERED=$(echo "$DIFF_RAW" | grep -v "updatedAt" || true)
+
+          if [ -z "$DIFF_FILTERED" ]; then
+            echo "РЕЗУЛЬТАТ: Изменений нет (только updatedAt). Удаляем дубликат."
+            git rm -r "$LATEST"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Бэкап $LATEST_NAME: изменений нет, дубликат удалён [skip ci]"
+            git push
+          else
+            echo "РЕЗУЛЬТАТ: Есть реальные изменения."
+            echo ""
+            echo "--- Список изменённых файлов ---"
+
+            # Создаём читаемый лог изменений
+            LOG_FILE="workflows/$LATEST_NAME-changes.log"
+            echo "Лог изменений между $PREV и $LATEST" > "$LOG_FILE"
+            echo "Дата проверки: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$LOG_FILE"
+            echo "================================" >> "$LOG_FILE"
+            echo "" >> "$LOG_FILE"
+
+            # Извлекаем имена файлов, где есть различия
+            CHANGED_FILES=$(echo "$DIFF_FILTERED" | grep "^diff -r" | sed "s|diff -r $PREV/||;s| $LATEST/.*||" | sort -u)
+            echo "$CHANGED_FILES" >> "$LOG_FILE"
+            echo "" >> "$LOG_FILE"
+            echo "--- Детали изменений ---" >> "$LOG_FILE"
+            echo "$DIFF_FILTERED" >> "$LOG_FILE"
+
+            cat "$LOG_FILE"
+
+            git add "$LOG_FILE"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Бэкап $LATEST_NAME: добавлен лог изменений ($CHANGED_FILES) [skip ci]"
+            git push
+          fi
