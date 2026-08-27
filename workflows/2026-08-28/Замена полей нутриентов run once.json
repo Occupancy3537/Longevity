@@ -1,0 +1,40 @@
+{
+  "updatedAt": "2026-06-07T11:24:53.000Z",
+  "createdAt": "2026-06-07T11:10:13.587Z",
+  "id": "fNcK3iFR98sehNW7",
+  "name": "Замена полей нутриентов (run once)",
+  "active": false,
+  "isArchived": true,
+  "nodes": [
+    {
+      "id": "manual-trigger-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {},
+  "settings": {},
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "6f3cb171-4fa5-44e2-816c-44226b1c75f7",
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-06-07T11:10:13.591Z",
+      "createdAt": "2026-06-07T11:10:13.591Z",
+      "role": "workflow:owner",
+      "workflowId": "fNcK3iFR98sehNW7",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": null,
+  "tags": []
+}
