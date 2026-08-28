@@ -1,0 +1,976 @@
+{
+  "updatedAt": "2026-08-27T22:58:53.500Z",
+  "createdAt": "2026-08-27T22:51:32.172Z",
+  "id": "tKHmhBfpzpREOc5S",
+  "name": "Dashboard Cached",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "today-nutrition",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4f89303c-dda5-41de-b411-92a585a2f39c",
+      "name": "Webhook",
+      "webhookId": "2e318495-2f0f-4400-b05e-0a6d048d35f8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "21cac095-2c71-4176-afb4-95a46b3dbd8c",
+              "leftValue": "={{ $json.query.token }}",
+              "rightValue": "79TytaFim5VByE",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        0
+      ],
+      "id": "6c91de35-ad91-4958-9351-dc93bf63b85c",
+      "name": "Token"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read cached dashboard data from Static Data\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.todayNutrition;\n\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован. Подождите несколько минут.' } }];\n}\n\n// Add computed_at to the response\nconst response = { ...cached };\nresponse.computed_at = staticData.computedAt;\nreturn [{ json: response }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "f5e2f685-3973-4151-9487-84dc220f54a5",
+      "name": "Read from Static Data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        592,
+        0
+      ],
+      "id": "12c7e77a-ae84-44a1-8fea-cb92bd224220",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        192
+      ],
+      "id": "01e4812e-6797-476a-96c9-7b9c153352b3",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        192
+      ],
+      "id": "c658993c-d8bd-4f4c-947b-77cc0ebe550c",
+      "name": "Get Nutrition-Meals",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Получаем все данные из предыдущей ноды (Google Sheets — Meals)\nconst allMeals = $input.all();\n\n// 2. Формируем сегодняшнюю дату в формате 'YYYY-MM-DD' для поиска\n// $today доступен в объекте $env, но надежнее использовать объект DateTime\nconst todayStr = $now.toFormat('yyyy-MM-dd');\n\n// 3. Фильтруем массив: оставляем только те записи, где дата начинается с todayStr\nconst todayMeals = allMeals.filter(item => {\n  // Проверяем, существует ли поле Date и является ли оно строкой\n  if (item.json.Date && typeof item.json.Date === 'string') {\n    return item.json.Date.startsWith(todayStr);\n  }\n  return false;\n});\n\n// 4. (Опционально) Получаем данные профиля, если они вам нужны\n// Обратите внимание на точное совпадение имени ноды Profile!\n// const profileData = $('Google Sheets — Profile').first().json;\n\n// Возвращаем отфильтрованные данные дальше по цепочке\nreturn todayMeals;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        192
+      ],
+      "id": "e70f558a-cf53-4afc-992b-9084c69c94aa",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Profile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        784,
+        192
+      ],
+      "id": "18c11d8b-49b1-4d33-b81a-e5814c367223",
+      "name": "Get Nutrition-Profile",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 107859317,
+          "mode": "list",
+          "cachedResultName": "Anomalies_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=107859317"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        192
+      ],
+      "id": "0ed71aee-5b2c-4d7a-9458-789a06819592",
+      "name": "Get Anomalies-Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        192
+      ],
+      "id": "92c0ad0b-732f-4939-b835-fc7d4e1e7285",
+      "name": "Get Daily-Trends",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Профиль (обращаемся по имени ноды)\nconst profileRows = $('Get Nutrition-Profile').all();\nconst profile = profileRows.length > 0 ? profileRows[0].json : {};\n\n// 2. Приёмы пищи за сегодня (нода фильтрации по её точному имени)\nconst mealsData = $('Code in JavaScript').all();\n\nlet totalCalories = 0, totalProteins = 0, totalFats = 0, totalCarbs = 0;\nfor (const meal of mealsData) {\n  totalCalories += meal.json.Calories || 0;\n  totalProteins += meal.json.Proteins || 0;\n  totalFats += meal.json.Fats || 0;\n  totalCarbs += meal.json.Carbs || 0;\n}\n\nconst remainingCalories = (profile.Calories_target || 0) - totalCalories;\nconst remainingProteins = (profile.Protein_target || 0) - totalProteins;\nconst remainingFats = (profile.Fat_target || 0) - totalFats;\nconst remainingCarbs = (profile.Carbs_target || 0) - totalCarbs;\n\n// 3. Числовой парсер: в Daily_Trends значения хранятся как строки с запятой (\"24,3\"), не точкой\nfunction toNum(v) {\n  if (v === undefined || v === null || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\n\n// 4. Последний доступный отчёт из Anomalies_Log (обращаемся по имени — она больше не прямой вход)\n// ВАЖНО: поле date в Anomalies_Log — дата АНАЛИЗИРУЕМОГО дня (вчера), не дата генерации.\n// Поэтому берём не \"сегодня\", а самую свежую запись — актуальную до следующего расчёта.\nconst today = $now.toFormat('yyyy-MM-dd');\nconst anomaliesRows = $('Get Anomalies-Log').all();\nconst sortedAnomalies = [...anomaliesRows].sort((a, b) =>\n  (a.json.date < b.json.date) ? 1 : (a.json.date > b.json.date ? -1 : 0)\n);\nconst latestAnomalyRow = sortedAnomalies[0];\n\nlet anomalies = { count: 0, strong_count: 0, report_date: null, raw: [] };\n\nif (latestAnomalyRow) {\n  let rawList = [];\n  try {\n    rawList = JSON.parse(latestAnomalyRow.json.raw_anomalies || '[]');\n  } catch (e) {\n    rawList = [];\n  }\n\n  // 5. История за 7 дней из Daily_Trends (прямой вход этой ноды — $input)\n  // Wellness-домен использует 'Дата' (кириллица) как ключ даты — см. известные особенности проекта.\n  const trendsRows = $input.all()\n    .map(r => r.json)\n    .filter(r => r['Дата'])\n    .sort((a, b) => (a['Дата'] < b['Дата']) ? 1 : (a['Дата'] > b['Дата']) ? -1 : 0)\n    .slice(0, 7)\n    .reverse(); // от старых к новым — так график рисуется слева направо\n\n  // 6. Для каждой аномалии подтягиваем историю значений именно этой колонки\n  rawList = rawList.map(a => {\n    const history = trendsRows\n      .map(row => toNum(row[a.metric]))\n      .filter(v => v !== null);\n    return { ...a, history };\n  });\n\n  anomalies = {\n    count: Number(latestAnomalyRow.json.anomaly_count) || 0,\n    strong_count: Number(latestAnomalyRow.json.strong_count) || 0,\n    report_date: latestAnomalyRow.json.date || null,\n    raw: rawList\n  };\n}\n\n// 7. Итоговый JSON\nconst finalResult = {\n  date: today,\n  user: profile.Name || \"Неизвестный\",\n  summary: {\n    calories: {\n      consumed: totalCalories,\n      target: profile.Calories_target || 0,\n      remaining: remainingCalories\n    },\n    macros: {\n      proteins: { consumed: totalProteins, target: profile.Protein_target || 0, remaining: remainingProteins },\n      fats: { consumed: parseFloat(totalFats.toFixed(1)), target: profile.Fat_target || 0, remaining: parseFloat(remainingFats.toFixed(1)) },\n      carbs: { consumed: parseFloat(totalCarbs.toFixed(1)), target: profile.Carbs_target || 0, remaining: parseFloat(remainingCarbs.toFixed(1)) }\n    }\n  },\n  meals_count: mealsData.length,\n  anomalies: anomalies\n};\n\nreturn [ { json: finalResult } ];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        192
+      ],
+      "id": "a1c2c592-2de2-4690-8337-60dee5ec1f70",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Write computed dashboard data to Static Data\nconst data = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.todayNutrition = data;\nstaticData.computedAt = new Date().toISOString();\nreturn [{ json: { success: true, computedAt: staticData.computedAt } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        192
+      ],
+      "id": "99ff5d9a-f202-45bf-8795-5d4cf09ccd7e",
+      "name": "Write to Static Data"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token": {
+      "main": [
+        [
+          {
+            "node": "Read from Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read from Static Data": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrition-Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrition-Meals": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrition-Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrition-Profile": {
+      "main": [
+        [
+          {
+            "node": "Get Anomalies-Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Anomalies-Log": {
+      "main": [
+        [
+          {
+            "node": "Get Daily-Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily-Trends": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Write to Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "todayNutrition": {
+        "date": "2026-08-28",
+        "user": "Влад Васюк",
+        "summary": {
+          "calories": {
+            "consumed": 2757,
+            "target": 2400,
+            "remaining": -357
+          },
+          "macros": {
+            "proteins": {
+              "consumed": 132.2,
+              "target": 160,
+              "remaining": 27.80000000000001
+            },
+            "fats": {
+              "consumed": 100.4,
+              "target": 90,
+              "remaining": -10.4
+            },
+            "carbs": {
+              "consumed": 315.2,
+              "target": 270,
+              "remaining": -45.2
+            }
+          }
+        },
+        "meals_count": 10,
+        "anomalies": {
+          "count": 4,
+          "strong_count": 1,
+          "report_date": "2026-08-28",
+          "raw": [
+            {
+              "metric": "Шаги_за_вчера",
+              "label": "Шаги",
+              "value": 0,
+              "z": -3.43,
+              "window": "7д",
+              "severity": "strong",
+              "baseline_mean": 13728.43,
+              "direction": "neutral",
+              "interpretation": "отклонение",
+              "history": [
+                11698,
+                20002,
+                8993,
+                13415,
+                12059,
+                11489,
+                13911
+              ]
+            },
+            {
+              "metric": "Пульс_ночной_средний",
+              "label": "RHR ночной",
+              "value": 50,
+              "z": 2,
+              "window": "7д",
+              "severity": "moderate",
+              "baseline_mean": 48.43,
+              "direction": "lower_better",
+              "interpretation": "ухудшение",
+              "history": [
+                49,
+                50,
+                48,
+                48,
+                48,
+                48,
+                50
+              ]
+            },
+            {
+              "metric": "Стресс_дневной_средний",
+              "label": "Стресс дневной",
+              "value": 35,
+              "z": 1.51,
+              "window": "7д",
+              "severity": "moderate",
+              "baseline_mean": 32.29,
+              "direction": "lower_better",
+              "interpretation": "ухудшение",
+              "history": [
+                32,
+                32,
+                29,
+                35,
+                32,
+                33,
+                35
+              ]
+            },
+            {
+              "metric": "ВСР_ночная",
+              "label": "HRV ночная",
+              "value": 41,
+              "z": -1.85,
+              "window": "7д",
+              "severity": "moderate",
+              "baseline_mean": 51.29,
+              "direction": "higher_better",
+              "interpretation": "ухудшение",
+              "history": [
+                47,
+                59,
+                53,
+                44,
+                52,
+                57,
+                41
+              ]
+            }
+          ]
+        }
+      },
+      "computedAt": "2026-08-28T13:55:59.903Z"
+    }
+  },
+  "meta": null,
+  "pinData": {},
+  "versionId": "02ff7ae8-8e45-46ed-b571-8bce4717d255",
+  "activeVersionId": "02ff7ae8-8e45-46ed-b571-8bce4717d255",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-08-27T22:51:32.181Z",
+      "createdAt": "2026-08-27T22:51:32.181Z",
+      "role": "workflow:owner",
+      "workflowId": "tKHmhBfpzpREOc5S",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-27T22:52:28.000Z",
+    "createdAt": "2026-08-27T22:51:54.036Z",
+    "versionId": "02ff7ae8-8e45-46ed-b571-8bce4717d255",
+    "workflowId": "tKHmhBfpzpREOc5S",
+    "nodes": [
+      {
+        "parameters": {
+          "path": "today-nutrition",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "4f89303c-dda5-41de-b411-92a585a2f39c",
+        "name": "Webhook",
+        "webhookId": "2e318495-2f0f-4400-b05e-0a6d048d35f8"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "21cac095-2c71-4176-afb4-95a46b3dbd8c",
+                "leftValue": "={{ $json.query.token }}",
+                "rightValue": "79TytaFim5VByE",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals",
+                  "name": "filter.operator.equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          192,
+          0
+        ],
+        "id": "6c91de35-ad91-4958-9351-dc93bf63b85c",
+        "name": "Token"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Read cached dashboard data from Static Data\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.todayNutrition;\n\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован. Подождите несколько минут.' } }];\n}\n\n// Add computed_at to the response\nconst response = { ...cached };\nresponse.computed_at = staticData.computedAt;\nreturn [{ json: response }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          416,
+          0
+        ],
+        "id": "f5e2f685-3973-4151-9487-84dc220f54a5",
+        "name": "Read from Static Data"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, OPTIONS"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          592,
+          0
+        ],
+        "id": "12c7e77a-ae84-44a1-8fea-cb92bd224220",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          0,
+          192
+        ],
+        "id": "01e4812e-6797-476a-96c9-7b9c153352b3",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "filtersUI": {
+            "values": []
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          416,
+          192
+        ],
+        "id": "c658993c-d8bd-4f4c-947b-77cc0ebe550c",
+        "name": "Get Nutrition-Meals",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Получаем все данные из предыдущей ноды (Google Sheets — Meals)\nconst allMeals = $input.all();\n\n// 2. Формируем сегодняшнюю дату в формате 'YYYY-MM-DD' для поиска\n// $today доступен в объекте $env, но надежнее использовать объект DateTime\nconst todayStr = $now.toFormat('yyyy-MM-dd');\n\n// 3. Фильтруем массив: оставляем только те записи, где дата начинается с todayStr\nconst todayMeals = allMeals.filter(item => {\n  // Проверяем, существует ли поле Date и является ли оно строкой\n  if (item.json.Date && typeof item.json.Date === 'string') {\n    return item.json.Date.startsWith(todayStr);\n  }\n  return false;\n});\n\n// 4. (Опционально) Получаем данные профиля, если они вам нужны\n// Обратите внимание на точное совпадение имени ноды Profile!\n// const profileData = $('Google Sheets — Profile').first().json;\n\n// Возвращаем отфильтрованные данные дальше по цепочке\nreturn todayMeals;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          592,
+          192
+        ],
+        "id": "e70f558a-cf53-4afc-992b-9084c69c94aa",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Profile",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=0"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          784,
+          192
+        ],
+        "id": "18c11d8b-49b1-4d33-b81a-e5814c367223",
+        "name": "Get Nutrition-Profile",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 107859317,
+            "mode": "list",
+            "cachedResultName": "Anomalies_Log",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=107859317"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          976,
+          192
+        ],
+        "id": "0ed71aee-5b2c-4d7a-9458-789a06819592",
+        "name": "Get Anomalies-Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1152,
+          192
+        ],
+        "id": "92c0ad0b-732f-4939-b835-fc7d4e1e7285",
+        "name": "Get Daily-Trends",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Профиль (обращаемся по имени ноды)\nconst profileRows = $('Get Nutrition-Profile').all();\nconst profile = profileRows.length > 0 ? profileRows[0].json : {};\n\n// 2. Приёмы пищи за сегодня (нода фильтрации по её точному имени)\nconst mealsData = $('Code in JavaScript').all();\n\nlet totalCalories = 0, totalProteins = 0, totalFats = 0, totalCarbs = 0;\nfor (const meal of mealsData) {\n  totalCalories += meal.json.Calories || 0;\n  totalProteins += meal.json.Proteins || 0;\n  totalFats += meal.json.Fats || 0;\n  totalCarbs += meal.json.Carbs || 0;\n}\n\nconst remainingCalories = (profile.Calories_target || 0) - totalCalories;\nconst remainingProteins = (profile.Protein_target || 0) - totalProteins;\nconst remainingFats = (profile.Fat_target || 0) - totalFats;\nconst remainingCarbs = (profile.Carbs_target || 0) - totalCarbs;\n\n// 3. Числовой парсер: в Daily_Trends значения хранятся как строки с запятой (\"24,3\"), не точкой\nfunction toNum(v) {\n  if (v === undefined || v === null || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\n\n// 4. Последний доступный отчёт из Anomalies_Log (обращаемся по имени — она больше не прямой вход)\n// ВАЖНО: поле date в Anomalies_Log — дата АНАЛИЗИРУЕМОГО дня (вчера), не дата генерации.\n// Поэтому берём не \"сегодня\", а самую свежую запись — актуальную до следующего расчёта.\nconst today = $now.toFormat('yyyy-MM-dd');\nconst anomaliesRows = $('Get Anomalies-Log').all();\nconst sortedAnomalies = [...anomaliesRows].sort((a, b) =>\n  (a.json.date < b.json.date) ? 1 : (a.json.date > b.json.date ? -1 : 0)\n);\nconst latestAnomalyRow = sortedAnomalies[0];\n\nlet anomalies = { count: 0, strong_count: 0, report_date: null, raw: [] };\n\nif (latestAnomalyRow) {\n  let rawList = [];\n  try {\n    rawList = JSON.parse(latestAnomalyRow.json.raw_anomalies || '[]');\n  } catch (e) {\n    rawList = [];\n  }\n\n  // 5. История за 7 дней из Daily_Trends (прямой вход этой ноды — $input)\n  // Wellness-домен использует 'Дата' (кириллица) как ключ даты — см. известные особенности проекта.\n  const trendsRows = $input.all()\n    .map(r => r.json)\n    .filter(r => r['Дата'])\n    .sort((a, b) => (a['Дата'] < b['Дата']) ? 1 : (a['Дата'] > b['Дата']) ? -1 : 0)\n    .slice(0, 7)\n    .reverse(); // от старых к новым — так график рисуется слева направо\n\n  // 6. Для каждой аномалии подтягиваем историю значений именно этой колонки\n  rawList = rawList.map(a => {\n    const history = trendsRows\n      .map(row => toNum(row[a.metric]))\n      .filter(v => v !== null);\n    return { ...a, history };\n  });\n\n  anomalies = {\n    count: Number(latestAnomalyRow.json.anomaly_count) || 0,\n    strong_count: Number(latestAnomalyRow.json.strong_count) || 0,\n    report_date: latestAnomalyRow.json.date || null,\n    raw: rawList\n  };\n}\n\n// 7. Итоговый JSON\nconst finalResult = {\n  date: today,\n  user: profile.Name || \"Неизвестный\",\n  summary: {\n    calories: {\n      consumed: totalCalories,\n      target: profile.Calories_target || 0,\n      remaining: remainingCalories\n    },\n    macros: {\n      proteins: { consumed: totalProteins, target: profile.Protein_target || 0, remaining: remainingProteins },\n      fats: { consumed: parseFloat(totalFats.toFixed(1)), target: profile.Fat_target || 0, remaining: parseFloat(remainingFats.toFixed(1)) },\n      carbs: { consumed: parseFloat(totalCarbs.toFixed(1)), target: profile.Carbs_target || 0, remaining: parseFloat(remainingCarbs.toFixed(1)) }\n    }\n  },\n  meals_count: mealsData.length,\n  anomalies: anomalies\n};\n\nreturn [ { json: finalResult } ];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1344,
+          192
+        ],
+        "id": "a1c2c592-2de2-4690-8337-60dee5ec1f70",
+        "name": "Code in JavaScript1"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Write computed dashboard data to Static Data\nconst data = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.todayNutrition = data;\nstaticData.computedAt = new Date().toISOString();\nreturn [{ json: { success: true, computedAt: staticData.computedAt } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1520,
+          192
+        ],
+        "id": "99ff5d9a-f202-45bf-8795-5d4cf09ccd7e",
+        "name": "Write to Static Data"
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Token",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Token": {
+        "main": [
+          [
+            {
+              "node": "Read from Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read from Static Data": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrition-Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrition-Meals": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrition-Profile",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrition-Profile": {
+        "main": [
+          [
+            {
+              "node": "Get Anomalies-Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Anomalies-Log": {
+        "main": [
+          [
+            {
+              "node": "Get Daily-Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily-Trends": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript1": {
+        "main": [
+          [
+            {
+              "node": "Write to Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 02ff7ae8",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
