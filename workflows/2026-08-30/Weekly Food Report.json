@@ -1,0 +1,707 @@
+{
+  "updatedAt": "2026-08-24T03:27:40.550Z",
+  "createdAt": "2026-06-05T05:14:23.529Z",
+  "id": "1hXkG2olJS32KvGU",
+  "name": "Weekly Food Report",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 12
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "37807297-817a-43b3-b067-f009800ca88d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1315707050,
+          "mode": "list",
+          "cachedResultName": "week_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1315707050"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A1:AB500"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        160,
+        0
+      ],
+      "id": "f2d7ab3b-4d70-4b65-b7cc-a383a5e63c45",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "sum",
+              "field": "Calories"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Proteins"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Carbs"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Fats"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Магний"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Витамин D"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Омега-3 (EPA/DHA)"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Селен"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Йод"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Калий"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Железо"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Кальций"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Витамин B12"
+            },
+            {
+              "aggregation": "max",
+              "field": "daysTracked"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Клетчатка"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Добавленный сахар"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Натрий"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Кофеин"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Алкоголь"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Насыщенные жиры"
+            },
+            {
+              "aggregation": "sum",
+              "field": "Трансжиры"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1.1,
+      "position": [
+        464,
+        0
+      ],
+      "id": "f0400c1c-f1ef-4afc-8e22-1d89debb2a02",
+      "name": "Summarize"
+    },
+    {
+      "parameters": {
+        "chatId": "8956401",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "16ed886d-9cad-4c3b-9c50-21483cc01b01",
+      "name": "Send a text message",
+      "webhookId": "cebbd7dc-981a-428e-975a-1cdb3e84b200",
+      "credentials": {
+        "telegramApi": {
+          "id": "efFiNDygGmGLdiyM",
+          "name": "Отчет по питанию"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — эксперт по превентивной медицине и долголетию. Проанализируй данные о питании за неделю для 43-летнего мужчины из Владивостока.\n\nДанные за неделю: {{ JSON.stringify($json) }} Единицы измерения: Калории (ккал), БЖУ (граммы), Минералы и Омега-3(мг), Витамины (мкг).\n\nКонтекст региона: Владивосток — город с высокой солнечной активностью зимой, но холодными ветрами. Учти доступность морепродуктов и специфику региона.\nТвоя задача:\nСравни суммы нутриентов с нормой для 43-летнего мужчины (акцент на тестостерон, здоровье сосудов и суставов).\nПо витамину D: учитывай солнце, но предупреди, если суммы из еды слишком малы для зимы. Пациент принимает витамин D 2500 ед.\nПо йоду: не делай акцент на дефиците (регион обеспечен), но проверь баланс других минералов (Магний, Селен).\nДай 3 конкретных совета по питанию на следующую неделю для продления активного долголетия.\nВсе значения уже приведены к среднему за день.\nВАЖНО: Пиши простым текстом без использования Markdown (без звездочек, решеток и жирного шрифта). Используй абзацы и эмодзи. \nСтруктура ответа:\n1. Короткий итог (1-2 предложения)\n2. Где дефициты\n3. Где перебор\n4. 3 конкретных действия на неделю.\nОГРАНИЧЕНИЕ ДЛИНЫ: Твой ответ должен быть кратким и укладываться в 3500 символов. Пиши только самое важное, без \"воды\"."
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        880,
+        0
+      ],
+      "id": "3bc342d7-db17-4ed2-87f3-bcea7cd474d1",
+      "name": "Анализ Питания"
+    },
+    {
+      "parameters": {
+        "model": "z-ai/glm-5.1",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        880,
+        192
+      ],
+      "id": "dc56f95f-4b92-42e0-9769-9c5e69df355a",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $input.first().json;\n\nif (!summary.max_daysTracked && !summary.daysTracked) {\n  return [{ json: { text: \"⚠️ За последнюю неделю не найдено записей о питании.\" } }];\n}\n\nconst result = {};\n\nfor (const [key, value] of Object.entries(summary)) {\n  if (typeof value === 'number' && !key.includes('daysTracked')) {\n    result[key] = Math.round(value); \n  }\n}\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "2c50041a-f565-4016-8411-cf9f2d68f9d2",
+      "name": "Расчет среднего"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === НАСТРОЙКИ ===\nconst TIMEZONE_OFFSET_HOURS = 10; // Владивосток\nconst DAYS_TO_ANALYZE = 7;\nconst DATE_FIELD = 'Date';\nconst USER_FIELD = 'User_ID';      // Название колонки с именем\nconst TARGET_USER = 'Влад Васюк';  // Имя пользователя для отчета\n\n// === ЛОГИКА ===\nconst now = new Date();\nconst nowInVl = new Date(now.getTime() + (TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));\nconst startInVl = new Date(nowInVl);\nstartInVl.setDate(startInVl.getDate() - DAYS_TO_ANALYZE);\nstartInVl.setHours(0, 0, 0, 0);\n\nconst allItems = $input.all();\nconst uniqueDates = new Set();\nconst filteredItems = [];\n\nfor (const item of allItems) {\n  // 1. ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ\n  // Приводим к строке, убираем лишние пробелы и сравниваем\n  const userName = String(item.json[USER_FIELD] || '').trim();\n  if (userName !== TARGET_USER) {\n    continue; // Если это не Влад Васюк — пропускаем строку\n  }\n\n  // 2. ПРОВЕРКА ДАТЫ\n  const rawDate = item.json[DATE_FIELD];\n  if (!rawDate) continue;\n\n  let rowDate = new Date(rawDate);\n  if (isNaN(rowDate.getTime())) continue;\n\n  const rowDateInVl = new Date(rowDate.getTime() + (TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));\n\n  if (rowDateInVl >= startInVl && rowDateInVl <= nowInVl) {\n    filteredItems.push(item);\n    const dateKey = rowDateInVl.toISOString().split('T')[0];\n    uniqueDates.add(dateKey);\n  }\n}\n\n// === РЕЗУЛЬТАТ ===\nif (filteredItems.length === 0) {\n  return [{ json: { noData: true, daysTracked: 0 } }];\n}\n\nconst daysCount = uniqueDates.size;\n\nreturn filteredItems.map(item => ({\n  json: {\n    ...item.json,\n    daysTracked: daysCount\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        0
+      ],
+      "id": "391c3734-9878-4b80-ade1-aa97a242e95c",
+      "name": "Фильтрация"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Фильтрация",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize": {
+      "main": [
+        [
+          {
+            "node": "Расчет среднего",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Анализ Питания",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Анализ Питания": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Расчет среднего": {
+      "main": [
+        [
+          {
+            "node": "Анализ Питания",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Фильтрация": {
+      "main": [
+        [
+          {
+            "node": "Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "ac284e70-a674-4351-a7da-b23c54bcd001",
+  "activeVersionId": "ac284e70-a674-4351-a7da-b23c54bcd001",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-05T05:14:23.531Z",
+      "createdAt": "2026-06-05T05:14:23.531Z",
+      "role": "workflow:owner",
+      "workflowId": "1hXkG2olJS32KvGU",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-09T10:44:04.000Z",
+    "createdAt": "2026-08-09T10:43:14.925Z",
+    "versionId": "ac284e70-a674-4351-a7da-b23c54bcd001",
+    "workflowId": "1hXkG2olJS32KvGU",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "weeks",
+                "triggerAtHour": 12
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          0,
+          0
+        ],
+        "id": "37807297-817a-43b3-b067-f009800ca88d",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1315707050,
+            "mode": "list",
+            "cachedResultName": "week_sum",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1315707050"
+          },
+          "filtersUI": {
+            "values": []
+          },
+          "options": {
+            "dataLocationOnSheet": {
+              "values": {
+                "rangeDefinition": "specifyRangeA1",
+                "range": "A1:AB500"
+              }
+            }
+          }
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          160,
+          0
+        ],
+        "id": "f2d7ab3b-4d70-4b65-b7cc-a383a5e63c45",
+        "name": "Get row(s) in sheet",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fieldsToSummarize": {
+            "values": [
+              {
+                "aggregation": "sum",
+                "field": "Calories"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Proteins"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Carbs"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Fats"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Магний"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Витамин D"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Омега-3 (EPA/DHA)"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Селен"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Йод"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Калий"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Железо"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Кальций"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Витамин B12"
+              },
+              {
+                "aggregation": "max",
+                "field": "daysTracked"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Клетчатка"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Добавленный сахар"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Натрий"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Кофеин"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Алкоголь"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Насыщенные жиры"
+              },
+              {
+                "aggregation": "sum",
+                "field": "Трансжиры"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.summarize",
+        "typeVersion": 1.1,
+        "position": [
+          464,
+          0
+        ],
+        "id": "f0400c1c-f1ef-4afc-8e22-1d89debb2a02",
+        "name": "Summarize"
+      },
+      {
+        "parameters": {
+          "chatId": "8956401",
+          "text": "={{ $json.text }}",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          1184,
+          0
+        ],
+        "id": "16ed886d-9cad-4c3b-9c50-21483cc01b01",
+        "name": "Send a text message",
+        "webhookId": "cebbd7dc-981a-428e-975a-1cdb3e84b200",
+        "credentials": {
+          "telegramApi": {
+            "id": "efFiNDygGmGLdiyM",
+            "name": "Отчет по питанию"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Ты — эксперт по превентивной медицине и долголетию. Проанализируй данные о питании за неделю для 43-летнего мужчины из Владивостока.\n\nДанные за неделю: {{ JSON.stringify($json) }} Единицы измерения: Калории (ккал), БЖУ (граммы), Минералы и Омега-3(мг), Витамины (мкг).\n\nКонтекст региона: Владивосток — город с высокой солнечной активностью зимой, но холодными ветрами. Учти доступность морепродуктов и специфику региона.\nТвоя задача:\nСравни суммы нутриентов с нормой для 43-летнего мужчины (акцент на тестостерон, здоровье сосудов и суставов).\nПо витамину D: учитывай солнце, но предупреди, если суммы из еды слишком малы для зимы. Пациент принимает витамин D 2500 ед.\nПо йоду: не делай акцент на дефиците (регион обеспечен), но проверь баланс других минералов (Магний, Селен).\nДай 3 конкретных совета по питанию на следующую неделю для продления активного долголетия.\nВсе значения уже приведены к среднему за день.\nВАЖНО: Пиши простым текстом без использования Markdown (без звездочек, решеток и жирного шрифта). Используй абзацы и эмодзи. \nСтруктура ответа:\n1. Короткий итог (1-2 предложения)\n2. Где дефициты\n3. Где перебор\n4. 3 конкретных действия на неделю.\nОГРАНИЧЕНИЕ ДЛИНЫ: Твой ответ должен быть кратким и укладываться в 3500 символов. Пиши только самое важное, без \"воды\"."
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4,
+        "position": [
+          880,
+          0
+        ],
+        "id": "3bc342d7-db17-4ed2-87f3-bcea7cd474d1",
+        "name": "Анализ Питания"
+      },
+      {
+        "parameters": {
+          "model": "z-ai/glm-5.1",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          880,
+          192
+        ],
+        "id": "dc56f95f-4b92-42e0-9769-9c5e69df355a",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const summary = $input.first().json;\n\nif (!summary.max_daysTracked && !summary.daysTracked) {\n  return [{ json: { text: \"⚠️ За последнюю неделю не найдено записей о питании.\" } }];\n}\n\nconst result = {};\n\nfor (const [key, value] of Object.entries(summary)) {\n  if (typeof value === 'number' && !key.includes('daysTracked')) {\n    result[key] = Math.round(value); \n  }\n}\n\nreturn [{ json: result }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          624,
+          0
+        ],
+        "id": "2c50041a-f565-4016-8411-cf9f2d68f9d2",
+        "name": "Расчет среднего"
+      },
+      {
+        "parameters": {
+          "jsCode": "// === НАСТРОЙКИ ===\nconst TIMEZONE_OFFSET_HOURS = 10; // Владивосток\nconst DAYS_TO_ANALYZE = 7;\nconst DATE_FIELD = 'Date';\nconst USER_FIELD = 'User_ID';      // Название колонки с именем\nconst TARGET_USER = 'Влад Васюк';  // Имя пользователя для отчета\n\n// === ЛОГИКА ===\nconst now = new Date();\nconst nowInVl = new Date(now.getTime() + (TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));\nconst startInVl = new Date(nowInVl);\nstartInVl.setDate(startInVl.getDate() - DAYS_TO_ANALYZE);\nstartInVl.setHours(0, 0, 0, 0);\n\nconst allItems = $input.all();\nconst uniqueDates = new Set();\nconst filteredItems = [];\n\nfor (const item of allItems) {\n  // 1. ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ\n  // Приводим к строке, убираем лишние пробелы и сравниваем\n  const userName = String(item.json[USER_FIELD] || '').trim();\n  if (userName !== TARGET_USER) {\n    continue; // Если это не Влад Васюк — пропускаем строку\n  }\n\n  // 2. ПРОВЕРКА ДАТЫ\n  const rawDate = item.json[DATE_FIELD];\n  if (!rawDate) continue;\n\n  let rowDate = new Date(rawDate);\n  if (isNaN(rowDate.getTime())) continue;\n\n  const rowDateInVl = new Date(rowDate.getTime() + (TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));\n\n  if (rowDateInVl >= startInVl && rowDateInVl <= nowInVl) {\n    filteredItems.push(item);\n    const dateKey = rowDateInVl.toISOString().split('T')[0];\n    uniqueDates.add(dateKey);\n  }\n}\n\n// === РЕЗУЛЬТАТ ===\nif (filteredItems.length === 0) {\n  return [{ json: { noData: true, daysTracked: 0 } }];\n}\n\nconst daysCount = uniqueDates.size;\n\nreturn filteredItems.map(item => ({\n  json: {\n    ...item.json,\n    daysTracked: daysCount\n  }\n}));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          320,
+          0
+        ],
+        "id": "391c3734-9878-4b80-ade1-aa97a242e95c",
+        "name": "Фильтрация"
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get row(s) in sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get row(s) in sheet": {
+        "main": [
+          [
+            {
+              "node": "Фильтрация",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Summarize": {
+        "main": [
+          [
+            {
+              "node": "Расчет среднего",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Анализ Питания",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Анализ Питания": {
+        "main": [
+          [
+            {
+              "node": "Send a text message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Расчет среднего": {
+        "main": [
+          [
+            {
+              "node": "Анализ Питания",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Фильтрация": {
+        "main": [
+          [
+            {
+              "node": "Summarize",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version ac284e70",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
