@@ -1,0 +1,720 @@
+{
+  "updatedAt": "2026-08-28T05:17:40.242Z",
+  "createdAt": "2026-08-20T05:41:35.870Z",
+  "id": "rRMf7PjBavup4i5g",
+  "name": "Вычисление дефицитов для рекомендации рецептов для Дашборда",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        -32
+      ],
+      "id": "629b4338-0ed4-4ccd-8449-e68ed999fbfb",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list",
+          "cachedResultName": "day_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=742673642"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -96,
+        -32
+      ],
+      "id": "017ba5da-3561-4f60-9a4a-a34a5f42785d",
+      "name": "Get day_sum",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1713711420,
+          "mode": "list",
+          "cachedResultName": "Nutrient_Targets",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1713711420"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        112,
+        -32
+      ],
+      "id": "95d10d97-07df-416b-b92e-02c070362122",
+      "name": "Get Nutrient_Targets",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        288,
+        -32
+      ],
+      "id": "57025b31-b1a2-4a63-9e8c-d9c34452f632",
+      "name": "Get Meals",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — эксперт-нутрициолог в области активного долголетия (longevity) и практичный шеф-повар. Твоя задача — проанализировать входящие данные о нутриентном балансе за неделю (дефициты и токсичные профициты) и предложить ровно 3 блюда (1 основное блюдо, 1 салат и 1 десерт), которые точечно скорректируют этот баланс.\n\nПРАВИЛА СОСТАВЛЕНИЯ РЕЦЕПТОВ:\n\nПродуктовая база: Делай упор на высокобелковую пищу с нулевым или минимальным количеством добавленного сахара. В качестве основных источников белка используй морепродукты (лосось, минтай, треска, кальмар, гребешок, мидии), птицу и яйца. Обязательно включай свежие овощи.\n\nСпецифика категорий:\n\nОсновное блюдо: Сытное, с мощным белковым профилем.\n\nСалат: Легкий, закрывающий дефициты по клетчатке и микроэлементам.\n\nДесерт: Строго без добавленного сахара. Используй функциональные жиры, ягоды, орехи или качественный творог.\n\nФункциональные жиры: Уместно интегрируй в рецепты или заправки полезные жиры, в частности нерафинированное масло авокадо.\n\nПрактичность: Блюда должны быть вкусными, но технологически простыми. Избегай сложных кулинарных техник и многочасовых подготовок — рецепты должны подходить для самостоятельного приготовления дома после рабочего дня.\n\nФокус на долголетие: Рецепты должны соответствовать протоколам снижения биологического возраста (контроль гликемической нагрузки, борьба с системным воспалением). Если во входных данных есть профицит (например, перебор по натрию или насыщенным жирам), предложенные блюда должны строго это компенсировать.\n\nФОРМАТ ВЫВОДА (ДЛЯ КАЖДОГО ИЗ 3 БЛЮД):\n\nНазвание блюда (аппетитное и понятное, с указанием категории: [Основное] / [Салат] / [Десерт]).\n\nПочему это работает: Краткое объяснение (1-2 предложения), какие именно дефициты из входных данных закрывает блюдо и как оно обходит текущие профициты.\n\nИнгредиенты: Четкий список с ориентировочными граммовками на 1 порцию.\n\nПриготовление: 3-4 лаконичных шага (без воды и лишней лирики).\n\n{{ $json.llm_prompt }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        704,
+        -32
+      ],
+      "id": "46cd2001-397f-43d8-9eb9-b98387142f22",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3.7-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        704,
+        176
+      ],
+      "id": "cf2efb1f-6c14-404c-902c-0036660764c4",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Получаем последние 7 дней из узла Get day_sum\nconst dayRows = $('Get day_sum').all().map(r => r.json)\n  .filter(r => r['Date'])\n  .sort((a, b) => (a['Date'] < b['Date']) ? 1 : (a['Date'] > b['Date']) ? -1 : 0)\n  .slice(0, 7);\n\n// 2. Получаем цели из узла Get Nutrient_Targets\nconst targets = $('Get Nutrient_Targets').all().map(r => r.json);\n\n// Вспомогательная функция для безопасного парсинга чисел\nfunction parseNum(v) {\n  if (!v) return null;\n  const m = String(v).match(/-?\\d+(?:[.,]\\d+)?/);\n  return m ? parseFloat(m[0].replace(',', '.')) : null;\n}\n\nconst deficits = [];\nconst excesses = [];\n\n// 3. Вычисляем среднее за неделю по каждому нутриенту\ntargets.forEach(t => {\n  const col = t['Колонка_в_Meals'];\n  if (!col) return;\n\n  const rda = parseNum(t['Норма_RDA_AI']);\n  const ul = parseNum(t['Верхний_предел_UL']);\n  const isLimitType = (t['Категория'] || '').includes('Риск избытка');\n\n  let sum = 0;\n  let count = 0;\n  \n  dayRows.forEach(r => {\n    const val = parseFloat(String(r[col]).replace(',', '.'));\n    if (!isNaN(val)) {\n      sum += val;\n      count++;\n    }\n  });\n  \n  if (count === 0) return;\n  const avg = sum / count;\n\n  // 4. Сортируем на дефициты и профициты\n  if (isLimitType && ul && avg > ul) {\n     excesses.push(`- ${t['Нутриент']}: в среднем ${Math.round(avg)} (лимит ${ul})`);\n  } else if (!isLimitType && rda && avg < rda * 0.85) {\n     // Считаем дефицитом всё, что ниже 85% от цели\n     deficits.push(`- ${t['Нутриент']}: в среднем ${Math.round(avg)} (норма ${rda})`);\n  }\n});\n\n// 5. Формируем контекст для LLM\nconst promptContext = `\nАнализ питания за последние 7 дней:\n\nКРИТИЧЕСКИЕ ДЕФИЦИТЫ (нужно восполнить):\n${deficits.length > 0 ? deficits.join('\\n') : 'Дефицитов не обнаружено. Поддерживай текущий баланс.'}\n\nПРОФИЦИТЫ / ИЗБЫТОК (нужно компенсировать/сократить):\n${excesses.length > 0 ? excesses.join('\\n') : 'Избытка токсичных нутриентов нет.'}\n\nЛокальный контекст ингредиентов: в приоритете дикая рыба, дальневосточные морепродукты (кальмар, гребешок, мидии), птица, свежие овощи. Из жиров активно используются масло авокадо и льняной урбеч.\n`;\n\nreturn [{ \n  json: { \n    llm_prompt: promptContext, \n    deficits_count: deficits.length,\n    excesses_count: excesses.length\n  } \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        -32
+      ],
+      "id": "cf990373-df5e-4cfc-b09d-cd31c5a34a1f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "path": "recipes",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        288,
+        384
+      ],
+      "id": "0d08a724-5b97-4faa-963d-ee8c298ec4fb",
+      "name": "Webhook",
+      "webhookId": "c7f33ff4-868d-46fe-9367-6d2db1f7737f"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        704,
+        384
+      ],
+      "id": "3a38085f-811e-4715-a7a0-8ebc89f8bec1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ветка Webhook в том же workflow, что и Schedule Trigger → ... → AI Agent → Code (пишет).\n// Static Data общая на весь workflow.\n\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.recipes;\n\nif (!cached) {\n  return [{\n    json: {\n      error: 'no_data_yet',\n      message: 'Рецепты ещё не сгенерированы. Дождитесь первого запуска по расписанию.'\n    }\n  }];\n}\n\nreturn [{ json: cached }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        384
+      ],
+      "id": "d16d073c-d3a4-4ffd-b09a-dab1f7a83d06",
+      "name": "Code (читает Static Data)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Достаём текст, который сгенерировал AI Agent\nconst aiText = $input.first().json.output;\n\nconst staticData = $getWorkflowStaticData('global');\nstaticData.recipes = {\n  updated_at: new Date().toISOString(),\n  recipes: aiText\n};\n\nreturn [{ json: staticData.recipes }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        -32
+      ],
+      "id": "8cd14c79-e025-45d8-9490-da641f3e9f54",
+      "name": "Пишем Static Data"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get day_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get day_sum": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrient_Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrient_Targets": {
+      "main": [
+        [
+          {
+            "node": "Get Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meals": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Пишем Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code (читает Static Data)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (читает Static Data)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Пишем Static Data": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "saveDataSuccessExecution": "none"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "recipes": {
+        "updated_at": "2026-08-30T00:00:29.988Z",
+        "recipes": "### 1. Тихоокеанский кальмар гриль с брокколи и цитрусовой заправкой [Основное]\n\n**Почему это работает:**\nКальмар — один из лучших источников биодоступного йода и чистого белка с практически нулевым содержанием насыщенных жиров, что критично для компенсации их недельного избытка. Масло авокадо в заправке выступает термостабильным источником мононенасыщенных жиров и витамина E.\n\n**Ингредиенты (на 1 порцию):**\n* Тушка командорского кальмара (очищенная) — 200 г\n* Капуста брокколи — 150 г\n* Масло авокадо нерафинированное — 10 мл (1 дес. л.)\n* Сок лимона — 1 ч. л.\n* Чеснок — 1/2 зубчика (измельчить)\n* Морская соль и свежемолотый черный перец — по вкусу\n\n**Приготовление:**\n1. **Подготовка:** Тушку кальмара надрежьте неглубокой сеткой с одной стороны, брокколи разберите на небольшие соцветия.\n2. **Бланширование:** Опустите брокколи в кипящую подсоленную воду на 2,5 минуты, затем откиньте в ледяную воду для сохранения цвета и текстуры.\n3. **Обжарка кальмара:** Раскалите сухую сковороду-гриль и быстро обжарьте кальмара по 1–1,5 минуты с каждой стороны (не передерживайте, чтобы сохранить нежность).\n4. **Сборка и заправка:** Смешайте масло авокадо, сок лимона и чеснок. Выложите на тарелку брокколи и нарезанного кальмара, полейте ароматной заправкой.\n\n---\n\n### 2. Зеленый салат с дальневосточными мидиями, вакаме и семенами [Салат]\n\n**Почему это работает:**\nСочетание мидий и водорослей вакаме гарантированно устраняет дефицит йода, а семена подсолнечника, шпинат и нерафинированное масло авокадо суммарно закрывают оставшуюся потребность в витамине E без подъема насыщенных жиров.\n\n**Ингредиенты (на 1 порцию):**\n* Мидии дальневосточные (варено-мороженые или свежие) — 120 г\n* Водоросли вакаме (сухие) — 5 г (в гидратированном виде ~40 г)\n* Свежий шпинат (baby) — 50 г\n* Огурец свежий — 80 г\n* Семена подсолнечника (сырые или слегка подсушенные) — 15 г (богатейший источник витамина E)\n* Масло авокадо — 10 мл (1 дес. л.)\n* Яблочный уксус органический или сок лайма — 1 ч. л.\n\n**Приготовление:**\n1. **Подготовка базы:** Замочите вакаме в теплой воде на 5 минут, затем слегка отожмите; огурец нарежьте тонкими слайсами.\n2. **Морепродукты:** Мидии прогрейте на сковороде с каплей воды в течение 2 минут до готовности (или разморозьте и просушите).\n3. **Сборка:** В салатник выложите подушку из листьев шпината, огурец, вакаме и теплые мидии.\n4. **Финал:** Посыпьте салат семенами подсолнечника и заправьте эмульсией из масла авокадо и яблочного уксуса.\n\n---\n\n### 3. Антиоксидантный крем из диких ягод с льняным урбечем и миндалем [Десерт]\n\n**Почему это работает:**\nДесерт свободен от добавленного сахара и молочных насыщенных жиров. Льняной урбеч поставляет Омега-3 жирные кислоты (АЛК), а миндаль в сочетании с антиоксидантами черники обеспечивает финальную дозу витамина E для защиты клеточных мембран.\n\n**Ингредиенты (на 1 порцию):**\n* Дикая черника или голубика (свежая или замороженная) — 100 г\n* Льняной урбеч — 15 г (1 ст. л.)\n* Семена чиа — 10 г\n* Растительное молоко без сахара (миндальное или конопляное) — 60 мл\n* Миндаль (цельный, порубить ножом) — 15 г\n\n**Приготовление:**\n1. **Активация семян:** Смешайте семена чиа с растительным молоком и оставьте на 10–15 минут до состояния мягкого геля.\n2. **Ягодная основа:** Ягоды взбейте блендером вместе с льняным урбечем до состояния гладкого мусса (если ягоды заморожены — дайте им слегка оттаять).\n3. **Объединение:** Аккуратно вмешайте чиа-основу в ягодный мусс.\n4. **Подача:** Переложите в креманку и посыпьте сверху рубленым миндалем для текстурного кранча."
+      }
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "0e973f4e-a938-41a9-b359-296834983484",
+  "activeVersionId": "0e973f4e-a938-41a9-b359-296834983484",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-08-20T05:41:35.873Z",
+      "createdAt": "2026-08-20T05:41:35.873Z",
+      "role": "workflow:owner",
+      "workflowId": "rRMf7PjBavup4i5g",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-28T05:17:44.000Z",
+    "createdAt": "2026-08-28T05:17:40.245Z",
+    "versionId": "0e973f4e-a938-41a9-b359-296834983484",
+    "workflowId": "rRMf7PjBavup4i5g",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "triggerAtHour": 10
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -304,
+          -32
+        ],
+        "id": "629b4338-0ed4-4ccd-8449-e68ed999fbfb",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 742673642,
+            "mode": "list",
+            "cachedResultName": "day_sum",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=742673642"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -96,
+          -32
+        ],
+        "id": "017ba5da-3561-4f60-9a4a-a34a5f42785d",
+        "name": "Get day_sum",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1713711420,
+            "mode": "list",
+            "cachedResultName": "Nutrient_Targets",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=1713711420"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          112,
+          -32
+        ],
+        "id": "95d10d97-07df-416b-b92e-02c070362122",
+        "name": "Get Nutrient_Targets",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          288,
+          -32
+        ],
+        "id": "57025b31-b1a2-4a63-9e8c-d9c34452f632",
+        "name": "Get Meals",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Ты — эксперт-нутрициолог в области активного долголетия (longevity) и практичный шеф-повар. Твоя задача — проанализировать входящие данные о нутриентном балансе за неделю (дефициты и токсичные профициты) и предложить ровно 3 блюда (1 основное блюдо, 1 салат и 1 десерт), которые точечно скорректируют этот баланс.\n\nПРАВИЛА СОСТАВЛЕНИЯ РЕЦЕПТОВ:\n\nПродуктовая база: Делай упор на высокобелковую пищу с нулевым или минимальным количеством добавленного сахара. В качестве основных источников белка используй морепродукты (лосось, минтай, треска, кальмар, гребешок, мидии), птицу и яйца. Обязательно включай свежие овощи.\n\nСпецифика категорий:\n\nОсновное блюдо: Сытное, с мощным белковым профилем.\n\nСалат: Легкий, закрывающий дефициты по клетчатке и микроэлементам.\n\nДесерт: Строго без добавленного сахара. Используй функциональные жиры, ягоды, орехи или качественный творог.\n\nФункциональные жиры: Уместно интегрируй в рецепты или заправки полезные жиры, в частности нерафинированное масло авокадо.\n\nПрактичность: Блюда должны быть вкусными, но технологически простыми. Избегай сложных кулинарных техник и многочасовых подготовок — рецепты должны подходить для самостоятельного приготовления дома после рабочего дня.\n\nФокус на долголетие: Рецепты должны соответствовать протоколам снижения биологического возраста (контроль гликемической нагрузки, борьба с системным воспалением). Если во входных данных есть профицит (например, перебор по натрию или насыщенным жирам), предложенные блюда должны строго это компенсировать.\n\nФОРМАТ ВЫВОДА (ДЛЯ КАЖДОГО ИЗ 3 БЛЮД):\n\nНазвание блюда (аппетитное и понятное, с указанием категории: [Основное] / [Салат] / [Десерт]).\n\nПочему это работает: Краткое объяснение (1-2 предложения), какие именно дефициты из входных данных закрывает блюдо и как оно обходит текущие профициты.\n\nИнгредиенты: Четкий список с ориентировочными граммовками на 1 порцию.\n\nПриготовление: 3-4 лаконичных шага (без воды и лишней лирики).\n\n{{ $json.llm_prompt }}",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          704,
+          -32
+        ],
+        "id": "46cd2001-397f-43d8-9eb9-b98387142f22",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "model": "google/gemini-3.7-flash",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          704,
+          176
+        ],
+        "id": "cf2efb1f-6c14-404c-902c-0036660764c4",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Получаем последние 7 дней из узла Get day_sum\nconst dayRows = $('Get day_sum').all().map(r => r.json)\n  .filter(r => r['Date'])\n  .sort((a, b) => (a['Date'] < b['Date']) ? 1 : (a['Date'] > b['Date']) ? -1 : 0)\n  .slice(0, 7);\n\n// 2. Получаем цели из узла Get Nutrient_Targets\nconst targets = $('Get Nutrient_Targets').all().map(r => r.json);\n\n// Вспомогательная функция для безопасного парсинга чисел\nfunction parseNum(v) {\n  if (!v) return null;\n  const m = String(v).match(/-?\\d+(?:[.,]\\d+)?/);\n  return m ? parseFloat(m[0].replace(',', '.')) : null;\n}\n\nconst deficits = [];\nconst excesses = [];\n\n// 3. Вычисляем среднее за неделю по каждому нутриенту\ntargets.forEach(t => {\n  const col = t['Колонка_в_Meals'];\n  if (!col) return;\n\n  const rda = parseNum(t['Норма_RDA_AI']);\n  const ul = parseNum(t['Верхний_предел_UL']);\n  const isLimitType = (t['Категория'] || '').includes('Риск избытка');\n\n  let sum = 0;\n  let count = 0;\n  \n  dayRows.forEach(r => {\n    const val = parseFloat(String(r[col]).replace(',', '.'));\n    if (!isNaN(val)) {\n      sum += val;\n      count++;\n    }\n  });\n  \n  if (count === 0) return;\n  const avg = sum / count;\n\n  // 4. Сортируем на дефициты и профициты\n  if (isLimitType && ul && avg > ul) {\n     excesses.push(`- ${t['Нутриент']}: в среднем ${Math.round(avg)} (лимит ${ul})`);\n  } else if (!isLimitType && rda && avg < rda * 0.85) {\n     // Считаем дефицитом всё, что ниже 85% от цели\n     deficits.push(`- ${t['Нутриент']}: в среднем ${Math.round(avg)} (норма ${rda})`);\n  }\n});\n\n// 5. Формируем контекст для LLM\nconst promptContext = `\nАнализ питания за последние 7 дней:\n\nКРИТИЧЕСКИЕ ДЕФИЦИТЫ (нужно восполнить):\n${deficits.length > 0 ? deficits.join('\\n') : 'Дефицитов не обнаружено. Поддерживай текущий баланс.'}\n\nПРОФИЦИТЫ / ИЗБЫТОК (нужно компенсировать/сократить):\n${excesses.length > 0 ? excesses.join('\\n') : 'Избытка токсичных нутриентов нет.'}\n\nЛокальный контекст ингредиентов: в приоритете дикая рыба, дальневосточные морепродукты (кальмар, гребешок, мидии), птица, свежие овощи. Из жиров активно используются масло авокадо и льняной урбеч.\n`;\n\nreturn [{ \n  json: { \n    llm_prompt: promptContext, \n    deficits_count: deficits.length,\n    excesses_count: excesses.length\n  } \n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          496,
+          -32
+        ],
+        "id": "cf990373-df5e-4cfc-b09d-cd31c5a34a1f",
+        "name": "Code"
+      },
+      {
+        "parameters": {
+          "path": "recipes",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          288,
+          384
+        ],
+        "id": "0d08a724-5b97-4faa-963d-ee8c298ec4fb",
+        "name": "Webhook",
+        "webhookId": "c7f33ff4-868d-46fe-9367-6d2db1f7737f"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          704,
+          384
+        ],
+        "id": "3a38085f-811e-4715-a7a0-8ebc89f8bec1",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Ветка Webhook в том же workflow, что и Schedule Trigger → ... → AI Agent → Code (пишет).\n// Static Data общая на весь workflow.\n\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.recipes;\n\nif (!cached) {\n  return [{\n    json: {\n      error: 'no_data_yet',\n      message: 'Рецепты ещё не сгенерированы. Дождитесь первого запуска по расписанию.'\n    }\n  }];\n}\n\nreturn [{ json: cached }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          496,
+          384
+        ],
+        "id": "d16d073c-d3a4-4ffd-b09a-dab1f7a83d06",
+        "name": "Code (читает Static Data)"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Достаём текст, который сгенерировал AI Agent\nconst aiText = $input.first().json.output;\n\nconst staticData = $getWorkflowStaticData('global');\nstaticData.recipes = {\n  updated_at: new Date().toISOString(),\n  recipes: aiText\n};\n\nreturn [{ json: staticData.recipes }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1056,
+          -32
+        ],
+        "id": "8cd14c79-e025-45d8-9490-da641f3e9f54",
+        "name": "Пишем Static Data"
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get day_sum",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get day_sum": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrient_Targets",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrient_Targets": {
+        "main": [
+          [
+            {
+              "node": "Get Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Meals": {
+        "main": [
+          [
+            {
+              "node": "Code",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Пишем Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Code (читает Static Data)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code (читает Static Data)": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Пишем Static Data": {
+        "main": [
+          []
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 0e973f4e",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
