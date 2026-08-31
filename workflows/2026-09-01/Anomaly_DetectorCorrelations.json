@@ -1,0 +1,1948 @@
+{
+  "updatedAt": "2026-08-18T22:11:26.771Z",
+  "createdAt": "2026-08-04T22:16:40.120Z",
+  "id": "4DE8Hg832E2nn8MM",
+  "name": "Anomaly_Detector/Correlations",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// ==== КОНФИГ: какие метрики отслеживаем ====\n// direction нужен только для текста алерта (что считать \"плохим\" отклонением),\n// на сам расчёт z-score не влияет — аномалия есть аномалия в любую сторону.\nconst METRICS = [\n  { key: 'Чистый_сон_мин',            label: 'Сон (чистый, мин)',      direction: 'higher_better' },\n  { key: 'Эффективность_сна_',        label: 'Эффективность сна',      direction: 'higher_better', isPercent: true },\n  { key: 'Оценка_сна_балл',           label: 'Оценка сна',             direction: 'higher_better' },\n  { key: 'Пульс_ночной_средний',      label: 'RHR ночной',             direction: 'lower_better' },\n  { key: 'Восстановление_BodyBattery',label: 'Восстановление (BB)',    direction: 'higher_better' },\n  { key: 'Стресс_дневной_средний',    label: 'Стресс дневной',         direction: 'lower_better' },\n  { key: 'VO2_Max',                   label: 'VO2 Max',                direction: 'higher_better' },\n  { key: 'Питание_Всего_Ккал',        label: 'Калории',                direction: 'neutral' },\n  { key: 'Питание_Всего_Белки_г',     label: 'Белок',                  direction: 'higher_better' },\n  { key: 'Шаги_за_вчера',             label: 'Шаги',                   direction: 'neutral' },\n  { key: 'ВСР_ночная',                label: 'HRV ночная',             direction: 'higher_better' },\n];\n\nconst WINDOWS = [\n  { days: 7,  minPoints: 4,  label: '7д'  },\n  { days: 30, minPoints: 10, label: '30д' },\n  { days: 90, minPoints: 20, label: '90д' },\n];\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG   = 2.0;\n\n// ==== ПАРСИНГ ЧИСЕЛ ====\nfunction toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const cleaned = String(v).trim().replace('%', '').replace(',', '.');\n  const n = parseFloat(cleaned);\n  return isNaN(n) ? null : n;\n}\n\nfunction parseDate(v) {\n  if (!v) return null;\n  // берём только дату (YYYY-MM-DD), время игнорируем для группировки\n  const s = String(v).trim().slice(0, 10);\n  const d = new Date(s + 'T00:00:00Z');\n  return isNaN(d.getTime()) ? null : d;\n}\n\n// ==== СБОР ДАННЫХ ИЗ ВХОДЯЩИХ ITEMS ====\nconst rawRecords = items\n  .map(item => {\n    const j = item.json;\n    const date = parseDate(j['Дата']);\n    if (!date) return null;\n    const metrics = {};\n    for (const m of METRICS) {\n      metrics[m.key] = toNumber(j[m.key]);\n    }\n    return { date, dateStr: j['Дата'].slice(0, 10), metrics };\n  })\n  .filter(r => r !== null)\n  .sort((a, b) => a.date - b.date);\n\n// ==== СТАТИСТИКА ====\nfunction mean(arr) {\n  return arr.reduce((s, v) => s + v, 0) / arr.length;\n}\nfunction stdSample(arr, m) {\n  if (arr.length < 2) return null;\n  const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);\n  return Math.sqrt(variance);\n}\n\nfunction getBaseline(records, idx, metricKey, windowDays, minPoints) {\n  const currentDate = records[idx].date;\n  const from = new Date(currentDate);\n  from.setUTCDate(from.getUTCDate() - windowDays);\n\n  const values = [];\n  for (let i = 0; i < idx; i++) {\n    const r = records[i];\n    if (r.date >= from && r.date < currentDate) {\n      const v = r.metrics[metricKey];\n      if (v !== null) values.push(v);\n    }\n  }\n  if (values.length < minPoints) return null;\n\n  const m = mean(values);\n  const sd = stdSample(values, m);\n  return { mean: m, std: sd, count: values.length };\n}\n\nfunction classify(absZ) {\n  if (absZ === null) return null;\n  if (absZ >= Z_STRONG) return 'strong';\n  if (absZ >= Z_MODERATE) return 'moderate';\n  return null;\n}\n\n// ==== ОСНОВНОЙ ПРОХОД ====\nconst output = rawRecords.map((rec, idx) => {\n  const metricResults = {};\n  const anomalies = [];\n\n  for (const m of METRICS) {\n    const value = rec.metrics[m.key];\n    if (value === null) continue;\n\n    const windowsResult = {};\n    let bestSeverity = null;\n    let bestWindowLabel = null;\n    let bestZ = null;\n    let bestBaseline = null;\n\n    for (const w of WINDOWS) {\n      const baseline = getBaseline(rawRecords, idx, m.key, w.days, w.minPoints);\n      if (!baseline || !baseline.std || baseline.std === 0) {\n        windowsResult[w.label] = null;\n        continue;\n      }\n      const z = (value - baseline.mean) / baseline.std;\n      windowsResult[w.label] = {\n        z: Number(z.toFixed(2)),\n        baseline_mean: Number(baseline.mean.toFixed(2)),\n        baseline_std: Number(baseline.std.toFixed(2)),\n        n: baseline.count,\n      };\n\n      const severity = classify(Math.abs(z));\n      // приоритет — 30-дневное окно как основное, но фиксируем самое \"сильное\" отклонение\n      if (severity && (!bestSeverity || (severity === 'strong' && bestSeverity !== 'strong'))) {\n        bestSeverity = severity;\n        bestWindowLabel = w.label;\n        bestZ = z;\n        bestBaseline = baseline;\n      }\n    }\n\n    metricResults[m.key] = { value, windows: windowsResult };\n\n    if (bestSeverity) {\n      const worse =\n        m.direction === 'higher_better' ? bestZ < 0 :\n        m.direction === 'lower_better'  ? bestZ > 0 :\n        null; // neutral — направление не оцениваем\n\n      anomalies.push({\n        metric: m.key,\n        label: m.label,\n        value,\n        z: Number(bestZ.toFixed(2)),\n        window: bestWindowLabel,\n        severity: bestSeverity,\n        baseline_mean: Number(bestBaseline.mean.toFixed(2)),\n        direction: m.direction,\n        interpretation: worse === true ? 'ухудшение' : worse === false ? 'улучшение' : 'отклонение',\n      });\n    }\n  }\n\n  return {\n    json: {\n      date: rec.dateStr,\n      metrics: metricResults,\n      anomalies,\n      hasAnomalies: anomalies.length > 0,\n      isLatest: idx === rawRecords.length - 1,\n    },\n  };\n});\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        0
+      ],
+      "id": "f1fd3ec0-c461-43a7-ad0d-e9ad796e32a4",
+      "name": "Anomaly Detection"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Вход: массив items из Anomaly Detection (вся история)\n// Выход: ровно один item — последний день\n\nconst latest = items.find(item => item.json.isLatest === true);\n\nif (!latest) {\n  // на всякий случай, если isLatest не проставился (пустой вход и т.п.)\n  return [];\n}\n\nreturn [{ json: latest.json }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        0
+      ],
+      "id": "dc0ce386-ab0b-4a20-8c81-a95c00fe07f6",
+      "name": "Extract Latest Day"
+    },
+    {
+      "parameters": {
+        "jsCode": "const all = items.map(i => i.json).sort((a, b) => a.date.localeCompare(b.date));\n\nif (all.length === 0) return [];\n\nconst lastDate = new Date(all[all.length - 1].date + 'T00:00:00Z');\nconst weekAgo = new Date(lastDate);\nweekAgo.setUTCDate(weekAgo.getUTCDate() - 7);\n\nconst weekRecords = all.filter(r => {\n  const d = new Date(r.date + 'T00:00:00Z');\n  return d > weekAgo && d <= lastDate;\n});\n\nreturn weekRecords.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -224
+      ],
+      "id": "daf07321-270c-4b0d-a636-c26b01c55777",
+      "name": "Weekly Slice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const week = items.map(i => i.json).sort((a, b) => a.date.localeCompare(b.date));\n\nconst allAnomalies = week.flatMap(day =>\n  day.anomalies.map(a => ({ date: day.date, ...a }))\n);\n\n// Группировка по метрике — сколько раз за неделю метрика была аномальной\nconst byMetric = {};\nfor (const a of allAnomalies) {\n  if (!byMetric[a.metric]) {\n    byMetric[a.metric] = { label: a.label, occurrences: 0, days: [], direction: a.direction };\n  }\n  byMetric[a.metric].occurrences += 1;\n  byMetric[a.metric].days.push(a.date);\n}\n\nconst metricSummaryLines = Object.values(byMetric).map(m =>\n  `${m.label}: аномалия ${m.occurrences}× за неделю (${m.days.join(', ')})`\n);\n\nconst digestContext = {\n  type: 'weekly_digest',\n  period_start: week[0]?.date,\n  period_end: week[week.length - 1]?.date,\n  days_with_data: week.length,\n  total_anomalies: allAnomalies.length,\n  strong_anomalies: allAnomalies.filter(a => a.severity === 'strong').length,\n  metric_summary_lines: metricSummaryLines,\n  days_detail: week.map(d => ({\n    date: d.date,\n    anomaly_count: d.anomalies.length,\n    anomalies: d.anomalies.map(a => `${a.label} (z=${a.z}, ${a.severity})`),\n  })),\n};\n\nreturn [{ json: digestContext }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -224
+      ],
+      "id": "67e171f0-fb35-4be3-b2cb-deaab4f98209",
+      "name": "Format Weekly Digest"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4fbc94c7-d05d-4cf6-8a94-8f7ffeea29b0",
+              "leftValue": "={{$json.hasAnomalies}}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "65454a72-b046-4879-a598-9334af7134c9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rec = items[0].json;\n\n// Сортируем аномалии: сначала strong, потом moderate\nconst sorted = [...rec.anomalies].sort((a, b) => {\n  const rank = { strong: 0, moderate: 1 };\n  return rank[a.severity] - rank[b.severity];\n});\n\nconst lines = sorted.map(a => {\n  const arrow = a.z > 0 ? '↑' : '↓';\n  const sev = a.severity === 'strong' ? '🔴 сильное' : '🟡 умеренное';\n  return `${sev} отклонение — ${a.label}: ${a.value} (${arrow} z=${a.z} за окно ${a.window}, baseline≈${a.baseline_mean}) — ${a.interpretation}`;\n});\n\nconst alertContext = {\n  type: 'anomaly_alert',\n  date: rec.date,\n  anomaly_count: sorted.length,\n  strong_count: sorted.filter(a => a.severity === 'strong').length,\n  summary_lines: lines,\n  raw_anomalies: sorted, // на случай, если агенту нужны точные числа\n};\n\nreturn [{ json: alertContext }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        0
+      ],
+      "id": "aefb4788-b112-45c7-b3f1-2be6de854723",
+      "name": "Format Alert Text"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rec = items[0].json;\n\n// Сортируем аномалии: сначала strong, потом moderate\nconst sorted = [...rec.raw_anomalies].sort((a, b) => {\n  const rank = { strong: 0, moderate: 1 };\n  return rank[a.severity] - rank[b.severity];\n});\n\nconst lines = sorted.map(a => {\n  const arrow = a.z > 0 ? '↑' : '↓';\n  const sev = a.severity === 'strong' ? '🔴 сильное' : '🟡 умеренное';\n  return `${sev} отклонение — ${a.label}: ${a.value} (${arrow} z=${a.z} за окно ${a.window}, baseline≈${a.baseline_mean}) — ${a.interpretation}`;\n});\n\nconst alertContext = {\n  type: 'anomaly_alert',\n  date: rec.date,\n  anomaly_count: sorted.length,\n  strong_count: sorted.filter(a => a.severity === 'strong').length,\n  summary_lines: lines,\n  raw_anomalies: sorted, // на случай, если агенту нужны точные числа\n};\n\nreturn [{ json: alertContext }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        0
+      ],
+      "id": "5e9322be-9173-4e93-8735-5aeb1c90fb36",
+      "name": "Prepare Anomalies Rows"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = items[0].json; // json из Format Weekly Digest\n\nreturn [{\n  json: {\n    period_start: d.period_start,\n    period_end: d.period_end,\n    days_with_data: d.days_with_data,\n    total_anomalies: d.total_anomalies,\n    strong_anomalies: d.strong_anomalies,\n    metric_summary: d.metric_summary_lines.join(' | '),\n    days_detail_json: JSON.stringify(d.days_detail),\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -224
+      ],
+      "id": "0c0e4891-6a2a-4ce4-b0b2-621e0a71c22c",
+      "name": "Prepare Digest Row"
+    },
+    {
+      "parameters": {
+        "chatId": "8956401",
+        "text": "=📊 Недельный дайджест ({{ $json.period_start }} — {{ $json.period_end }})  Дней с данными: {{ $json.days_with_data }} Всего аномалий: {{ $json.total_anomalies }} (сильных: {{ $json.strong_anomalies }})  {{ $json.metric_summary.split(' | ').join('\\n') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1056,
+        -224
+      ],
+      "id": "a6980239-fcf1-42d0-a059-558570665745",
+      "name": "Send a text message",
+      "webhookId": "b04063d0-7a0a-4a61-b224-3315b0f2efc2",
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=8956401",
+        "text": "=🚨 Обнаружены аномалии за {{ $json.date }}  {{ $json.summary_lines.join('\\n') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1264,
+        0
+      ],
+      "id": "34d5995e-dabf-450d-85f3-781290c3a267",
+      "name": "Send a text message1",
+      "webhookId": "cad953cf-278c-4671-87c2-51caf150ffbd",
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 107859317,
+          "mode": "list",
+          "cachedResultName": "Anomalies_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=107859317"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1056,
+        0
+      ],
+      "id": "97468a41-3472-4049-a068-b7d2aba3fe50",
+      "name": "Anomaly_log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 469563562,
+          "mode": "list",
+          "cachedResultName": "Digest_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=469563562"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "period_start",
+              "displayName": "period_start",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "period_end",
+              "displayName": "period_end",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "days_with_data",
+              "displayName": "days_with_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_anomalies",
+              "displayName": "total_anomalies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "strong_anomalies",
+              "displayName": "strong_anomalies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "metric_summary",
+              "displayName": "metric_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "days_detail_json",
+              "displayName": "days_detail_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        864,
+        -224
+      ],
+      "id": "25dc515c-3ab6-47b6-aa62-ab36ef40377e",
+      "name": "Digest_log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list",
+          "cachedResultName": "day_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=742673642"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        -592
+      ],
+      "id": "be60649a-8738-47f3-b890-f79d05abd14b",
+      "name": "Get Nutrition day_sum",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "__date_key__",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        272,
+        -512
+      ],
+      "id": "76a0c482-7a48-440f-9c52-38388e2f73aa",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const raw = item.json['Date'];\n  return {\n    json: {\n      ...item.json,\n      __date_key__: String(raw).slice(0, 10),\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -592
+      ],
+      "id": "f237b28d-7e7b-43df-845c-4274ddaa2000",
+      "name": "Normalize Date - Nutrition"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const raw = item.json['Дата'];\n  return {\n    json: {\n      ...item.json,\n      __date_key__: String(raw).slice(0, 10),\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -416
+      ],
+      "id": "9c94e971-6a86-4209-b891-cc8484a45022",
+      "name": "Normalize Date - Daily"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -176,
+        0
+      ],
+      "id": "a4dd9f00-e6a3-421e-90df-fbef1a79620a",
+      "name": "Daily_Trends",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 11
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -416,
+        -224
+      ],
+      "id": "6ded717c-5286-4378-a6b1-e5d9bc8b5662",
+      "name": "Weekly Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "aa3c9781-ea0d-4c88-b169-a1b2aa59def9",
+      "name": "Daily Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ==== КОНФИГ: какие метрики отслеживаем ====\n// direction нужен только для текста алерта (что считать \"плохим\" отклонением),\n// на сам расчёт z-score не влияет — аномалия есть аномалия в любую сторону.\nconst METRICS = [\n  { key: 'Чистый_сон_мин',            label: 'Сон (чистый, мин)',      direction: 'higher_better' },\n  { key: 'Эффективность_сна_',        label: 'Эффективность сна',      direction: 'higher_better', isPercent: true },\n  { key: 'Оценка_сна_балл',           label: 'Оценка сна',             direction: 'higher_better' },\n  { key: 'Пульс_ночной_средний',      label: 'RHR ночной',             direction: 'lower_better' },\n  { key: 'Восстановление_BodyBattery',label: 'Восстановление (BB)',    direction: 'higher_better' },\n  { key: 'Стресс_дневной_средний',    label: 'Стресс дневной',         direction: 'lower_better' },\n  { key: 'VO2_Max',                   label: 'VO2 Max',                direction: 'higher_better' },\n  { key: 'Питание_Всего_Ккал',        label: 'Калории',                direction: 'neutral' },\n  { key: 'Питание_Всего_Белки_г',     label: 'Белок',                  direction: 'higher_better' },\n  { key: 'Шаги_за_вчера',             label: 'Шаги',                   direction: 'neutral' },\n  { key: 'ВСР_ночная',                label: 'HRV ночная',             direction: 'higher_better' },\n];\n\nconst WINDOWS = [\n  { days: 7,  minPoints: 4,  label: '7д'  },\n  { days: 30, minPoints: 10, label: '30д' },\n  { days: 90, minPoints: 20, label: '90д' },\n];\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG   = 2.0;\n\n// ==== ПАРСИНГ ЧИСЕЛ ====\nfunction toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const cleaned = String(v).trim().replace('%', '').replace(',', '.');\n  const n = parseFloat(cleaned);\n  return isNaN(n) ? null : n;\n}\n\nfunction parseDate(v) {\n  if (!v) return null;\n  // берём только дату (YYYY-MM-DD), время игнорируем для группировки\n  const s = String(v).trim().slice(0, 10);\n  const d = new Date(s + 'T00:00:00Z');\n  return isNaN(d.getTime()) ? null : d;\n}\n\n// ==== СБОР ДАННЫХ ИЗ ВХОДЯЩИХ ITEMS ====\nconst rawRecords = items\n  .map(item => {\n    const j = item.json;\n    const date = parseDate(j['Дата']);\n    if (!date) return null;\n    const metrics = {};\n    for (const m of METRICS) {\n      metrics[m.key] = toNumber(j[m.key]);\n    }\n    return { date, dateStr: j['Дата'].slice(0, 10), metrics };\n  })\n  .filter(r => r !== null)\n  .sort((a, b) => a.date - b.date);\n\n// ==== СТАТИСТИКА ====\nfunction mean(arr) {\n  return arr.reduce((s, v) => s + v, 0) / arr.length;\n}\nfunction stdSample(arr, m) {\n  if (arr.length < 2) return null;\n  const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);\n  return Math.sqrt(variance);\n}\n\nfunction getBaseline(records, idx, metricKey, windowDays, minPoints) {\n  const currentDate = records[idx].date;\n  const from = new Date(currentDate);\n  from.setUTCDate(from.getUTCDate() - windowDays);\n\n  const values = [];\n  for (let i = 0; i < idx; i++) {\n    const r = records[i];\n    if (r.date >= from && r.date < currentDate) {\n      const v = r.metrics[metricKey];\n      if (v !== null) values.push(v);\n    }\n  }\n  if (values.length < minPoints) return null;\n\n  const m = mean(values);\n  const sd = stdSample(values, m);\n  return { mean: m, std: sd, count: values.length };\n}\n\nfunction classify(absZ) {\n  if (absZ === null) return null;\n  if (absZ >= Z_STRONG) return 'strong';\n  if (absZ >= Z_MODERATE) return 'moderate';\n  return null;\n}\n\n// ==== ОСНОВНОЙ ПРОХОД ====\nconst output = rawRecords.map((rec, idx) => {\n  const metricResults = {};\n  const anomalies = [];\n\n  for (const m of METRICS) {\n    const value = rec.metrics[m.key];\n    if (value === null) continue;\n\n    const windowsResult = {};\n    let bestSeverity = null;\n    let bestWindowLabel = null;\n    let bestZ = null;\n    let bestBaseline = null;\n\n    for (const w of WINDOWS) {\n      const baseline = getBaseline(rawRecords, idx, m.key, w.days, w.minPoints);\n      if (!baseline || !baseline.std || baseline.std === 0) {\n        windowsResult[w.label] = null;\n        continue;\n      }\n      const z = (value - baseline.mean) / baseline.std;\n      windowsResult[w.label] = {\n        z: Number(z.toFixed(2)),\n        baseline_mean: Number(baseline.mean.toFixed(2)),\n        baseline_std: Number(baseline.std.toFixed(2)),\n        n: baseline.count,\n      };\n\n      const severity = classify(Math.abs(z));\n      // приоритет — 30-дневное окно как основное, но фиксируем самое \"сильное\" отклонение\n      if (severity && (!bestSeverity || (severity === 'strong' && bestSeverity !== 'strong'))) {\n        bestSeverity = severity;\n        bestWindowLabel = w.label;\n        bestZ = z;\n        bestBaseline = baseline;\n      }\n    }\n\n    metricResults[m.key] = { value, windows: windowsResult };\n\n    if (bestSeverity) {\n      const worse =\n        m.direction === 'higher_better' ? bestZ < 0 :\n        m.direction === 'lower_better'  ? bestZ > 0 :\n        null; // neutral — направление не оцениваем\n\n      anomalies.push({\n        metric: m.key,\n        label: m.label,\n        value,\n        z: Number(bestZ.toFixed(2)),\n        window: bestWindowLabel,\n        severity: bestSeverity,\n        baseline_mean: Number(bestBaseline.mean.toFixed(2)),\n        direction: m.direction,\n        interpretation: worse === true ? 'ухудшение' : worse === false ? 'улучшение' : 'отклонение',\n      });\n    }\n  }\n\n  return {\n    json: {\n      date: rec.dateStr,\n      metrics: metricResults,\n      anomalies,\n      hasAnomalies: anomalies.length > 0,\n      isLatest: idx === rawRecords.length - 1,\n    },\n  };\n});\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -224
+      ],
+      "id": "17c3191a-d41c-4d29-b022-6f835de24e4d",
+      "name": "Anomaly Detection1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -176,
+        -224
+      ],
+      "id": "1b9e9ddf-e3b6-4158-8215-a06d4243b9c9",
+      "name": "Daily_Trends1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Колонки, которые дублируют друг друга (агрегаты уже есть в Daily_Trends\n// через Питание_Всего_*, поэтому \"сырые\" из day_sum убираем)\nconst DUPLICATE_KEYS_TO_DROP = ['Calories', 'Proteins', 'Carbs', 'Fats'];\n\nconst records = items.map(i => {\n  const json = { ...i.json };\n  for (const key of DUPLICATE_KEYS_TO_DROP) {\n    delete json[key];\n  }\n  return json;\n});\n\nreturn [{ json: { records } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -512
+      ],
+      "id": "f9782ce7-cf52-4442-b790-99775d4d8095",
+      "name": "Prepare Correlation Payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://144.31.194.174:5100/analyze",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        -512
+      ],
+      "id": "429baf8d-456c-4c74-8501-8778a9a34a15",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = items[0].json;\nconst today = new Date().toISOString().slice(0, 10);\nconst rows = [];\n\nfor (const p of res.priority) {\n  rows.push({\n    json: {\n      date_computed: today,\n      metric_a: p.metric_a,\n      metric_b: p.metric_b,\n      lag_days: p.lag_days,\n      r: p.r,\n      p_value: p.p,\n      p_adj: null,           // priority-пары не проходят FDR-коррекцию\n      n: p.n,\n      type: 'priority',\n    }\n  });\n}\n\nfor (const d of res.discovery) {\n  rows.push({\n    json: {\n      date_computed: today,\n      metric_a: d.metric_a,\n      metric_b: d.metric_b,\n      lag_days: d.lag_days,\n      r: d.r,\n      p_value: d.p,\n      p_adj: d.p_adj,\n      n: d.n,\n      type: 'discovery',\n    }\n  });\n}\n\nreturn rows;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -512
+      ],
+      "id": "d54ca0c6-aa02-4ed9-907f-2b24803f1ae5",
+      "name": "Format Correlations"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1831972577,
+          "mode": "list",
+          "cachedResultName": "Correlations_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1831972577"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date_computed",
+              "displayName": "date_computed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metric_a",
+              "displayName": "metric_a",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metric_b",
+              "displayName": "metric_b",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lag_days",
+              "displayName": "lag_days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "r",
+              "displayName": "r",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "p_value",
+              "displayName": "p_value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "p_adj",
+              "displayName": "p_adj",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "n",
+              "displayName": "n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1088,
+        -512
+      ],
+      "id": "72ede7d5-b509-42ea-b403-8364e76898fa",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Anomaly Detection": {
+      "main": [
+        [
+          {
+            "node": "Extract Latest Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Slice": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Latest Day": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Format Alert Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Format Alert Text": {
+      "main": [
+        [
+          {
+            "node": "Prepare Anomalies Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Anomalies Rows": {
+      "main": [
+        [
+          {
+            "node": "Anomaly_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Digest": {
+      "main": [
+        [
+          {
+            "node": "Prepare Digest Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Digest Row": {
+      "main": [
+        [
+          {
+            "node": "Digest_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anomaly_log": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digest_log": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrition day_sum": {
+      "main": [
+        [
+          {
+            "node": "Normalize Date - Nutrition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Anomaly Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Date - Daily": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Date - Nutrition": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Daily Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily_Trends1": {
+      "main": [
+        [
+          {
+            "node": "Anomaly Detection1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Normalize Date - Daily",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Daily_Trends1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Nutrition day_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anomaly Detection1": {
+      "main": [
+        [
+          {
+            "node": "Weekly Slice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Prepare Correlation Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Correlation Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Format Correlations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Correlations": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    },
+    "node:Weekly Schedule Trigger": {
+      "recurrenceRules": []
+    },
+    "node:Daily Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "b9f0a181-a812-4d8b-98ff-4240eef475de",
+  "activeVersionId": "b9f0a181-a812-4d8b-98ff-4240eef475de",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-08-04T22:16:40.126Z",
+      "createdAt": "2026-08-04T22:16:40.126Z",
+      "role": "workflow:owner",
+      "workflowId": "4DE8Hg832E2nn8MM",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-18T22:11:37.000Z",
+    "createdAt": "2026-08-18T22:11:26.776Z",
+    "versionId": "b9f0a181-a812-4d8b-98ff-4240eef475de",
+    "workflowId": "4DE8Hg832E2nn8MM",
+    "nodes": [
+      {
+        "parameters": {
+          "jsCode": "// ==== КОНФИГ: какие метрики отслеживаем ====\n// direction нужен только для текста алерта (что считать \"плохим\" отклонением),\n// на сам расчёт z-score не влияет — аномалия есть аномалия в любую сторону.\nconst METRICS = [\n  { key: 'Чистый_сон_мин',            label: 'Сон (чистый, мин)',      direction: 'higher_better' },\n  { key: 'Эффективность_сна_',        label: 'Эффективность сна',      direction: 'higher_better', isPercent: true },\n  { key: 'Оценка_сна_балл',           label: 'Оценка сна',             direction: 'higher_better' },\n  { key: 'Пульс_ночной_средний',      label: 'RHR ночной',             direction: 'lower_better' },\n  { key: 'Восстановление_BodyBattery',label: 'Восстановление (BB)',    direction: 'higher_better' },\n  { key: 'Стресс_дневной_средний',    label: 'Стресс дневной',         direction: 'lower_better' },\n  { key: 'VO2_Max',                   label: 'VO2 Max',                direction: 'higher_better' },\n  { key: 'Питание_Всего_Ккал',        label: 'Калории',                direction: 'neutral' },\n  { key: 'Питание_Всего_Белки_г',     label: 'Белок',                  direction: 'higher_better' },\n  { key: 'Шаги_за_вчера',             label: 'Шаги',                   direction: 'neutral' },\n  { key: 'ВСР_ночная',                label: 'HRV ночная',             direction: 'higher_better' },\n];\n\nconst WINDOWS = [\n  { days: 7,  minPoints: 4,  label: '7д'  },\n  { days: 30, minPoints: 10, label: '30д' },\n  { days: 90, minPoints: 20, label: '90д' },\n];\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG   = 2.0;\n\n// ==== ПАРСИНГ ЧИСЕЛ ====\nfunction toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const cleaned = String(v).trim().replace('%', '').replace(',', '.');\n  const n = parseFloat(cleaned);\n  return isNaN(n) ? null : n;\n}\n\nfunction parseDate(v) {\n  if (!v) return null;\n  // берём только дату (YYYY-MM-DD), время игнорируем для группировки\n  const s = String(v).trim().slice(0, 10);\n  const d = new Date(s + 'T00:00:00Z');\n  return isNaN(d.getTime()) ? null : d;\n}\n\n// ==== СБОР ДАННЫХ ИЗ ВХОДЯЩИХ ITEMS ====\nconst rawRecords = items\n  .map(item => {\n    const j = item.json;\n    const date = parseDate(j['Дата']);\n    if (!date) return null;\n    const metrics = {};\n    for (const m of METRICS) {\n      metrics[m.key] = toNumber(j[m.key]);\n    }\n    return { date, dateStr: j['Дата'].slice(0, 10), metrics };\n  })\n  .filter(r => r !== null)\n  .sort((a, b) => a.date - b.date);\n\n// ==== СТАТИСТИКА ====\nfunction mean(arr) {\n  return arr.reduce((s, v) => s + v, 0) / arr.length;\n}\nfunction stdSample(arr, m) {\n  if (arr.length < 2) return null;\n  const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);\n  return Math.sqrt(variance);\n}\n\nfunction getBaseline(records, idx, metricKey, windowDays, minPoints) {\n  const currentDate = records[idx].date;\n  const from = new Date(currentDate);\n  from.setUTCDate(from.getUTCDate() - windowDays);\n\n  const values = [];\n  for (let i = 0; i < idx; i++) {\n    const r = records[i];\n    if (r.date >= from && r.date < currentDate) {\n      const v = r.metrics[metricKey];\n      if (v !== null) values.push(v);\n    }\n  }\n  if (values.length < minPoints) return null;\n\n  const m = mean(values);\n  const sd = stdSample(values, m);\n  return { mean: m, std: sd, count: values.length };\n}\n\nfunction classify(absZ) {\n  if (absZ === null) return null;\n  if (absZ >= Z_STRONG) return 'strong';\n  if (absZ >= Z_MODERATE) return 'moderate';\n  return null;\n}\n\n// ==== ОСНОВНОЙ ПРОХОД ====\nconst output = rawRecords.map((rec, idx) => {\n  const metricResults = {};\n  const anomalies = [];\n\n  for (const m of METRICS) {\n    const value = rec.metrics[m.key];\n    if (value === null) continue;\n\n    const windowsResult = {};\n    let bestSeverity = null;\n    let bestWindowLabel = null;\n    let bestZ = null;\n    let bestBaseline = null;\n\n    for (const w of WINDOWS) {\n      const baseline = getBaseline(rawRecords, idx, m.key, w.days, w.minPoints);\n      if (!baseline || !baseline.std || baseline.std === 0) {\n        windowsResult[w.label] = null;\n        continue;\n      }\n      const z = (value - baseline.mean) / baseline.std;\n      windowsResult[w.label] = {\n        z: Number(z.toFixed(2)),\n        baseline_mean: Number(baseline.mean.toFixed(2)),\n        baseline_std: Number(baseline.std.toFixed(2)),\n        n: baseline.count,\n      };\n\n      const severity = classify(Math.abs(z));\n      // приоритет — 30-дневное окно как основное, но фиксируем самое \"сильное\" отклонение\n      if (severity && (!bestSeverity || (severity === 'strong' && bestSeverity !== 'strong'))) {\n        bestSeverity = severity;\n        bestWindowLabel = w.label;\n        bestZ = z;\n        bestBaseline = baseline;\n      }\n    }\n\n    metricResults[m.key] = { value, windows: windowsResult };\n\n    if (bestSeverity) {\n      const worse =\n        m.direction === 'higher_better' ? bestZ < 0 :\n        m.direction === 'lower_better'  ? bestZ > 0 :\n        null; // neutral — направление не оцениваем\n\n      anomalies.push({\n        metric: m.key,\n        label: m.label,\n        value,\n        z: Number(bestZ.toFixed(2)),\n        window: bestWindowLabel,\n        severity: bestSeverity,\n        baseline_mean: Number(bestBaseline.mean.toFixed(2)),\n        direction: m.direction,\n        interpretation: worse === true ? 'ухудшение' : worse === false ? 'улучшение' : 'отклонение',\n      });\n    }\n  }\n\n  return {\n    json: {\n      date: rec.dateStr,\n      metrics: metricResults,\n      anomalies,\n      hasAnomalies: anomalies.length > 0,\n      isLatest: idx === rawRecords.length - 1,\n    },\n  };\n});\n\nreturn output;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          48,
+          0
+        ],
+        "id": "f1fd3ec0-c461-43a7-ad0d-e9ad796e32a4",
+        "name": "Anomaly Detection"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Вход: массив items из Anomaly Detection (вся история)\n// Выход: ровно один item — последний день\n\nconst latest = items.find(item => item.json.isLatest === true);\n\nif (!latest) {\n  // на всякий случай, если isLatest не проставился (пустой вход и т.п.)\n  return [];\n}\n\nreturn [{ json: latest.json }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          256,
+          0
+        ],
+        "id": "dc0ce386-ab0b-4a20-8c81-a95c00fe07f6",
+        "name": "Extract Latest Day"
+      },
+      {
+        "parameters": {
+          "jsCode": "const all = items.map(i => i.json).sort((a, b) => a.date.localeCompare(b.date));\n\nif (all.length === 0) return [];\n\nconst lastDate = new Date(all[all.length - 1].date + 'T00:00:00Z');\nconst weekAgo = new Date(lastDate);\nweekAgo.setUTCDate(weekAgo.getUTCDate() - 7);\n\nconst weekRecords = all.filter(r => {\n  const d = new Date(r.date + 'T00:00:00Z');\n  return d > weekAgo && d <= lastDate;\n});\n\nreturn weekRecords.map(r => ({ json: r }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          256,
+          -224
+        ],
+        "id": "daf07321-270c-4b0d-a636-c26b01c55777",
+        "name": "Weekly Slice"
+      },
+      {
+        "parameters": {
+          "jsCode": "const week = items.map(i => i.json).sort((a, b) => a.date.localeCompare(b.date));\n\nconst allAnomalies = week.flatMap(day =>\n  day.anomalies.map(a => ({ date: day.date, ...a }))\n);\n\n// Группировка по метрике — сколько раз за неделю метрика была аномальной\nconst byMetric = {};\nfor (const a of allAnomalies) {\n  if (!byMetric[a.metric]) {\n    byMetric[a.metric] = { label: a.label, occurrences: 0, days: [], direction: a.direction };\n  }\n  byMetric[a.metric].occurrences += 1;\n  byMetric[a.metric].days.push(a.date);\n}\n\nconst metricSummaryLines = Object.values(byMetric).map(m =>\n  `${m.label}: аномалия ${m.occurrences}× за неделю (${m.days.join(', ')})`\n);\n\nconst digestContext = {\n  type: 'weekly_digest',\n  period_start: week[0]?.date,\n  period_end: week[week.length - 1]?.date,\n  days_with_data: week.length,\n  total_anomalies: allAnomalies.length,\n  strong_anomalies: allAnomalies.filter(a => a.severity === 'strong').length,\n  metric_summary_lines: metricSummaryLines,\n  days_detail: week.map(d => ({\n    date: d.date,\n    anomaly_count: d.anomalies.length,\n    anomalies: d.anomalies.map(a => `${a.label} (z=${a.z}, ${a.severity})`),\n  })),\n};\n\nreturn [{ json: digestContext }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          -224
+        ],
+        "id": "67e171f0-fb35-4be3-b2cb-deaab4f98209",
+        "name": "Format Weekly Digest"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "4fbc94c7-d05d-4cf6-8a94-8f7ffeea29b0",
+                "leftValue": "={{$json.hasAnomalies}}",
+                "rightValue": "true",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          448,
+          0
+        ],
+        "id": "65454a72-b046-4879-a598-9334af7134c9",
+        "name": "If"
+      },
+      {
+        "parameters": {
+          "jsCode": "const rec = items[0].json;\n\n// Сортируем аномалии: сначала strong, потом moderate\nconst sorted = [...rec.anomalies].sort((a, b) => {\n  const rank = { strong: 0, moderate: 1 };\n  return rank[a.severity] - rank[b.severity];\n});\n\nconst lines = sorted.map(a => {\n  const arrow = a.z > 0 ? '↑' : '↓';\n  const sev = a.severity === 'strong' ? '🔴 сильное' : '🟡 умеренное';\n  return `${sev} отклонение — ${a.label}: ${a.value} (${arrow} z=${a.z} за окно ${a.window}, baseline≈${a.baseline_mean}) — ${a.interpretation}`;\n});\n\nconst alertContext = {\n  type: 'anomaly_alert',\n  date: rec.date,\n  anomaly_count: sorted.length,\n  strong_count: sorted.filter(a => a.severity === 'strong').length,\n  summary_lines: lines,\n  raw_anomalies: sorted, // на случай, если агенту нужны точные числа\n};\n\nreturn [{ json: alertContext }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          656,
+          0
+        ],
+        "id": "aefb4788-b112-45c7-b3f1-2be6de854723",
+        "name": "Format Alert Text"
+      },
+      {
+        "parameters": {
+          "jsCode": "const rec = items[0].json;\n\n// Сортируем аномалии: сначала strong, потом moderate\nconst sorted = [...rec.raw_anomalies].sort((a, b) => {\n  const rank = { strong: 0, moderate: 1 };\n  return rank[a.severity] - rank[b.severity];\n});\n\nconst lines = sorted.map(a => {\n  const arrow = a.z > 0 ? '↑' : '↓';\n  const sev = a.severity === 'strong' ? '🔴 сильное' : '🟡 умеренное';\n  return `${sev} отклонение — ${a.label}: ${a.value} (${arrow} z=${a.z} за окно ${a.window}, baseline≈${a.baseline_mean}) — ${a.interpretation}`;\n});\n\nconst alertContext = {\n  type: 'anomaly_alert',\n  date: rec.date,\n  anomaly_count: sorted.length,\n  strong_count: sorted.filter(a => a.severity === 'strong').length,\n  summary_lines: lines,\n  raw_anomalies: sorted, // на случай, если агенту нужны точные числа\n};\n\nreturn [{ json: alertContext }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          864,
+          0
+        ],
+        "id": "5e9322be-9173-4e93-8735-5aeb1c90fb36",
+        "name": "Prepare Anomalies Rows"
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = items[0].json; // json из Format Weekly Digest\n\nreturn [{\n  json: {\n    period_start: d.period_start,\n    period_end: d.period_end,\n    days_with_data: d.days_with_data,\n    total_anomalies: d.total_anomalies,\n    strong_anomalies: d.strong_anomalies,\n    metric_summary: d.metric_summary_lines.join(' | '),\n    days_detail_json: JSON.stringify(d.days_detail),\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          656,
+          -224
+        ],
+        "id": "0c0e4891-6a2a-4ce4-b0b2-621e0a71c22c",
+        "name": "Prepare Digest Row"
+      },
+      {
+        "parameters": {
+          "chatId": "8956401",
+          "text": "=📊 Недельный дайджест ({{ $json.period_start }} — {{ $json.period_end }})  Дней с данными: {{ $json.days_with_data }} Всего аномалий: {{ $json.total_anomalies }} (сильных: {{ $json.strong_anomalies }})  {{ $json.metric_summary.split(' | ').join('\\n') }}",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          1056,
+          -224
+        ],
+        "id": "a6980239-fcf1-42d0-a059-558570665745",
+        "name": "Send a text message",
+        "webhookId": "b04063d0-7a0a-4a61-b224-3315b0f2efc2",
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "=8956401",
+          "text": "=🚨 Обнаружены аномалии за {{ $json.date }}  {{ $json.summary_lines.join('\\n') }}",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          1264,
+          0
+        ],
+        "id": "34d5995e-dabf-450d-85f3-781290c3a267",
+        "name": "Send a text message1",
+        "webhookId": "cad953cf-278c-4671-87c2-51caf150ffbd",
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 107859317,
+            "mode": "list",
+            "cachedResultName": "Anomalies_Log",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=107859317"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1056,
+          0
+        ],
+        "id": "97468a41-3472-4049-a068-b7d2aba3fe50",
+        "name": "Anomaly_log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 469563562,
+            "mode": "list",
+            "cachedResultName": "Digest_Log",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=469563562"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "period_start",
+                "displayName": "period_start",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "period_end",
+                "displayName": "period_end",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "days_with_data",
+                "displayName": "days_with_data",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "total_anomalies",
+                "displayName": "total_anomalies",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "strong_anomalies",
+                "displayName": "strong_anomalies",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "metric_summary",
+                "displayName": "metric_summary",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "days_detail_json",
+                "displayName": "days_detail_json",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          864,
+          -224
+        ],
+        "id": "25dc515c-3ab6-47b6-aa62-ab36ef40377e",
+        "name": "Digest_log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 742673642,
+            "mode": "list",
+            "cachedResultName": "day_sum",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=742673642"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -160,
+          -592
+        ],
+        "id": "be60649a-8738-47f3-b890-f79d05abd14b",
+        "name": "Get Nutrition day_sum",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "combine",
+          "fieldsToMatchString": "__date_key__",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          272,
+          -512
+        ],
+        "id": "76a0c482-7a48-440f-9c52-38388e2f73aa",
+        "name": "Merge"
+      },
+      {
+        "parameters": {
+          "jsCode": "return items.map(item => {\n  const raw = item.json['Date'];\n  return {\n    json: {\n      ...item.json,\n      __date_key__: String(raw).slice(0, 10),\n    }\n  };\n});"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          64,
+          -592
+        ],
+        "id": "f237b28d-7e7b-43df-845c-4274ddaa2000",
+        "name": "Normalize Date - Nutrition"
+      },
+      {
+        "parameters": {
+          "jsCode": "return items.map(item => {\n  const raw = item.json['Дата'];\n  return {\n    json: {\n      ...item.json,\n      __date_key__: String(raw).slice(0, 10),\n    }\n  };\n});"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          64,
+          -416
+        ],
+        "id": "9c94e971-6a86-4209-b891-cc8484a45022",
+        "name": "Normalize Date - Daily"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -176,
+          0
+        ],
+        "id": "a4dd9f00-e6a3-421e-90df-fbef1a79620a",
+        "name": "Daily_Trends",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "weeks",
+                "triggerAtHour": 11
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -416,
+          -224
+        ],
+        "id": "6ded717c-5286-4378-a6b1-e5d9bc8b5662",
+        "name": "Weekly Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "triggerAtHour": 9,
+                "triggerAtMinute": 15
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -400,
+          0
+        ],
+        "id": "aa3c9781-ea0d-4c88-b169-a1b2aa59def9",
+        "name": "Daily Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "jsCode": "// ==== КОНФИГ: какие метрики отслеживаем ====\n// direction нужен только для текста алерта (что считать \"плохим\" отклонением),\n// на сам расчёт z-score не влияет — аномалия есть аномалия в любую сторону.\nconst METRICS = [\n  { key: 'Чистый_сон_мин',            label: 'Сон (чистый, мин)',      direction: 'higher_better' },\n  { key: 'Эффективность_сна_',        label: 'Эффективность сна',      direction: 'higher_better', isPercent: true },\n  { key: 'Оценка_сна_балл',           label: 'Оценка сна',             direction: 'higher_better' },\n  { key: 'Пульс_ночной_средний',      label: 'RHR ночной',             direction: 'lower_better' },\n  { key: 'Восстановление_BodyBattery',label: 'Восстановление (BB)',    direction: 'higher_better' },\n  { key: 'Стресс_дневной_средний',    label: 'Стресс дневной',         direction: 'lower_better' },\n  { key: 'VO2_Max',                   label: 'VO2 Max',                direction: 'higher_better' },\n  { key: 'Питание_Всего_Ккал',        label: 'Калории',                direction: 'neutral' },\n  { key: 'Питание_Всего_Белки_г',     label: 'Белок',                  direction: 'higher_better' },\n  { key: 'Шаги_за_вчера',             label: 'Шаги',                   direction: 'neutral' },\n  { key: 'ВСР_ночная',                label: 'HRV ночная',             direction: 'higher_better' },\n];\n\nconst WINDOWS = [\n  { days: 7,  minPoints: 4,  label: '7д'  },\n  { days: 30, minPoints: 10, label: '30д' },\n  { days: 90, minPoints: 20, label: '90д' },\n];\n\nconst Z_MODERATE = 1.5;\nconst Z_STRONG   = 2.0;\n\n// ==== ПАРСИНГ ЧИСЕЛ ====\nfunction toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const cleaned = String(v).trim().replace('%', '').replace(',', '.');\n  const n = parseFloat(cleaned);\n  return isNaN(n) ? null : n;\n}\n\nfunction parseDate(v) {\n  if (!v) return null;\n  // берём только дату (YYYY-MM-DD), время игнорируем для группировки\n  const s = String(v).trim().slice(0, 10);\n  const d = new Date(s + 'T00:00:00Z');\n  return isNaN(d.getTime()) ? null : d;\n}\n\n// ==== СБОР ДАННЫХ ИЗ ВХОДЯЩИХ ITEMS ====\nconst rawRecords = items\n  .map(item => {\n    const j = item.json;\n    const date = parseDate(j['Дата']);\n    if (!date) return null;\n    const metrics = {};\n    for (const m of METRICS) {\n      metrics[m.key] = toNumber(j[m.key]);\n    }\n    return { date, dateStr: j['Дата'].slice(0, 10), metrics };\n  })\n  .filter(r => r !== null)\n  .sort((a, b) => a.date - b.date);\n\n// ==== СТАТИСТИКА ====\nfunction mean(arr) {\n  return arr.reduce((s, v) => s + v, 0) / arr.length;\n}\nfunction stdSample(arr, m) {\n  if (arr.length < 2) return null;\n  const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);\n  return Math.sqrt(variance);\n}\n\nfunction getBaseline(records, idx, metricKey, windowDays, minPoints) {\n  const currentDate = records[idx].date;\n  const from = new Date(currentDate);\n  from.setUTCDate(from.getUTCDate() - windowDays);\n\n  const values = [];\n  for (let i = 0; i < idx; i++) {\n    const r = records[i];\n    if (r.date >= from && r.date < currentDate) {\n      const v = r.metrics[metricKey];\n      if (v !== null) values.push(v);\n    }\n  }\n  if (values.length < minPoints) return null;\n\n  const m = mean(values);\n  const sd = stdSample(values, m);\n  return { mean: m, std: sd, count: values.length };\n}\n\nfunction classify(absZ) {\n  if (absZ === null) return null;\n  if (absZ >= Z_STRONG) return 'strong';\n  if (absZ >= Z_MODERATE) return 'moderate';\n  return null;\n}\n\n// ==== ОСНОВНОЙ ПРОХОД ====\nconst output = rawRecords.map((rec, idx) => {\n  const metricResults = {};\n  const anomalies = [];\n\n  for (const m of METRICS) {\n    const value = rec.metrics[m.key];\n    if (value === null) continue;\n\n    const windowsResult = {};\n    let bestSeverity = null;\n    let bestWindowLabel = null;\n    let bestZ = null;\n    let bestBaseline = null;\n\n    for (const w of WINDOWS) {\n      const baseline = getBaseline(rawRecords, idx, m.key, w.days, w.minPoints);\n      if (!baseline || !baseline.std || baseline.std === 0) {\n        windowsResult[w.label] = null;\n        continue;\n      }\n      const z = (value - baseline.mean) / baseline.std;\n      windowsResult[w.label] = {\n        z: Number(z.toFixed(2)),\n        baseline_mean: Number(baseline.mean.toFixed(2)),\n        baseline_std: Number(baseline.std.toFixed(2)),\n        n: baseline.count,\n      };\n\n      const severity = classify(Math.abs(z));\n      // приоритет — 30-дневное окно как основное, но фиксируем самое \"сильное\" отклонение\n      if (severity && (!bestSeverity || (severity === 'strong' && bestSeverity !== 'strong'))) {\n        bestSeverity = severity;\n        bestWindowLabel = w.label;\n        bestZ = z;\n        bestBaseline = baseline;\n      }\n    }\n\n    metricResults[m.key] = { value, windows: windowsResult };\n\n    if (bestSeverity) {\n      const worse =\n        m.direction === 'higher_better' ? bestZ < 0 :\n        m.direction === 'lower_better'  ? bestZ > 0 :\n        null; // neutral — направление не оцениваем\n\n      anomalies.push({\n        metric: m.key,\n        label: m.label,\n        value,\n        z: Number(bestZ.toFixed(2)),\n        window: bestWindowLabel,\n        severity: bestSeverity,\n        baseline_mean: Number(bestBaseline.mean.toFixed(2)),\n        direction: m.direction,\n        interpretation: worse === true ? 'ухудшение' : worse === false ? 'улучшение' : 'отклонение',\n      });\n    }\n  }\n\n  return {\n    json: {\n      date: rec.dateStr,\n      metrics: metricResults,\n      anomalies,\n      hasAnomalies: anomalies.length > 0,\n      isLatest: idx === rawRecords.length - 1,\n    },\n  };\n});\n\nreturn output;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          48,
+          -224
+        ],
+        "id": "17c3191a-d41c-4d29-b022-6f835de24e4d",
+        "name": "Anomaly Detection1"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -176,
+          -224
+        ],
+        "id": "1b9e9ddf-e3b6-4158-8215-a06d4243b9c9",
+        "name": "Daily_Trends1",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Колонки, которые дублируют друг друга (агрегаты уже есть в Daily_Trends\n// через Питание_Всего_*, поэтому \"сырые\" из day_sum убираем)\nconst DUPLICATE_KEYS_TO_DROP = ['Calories', 'Proteins', 'Carbs', 'Fats'];\n\nconst records = items.map(i => {\n  const json = { ...i.json };\n  for (const key of DUPLICATE_KEYS_TO_DROP) {\n    delete json[key];\n  }\n  return json;\n});\n\nreturn [{ json: { records } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          464,
+          -512
+        ],
+        "id": "f9782ce7-cf52-4442-b790-99775d4d8095",
+        "name": "Prepare Correlation Payload"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://144.31.194.174:5100/analyze",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json) }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          672,
+          -512
+        ],
+        "id": "429baf8d-456c-4c74-8501-8778a9a34a15",
+        "name": "HTTP Request"
+      },
+      {
+        "parameters": {
+          "jsCode": "const res = items[0].json;\nconst today = new Date().toISOString().slice(0, 10);\nconst rows = [];\n\nfor (const p of res.priority) {\n  rows.push({\n    json: {\n      date_computed: today,\n      metric_a: p.metric_a,\n      metric_b: p.metric_b,\n      lag_days: p.lag_days,\n      r: p.r,\n      p_value: p.p,\n      p_adj: null,           // priority-пары не проходят FDR-коррекцию\n      n: p.n,\n      type: 'priority',\n    }\n  });\n}\n\nfor (const d of res.discovery) {\n  rows.push({\n    json: {\n      date_computed: today,\n      metric_a: d.metric_a,\n      metric_b: d.metric_b,\n      lag_days: d.lag_days,\n      r: d.r,\n      p_value: d.p,\n      p_adj: d.p_adj,\n      n: d.n,\n      type: 'discovery',\n    }\n  });\n}\n\nreturn rows;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          -512
+        ],
+        "id": "d54ca0c6-aa02-4ed9-907f-2b24803f1ae5",
+        "name": "Format Correlations"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1831972577,
+            "mode": "list",
+            "cachedResultName": "Correlations_Log",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1831972577"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "date_computed",
+                "displayName": "date_computed",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "metric_a",
+                "displayName": "metric_a",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "metric_b",
+                "displayName": "metric_b",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "lag_days",
+                "displayName": "lag_days",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "r",
+                "displayName": "r",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "p_value",
+                "displayName": "p_value",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "p_adj",
+                "displayName": "p_adj",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "n",
+                "displayName": "n",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "type",
+                "displayName": "type",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1088,
+          -512
+        ],
+        "id": "72ede7d5-b509-42ea-b403-8364e76898fa",
+        "name": "Append row in sheet",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Anomaly Detection": {
+        "main": [
+          [
+            {
+              "node": "Extract Latest Day",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Weekly Slice": {
+        "main": [
+          [
+            {
+              "node": "Format Weekly Digest",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Latest Day": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Format Alert Text",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Format Alert Text": {
+        "main": [
+          [
+            {
+              "node": "Prepare Anomalies Rows",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Anomalies Rows": {
+        "main": [
+          [
+            {
+              "node": "Anomaly_log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Weekly Digest": {
+        "main": [
+          [
+            {
+              "node": "Prepare Digest Row",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Digest Row": {
+        "main": [
+          [
+            {
+              "node": "Digest_log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Anomaly_log": {
+        "main": [
+          [
+            {
+              "node": "Send a text message1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Digest_log": {
+        "main": [
+          [
+            {
+              "node": "Send a text message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrition day_sum": {
+        "main": [
+          [
+            {
+              "node": "Normalize Date - Nutrition",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Anomaly Detection",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Date - Daily": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Date - Nutrition": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Daily Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Daily_Trends1": {
+        "main": [
+          [
+            {
+              "node": "Anomaly Detection1",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Normalize Date - Daily",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Weekly Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Daily_Trends1",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Nutrition day_sum",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Anomaly Detection1": {
+        "main": [
+          [
+            {
+              "node": "Weekly Slice",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "Prepare Correlation Payload",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Correlation Payload": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request": {
+        "main": [
+          [
+            {
+              "node": "Format Correlations",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Correlations": {
+        "main": [
+          [
+            {
+              "node": "Append row in sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version b9f0a181",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
