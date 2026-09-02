@@ -1,0 +1,245 @@
+{
+  "updatedAt": "2026-08-26T00:27:43.163Z",
+  "createdAt": "2026-08-25T00:47:14.573Z",
+  "id": "W0ub98leTYfLz6MH",
+  "name": "backup",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "id": "2a3402cf-f505-4b14-8257-2c5fdbe82369",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -784,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "filters": {},
+        "requestOptions": {}
+      },
+      "id": "cf3e254b-744b-425c-a630-4f424a9b21ad",
+      "name": "Get many workflows",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        112
+      ],
+      "credentials": {
+        "n8nApi": {
+          "id": "a2gKP9vHOkCb3q7Q",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "owner": {
+          "__rl": true,
+          "value": "Occupancy3537",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "Longevity",
+          "mode": "name"
+        },
+        "filePath": "=workflows/{{ $now.toFormat('yyyy-MM-dd') }}/{{ $json.name.replace(/[^a-zA-Zа-яА-Я0-9\\s\\-_]/g, '') }}.json",
+        "fileContent": "={{ JSON.stringify($json, null, 2) }}",
+        "commitMessage": "=Backup workflow: {{ $json.name }}"
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        -368,
+        112
+      ],
+      "id": "c3fb6ab2-c78d-4500-bd07-82eb171a6f14",
+      "name": "Create a file",
+      "webhookId": "830dd7f5-2741-4122-a1c2-bd132381eeb5",
+      "credentials": {
+        "githubApi": {
+          "id": "jnY2yaE7uyPr210p",
+          "name": "GitHub account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many workflows": {
+      "main": [
+        [
+          {
+            "node": "Create a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "7bcaff1d-3538-4fe5-8068-e068de128b69",
+  "activeVersionId": "7bcaff1d-3538-4fe5-8068-e068de128b69",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-08-25T00:47:14.576Z",
+      "createdAt": "2026-08-25T00:47:14.576Z",
+      "role": "workflow:owner",
+      "workflowId": "W0ub98leTYfLz6MH",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-25T05:50:17.000Z",
+    "createdAt": "2026-08-25T05:50:11.788Z",
+    "versionId": "7bcaff1d-3538-4fe5-8068-e068de128b69",
+    "workflowId": "W0ub98leTYfLz6MH",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "triggerAtHour": 2
+              }
+            ]
+          }
+        },
+        "id": "2a3402cf-f505-4b14-8257-2c5fdbe82369",
+        "name": "Schedule Trigger",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          -784,
+          112
+        ]
+      },
+      {
+        "parameters": {
+          "filters": {},
+          "requestOptions": {}
+        },
+        "id": "cf3e254b-744b-425c-a630-4f424a9b21ad",
+        "name": "Get many workflows",
+        "type": "n8n-nodes-base.n8n",
+        "typeVersion": 1,
+        "position": [
+          -576,
+          112
+        ],
+        "credentials": {
+          "n8nApi": {
+            "id": "a2gKP9vHOkCb3q7Q",
+            "name": "n8n account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "resource": "file",
+          "owner": {
+            "__rl": true,
+            "value": "Occupancy3537",
+            "mode": "name"
+          },
+          "repository": {
+            "__rl": true,
+            "value": "Longevity",
+            "mode": "name"
+          },
+          "filePath": "=workflows/{{ $now.toFormat('yyyy-MM-dd') }}/{{ $json.name.replace(/[^a-zA-Zа-яА-Я0-9\\s\\-_]/g, '') }}.json",
+          "fileContent": "={{ JSON.stringify($json, null, 2) }}",
+          "commitMessage": "=Backup workflow: {{ $json.name }}"
+        },
+        "type": "n8n-nodes-base.github",
+        "typeVersion": 1.1,
+        "position": [
+          -368,
+          112
+        ],
+        "id": "c3fb6ab2-c78d-4500-bd07-82eb171a6f14",
+        "name": "Create a file",
+        "webhookId": "830dd7f5-2741-4122-a1c2-bd132381eeb5",
+        "credentials": {
+          "githubApi": {
+            "id": "jnY2yaE7uyPr210p",
+            "name": "GitHub account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get many workflows",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get many workflows": {
+        "main": [
+          [
+            {
+              "node": "Create a file",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 7bcaff1d",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
