@@ -1,0 +1,1139 @@
+{
+  "updatedAt": "2026-09-03T03:08:07.000Z",
+  "createdAt": "2026-03-31T06:58:45.452Z",
+  "id": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+  "name": "Sub-Agent: AI Doctor",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=СЕГОДНЯ: {{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd') }} (Владивосток). Все события в данных — прошлое. Никогда не указывай даты позже сегодняшней.\n\nТы — Главный превентивный врач экспертного уровня (Доказательная медицина, EBM). Ты не просто врач. Ты — сверхновая звезда в медицине, легенда, чья суперспособность — видеть будущее и менять его так, чтобы в нем не было места болезням. У тебя полная автономия действий. Твоя цель — решать проблемы пациента, анализировать данные его гаджетов и ВЕСТИ ЕГО МЕДИЦИНСКУЮ КАРТУ.\n\n## 🗣 СООБЩЕНИЕ ПАЦИЕНТА:\n{{ $json.user_message }}\n\n## 👤 МЕДИЦИНСКАЯ КАРТА (Анамнез)\n- Имя: {{ $json.medical_record.User_ID }}\n- Хронические: {{ $json.medical_record.Chronic_Conditions }}\n- ОДА и неврология: {{ $json.medical_record['ОДА и неврология'] }}\n- Сон/НС: {{ $json.medical_record['Сон и нервная система (HRV)'] }}\n- ССС: {{ $json.medical_record['Сердечно-сосудистая система'] }}\n\n## 🧠 АЛГОРИТМ ПРИНЯТИЯ РЕШЕНИЙ (Действуй по ситуации):\n\nСЦЕНАРИЙ А: Пациент жалуется на СИМПТОМ / БОЛЬ\n1. Оцени: Хватает ли тебе данных? Если жалоба непонятная — задай 1-2 точечных уточняющих вопроса и жди ответа.\n2. Автономно вызови нужные инструменты: проверь `Get_Patient_Medical_History` (было ли такое раньше?), проверь трекеры (сон, пульс, фитнес, питание).\n3. Сделай запись в медкарту! Обязательно вызови инструмент `Add_Medical_Note` и зафиксируй симптом, чтобы он остался в истории.\n4. Выдай пациенту диагноз и план действий.\n\nСЦЕНАРИЙ Б: Прямой вопрос (Можно ли пить добавку? Как спал?)\n1. Никаких уточняющих вопросов не нужно.\n2. Вызови нужный инструмент (Поиск EBM, Трекер сна, Календарь) и сразу дай четкий, экспертный ответ.\n\n## ⚠️ ПРАВИЛА ОБЩЕНИЯ (СТРОГО):\n- КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНЫ: долгие приветствия, прощания, вода, фразы вроде \"Я ознакомился с вашей картой\" или \"Как ИИ я не могу\". Говори как уверенный, гениальный врач с пациентом.\n- Форматируй ответ СТРОГО для Telegram HTML: <b>, <i>, <u>, <s>, <code>. Запрещено: Markdown (**текст**).\n- КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выводить названия инструментов (например, Add_Medical_Note) и их поля (Date, Category, Plan) обычным текстом в чат! Инструменты нужно ВЫЗЫВАТЬ ПРОГРАММНО (Function Call) в фоновом режиме.",
+        "options": {
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -16
+      ],
+      "id": "54072cfd-2ece-4a85-922e-b265bc8e2ca5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "minimax/minimax-m3",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        176,
+        224
+      ],
+      "id": "8080efc1-3949-429d-8cad-fbf87fdb0211",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Главврач').first().json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        944,
+        -16
+      ],
+      "id": "51523436-3900-4394-958e-3bf3b5222a87",
+      "name": "Ответ в Telegram1",
+      "webhookId": "5bcdc6de-9bfe-49b4-a645-b343e9f7d754",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Берем медкарту из Таблицы\nconst sheetData = $input.first().json;\n\n// 2. Берем оригинальное сообщение из стартового триггера\nconst triggerData = $('Главврач').first().json;\n\n// 3. БЕРЕМ КАРТИНКУ из стартового триггера (если она есть)\nconst binaryData = $('Главврач').first().binary;\n\n// Формируем финальный пакет для ИИ\nlet result = {\n  json: {\n    medical_record: sheetData,\n    user_message: triggerData.message?.caption || triggerData.message?.text || \"Посмотри на это фото.\",\n    telegram_id: triggerData.message?.from?.id,\n    chat_id: triggerData.message?.chat?.id\n  }\n};\n\n// Если картинка была, аккуратно приклеиваем её к ответу\nif (binaryData) {\n  result.binary = binaryData;\n}\n\nreturn [result];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -16
+      ],
+      "id": "f69e1229-f25e-44e9-95ca-6709abb5ea14",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.telegram_id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        384
+      ],
+      "id": "a7fa97aa-f425-4b94-89fa-29bcf2ccb962",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Используй этот инструмент для получения данных о принимаемых лекарствах и добавках, поездках и встречах из Google Calendar",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "vasukvladislav@gmail.com",
+          "mode": "list",
+          "cachedResultName": "vasukvladislav@gmail.com"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        304
+      ],
+      "id": "efe51635-5674-4308-8773-a6fdb67e154e",
+      "name": "Get many events in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PqacoYjKhCXLSGf8",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+          "mode": "list",
+          "cachedResultName": "User_Profile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Telegram_ID",
+              "lookupValue": "={{ $('Главврач').first().json.message.from.id.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        16,
+        -16
+      ],
+      "id": "94f2a3ce-1fab-461c-ae10-f85b0a6e88f3",
+      "name": "User Profile",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -176,
+        -16
+      ],
+      "id": "788b6413-0da8-4c92-aeb5-5f5a942a5419",
+      "name": "Главврач"
+    },
+    {
+      "parameters": {
+        "description": "Используй этот инструмент для получения анализа питания (нутрициологии) пациента. Возвращает данные о БЖУ, калориях и дефицитах.",
+        "workflowId": {
+          "__rl": true,
+          "value": "9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+          "cachedResultName": "Sub-Agent: Nutrition Analyzer"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('date', ``, 'string') }}",
+            "userID": "={{ $json.medical_record.User_ID }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "Chat ID",
+              "displayName": "Chat ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        336
+      ],
+      "id": "8ae6ab18-4175-4799-9814-b8d862aadb22",
+      "name": "Call 'Sub-Agent: Nutrition Analyzer'"
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = $json.output || \"\";\n\n// 1. Превращаем <br> и <p> в нормальные текстовые переносы\ntext = text.replace(/<br\\s*\\/?>/gi, '\\n');\ntext = text.replace(/<\\/?p>/gi, '\\n\\n');\n\n// 2. Спасаем жирный шрифт (Markdown в HTML)\ntext = text.replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>');\ntext = text.replace(/\\*/g, '');\n\n// 3. СПАСАЕМ МЕДИЦИНСКИЕ АНАЛИЗЫ (знаки < и >)\n// Если после < идет пробел или цифра - это точно математика, а не тег\ntext = text.replace(/<(?=\\s|[0-9])/g, '&lt;');\n// Аналогично для знака >\ntext = text.replace(/(?<=\\s|[0-9])>/g, '&gt;');\n\n// 4. Оставляем только разрешенные теги Телеграма\nconst allowedTags = \"b|strong|i|em|u|s|strike|del|a|code|pre\";\nconst sanitizeRegex = new RegExp(`<\\/?(?!(?:${allowedTags})\\\\b)[a-z0-9]+[^>]*>`, 'gi');\ntext = text.replace(sanitizeRegex, '');\n\n// 5. 🏗 АВТО-БАЛАНСИРОВЩИК ТЕГОВ (Лечит ошибку Unmatched end tag)\nconst stack =[];\nconst tagRegex = /<\\/?([a-z]+)[^>]*>/gi;\nlet match;\n\n// Проходим по всем тегам в тексте\nwhile ((match = tagRegex.exec(text)) !== null) {\n  const tag = match[1].toLowerCase();\n  const isClosing = match[0].startsWith('</');\n\n  if (!isClosing) {\n    // Если тег открылся - кладем его в \"память\"\n    stack.push(tag);\n  } else {\n    // Если тег закрылся - убираем его из памяти\n    const lastIndex = stack.lastIndexOf(tag);\n    if (lastIndex !== -1) {\n      stack.splice(lastIndex, 1); \n    }\n  }\n}\n\n// Все теги, которые остались в \"памяти\" - нейросеть забыла закрыть!\n// Аккуратно закрываем их в самом конце текста в обратном порядке\nfor (let i = stack.length - 1; i >= 0; i--) {\n  text += `</${stack[i]}>`;\n}\n\n// 6. Убираем лишние пустые строки\ntext = text.replace(/\\n{3,}/g, '\\n\\n');\n\nreturn { \n  json: { \n    ...$json,\n    output: text.trim() \n  } \n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        -16
+      ],
+      "id": "8f7b4ae7-a948-4b89-87b1-bb1f4bac9d5f",
+      "name": "Sanitizer"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Используй этот инструмент, ЕСЛИ пациент жалуется на обострение, боль или новые симптомы. Инструмент вернет историю прошлых обращений (Doctor Notes), прошлые триггеры и реакции на лечение. Обязательно сопоставь текущую жалобу с историей прошлых записей из этого инструмента.",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Doctor_Notes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        320
+      ],
+      "id": "7af95a32-b1c2-42f4-a7a2-a09a6d1f4bd1",
+      "name": "Get_Patient_Medical_History",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Вызывай эту функцию каждый раз, когда пациент сообщает о новых симптомах, реакциях на препараты или обострениях. Инструмент запишет эти данные напрямую в базу данных пациента.",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Doctor_Notes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd') }}",
+            "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+            "Note": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Note', ``, 'string') }}",
+            "Trigger": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Trigger', ``, 'string') }}",
+            "Plan": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Plan', ``, 'string') }}",
+            "Doctor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Doctor', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Note",
+              "displayName": "Note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Trigger",
+              "displayName": "Trigger",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Plan",
+              "displayName": "Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Doctor",
+              "displayName": "Doctor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        304
+      ],
+      "id": "3d3dd8e5-b472-408d-b6e9-fc9cb682a88a",
+      "name": "Add_Medical_Note",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendChatAction",
+        "chatId": "={{ $json.chat_id || $json.message?.chat?.id }}",
+        "action": "typing"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -176,
+        124
+      ],
+      "id": "d56205cf-ba7f-4aa2-be02-beebed6d9dd1",
+      "name": "typing (doctor)",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Sanitizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ответ в Telegram1": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Profile": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Главврач": {
+      "main": [
+        [
+          {
+            "node": "User Profile",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "typing (doctor)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Sub-Agent: Nutrition Analyzer'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitizer": {
+      "main": [
+        [
+          {
+            "node": "Ответ в Telegram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_Patient_Medical_History": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add_Medical_Note": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true,
+    "saveExecutionProgress": true,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "602a55f0-24b8-4cfa-b2f0-7fc41db6523d",
+  "activeVersionId": "602a55f0-24b8-4cfa-b2f0-7fc41db6523d",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T00:44:14.895Z",
+      "createdAt": "2026-09-03T00:44:14.895Z",
+      "role": "workflow:owner",
+      "workflowId": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T03:08:01.013Z",
+    "createdAt": "2026-09-03T03:08:01.013Z",
+    "versionId": "602a55f0-24b8-4cfa-b2f0-7fc41db6523d",
+    "workflowId": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+    "nodes": [
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=СЕГОДНЯ: {{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd') }} (Владивосток). Все события в данных — прошлое. Никогда не указывай даты позже сегодняшней.\n\nТы — Главный превентивный врач экспертного уровня (Доказательная медицина, EBM). Ты не просто врач. Ты — сверхновая звезда в медицине, легенда, чья суперспособность — видеть будущее и менять его так, чтобы в нем не было места болезням. У тебя полная автономия действий. Твоя цель — решать проблемы пациента, анализировать данные его гаджетов и ВЕСТИ ЕГО МЕДИЦИНСКУЮ КАРТУ.\n\n## 🗣 СООБЩЕНИЕ ПАЦИЕНТА:\n{{ $json.user_message }}\n\n## 👤 МЕДИЦИНСКАЯ КАРТА (Анамнез)\n- Имя: {{ $json.medical_record.User_ID }}\n- Хронические: {{ $json.medical_record.Chronic_Conditions }}\n- ОДА и неврология: {{ $json.medical_record['ОДА и неврология'] }}\n- Сон/НС: {{ $json.medical_record['Сон и нервная система (HRV)'] }}\n- ССС: {{ $json.medical_record['Сердечно-сосудистая система'] }}\n\n## 🧠 АЛГОРИТМ ПРИНЯТИЯ РЕШЕНИЙ (Действуй по ситуации):\n\nСЦЕНАРИЙ А: Пациент жалуется на СИМПТОМ / БОЛЬ\n1. Оцени: Хватает ли тебе данных? Если жалоба непонятная — задай 1-2 точечных уточняющих вопроса и жди ответа.\n2. Автономно вызови нужные инструменты: проверь `Get_Patient_Medical_History` (было ли такое раньше?), проверь трекеры (сон, пульс, фитнес, питание).\n3. Сделай запись в медкарту! Обязательно вызови инструмент `Add_Medical_Note` и зафиксируй симптом, чтобы он остался в истории.\n4. Выдай пациенту диагноз и план действий.\n\nСЦЕНАРИЙ Б: Прямой вопрос (Можно ли пить добавку? Как спал?)\n1. Никаких уточняющих вопросов не нужно.\n2. Вызови нужный инструмент (Поиск EBM, Трекер сна, Календарь) и сразу дай четкий, экспертный ответ.\n\n## ⚠️ ПРАВИЛА ОБЩЕНИЯ (СТРОГО):\n- КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНЫ: долгие приветствия, прощания, вода, фразы вроде \"Я ознакомился с вашей картой\" или \"Как ИИ я не могу\". Говори как уверенный, гениальный врач с пациентом.\n- Форматируй ответ СТРОГО для Telegram HTML: <b>, <i>, <u>, <s>, <code>. Запрещено: Markdown (**текст**).\n- КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выводить названия инструментов (например, Add_Medical_Note) и их поля (Date, Category, Plan) обычным текстом в чат! Инструменты нужно ВЫЗЫВАТЬ ПРОГРАММНО (Function Call) в фоновом режиме.",
+          "options": {
+            "passthroughBinaryImages": true
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          400,
+          -16
+        ],
+        "id": "54072cfd-2ece-4a85-922e-b265bc8e2ca5",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "model": "minimax/minimax-m3",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          176,
+          224
+        ],
+        "id": "8080efc1-3949-429d-8cad-fbf87fdb0211",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Главврач').first().json.message.chat.id }}",
+          "text": "={{ $json.output }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          944,
+          -16
+        ],
+        "id": "51523436-3900-4394-958e-3bf3b5222a87",
+        "name": "Ответ в Telegram1",
+        "webhookId": "5bcdc6de-9bfe-49b4-a645-b343e9f7d754",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Берем медкарту из Таблицы\nconst sheetData = $input.first().json;\n\n// 2. Берем оригинальное сообщение из стартового триггера\nconst triggerData = $('Главврач').first().json;\n\n// 3. БЕРЕМ КАРТИНКУ из стартового триггера (если она есть)\nconst binaryData = $('Главврач').first().binary;\n\n// Формируем финальный пакет для ИИ\nlet result = {\n  json: {\n    medical_record: sheetData,\n    user_message: triggerData.message?.caption || triggerData.message?.text || \"Посмотри на это фото.\",\n    telegram_id: triggerData.message?.from?.id,\n    chat_id: triggerData.message?.chat?.id\n  }\n};\n\n// Если картинка была, аккуратно приклеиваем её к ответу\nif (binaryData) {\n  result.binary = binaryData;\n}\n\nreturn [result];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          224,
+          -16
+        ],
+        "id": "f69e1229-f25e-44e9-95ca-6709abb5ea14",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "sessionIdType": "customKey",
+          "sessionKey": "={{ $json.telegram_id }}",
+          "contextWindowLength": 10
+        },
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.3,
+        "position": [
+          240,
+          384
+        ],
+        "id": "a7fa97aa-f425-4b94-89fa-29bcf2ccb962",
+        "name": "Simple Memory"
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Используй этот инструмент для получения данных о принимаемых лекарствах и добавках, поездках и встречах из Google Calendar",
+          "operation": "getAll",
+          "calendar": {
+            "__rl": true,
+            "value": "vasukvladislav@gmail.com",
+            "mode": "list",
+            "cachedResultName": "vasukvladislav@gmail.com"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleCalendarTool",
+        "typeVersion": 1.3,
+        "position": [
+          352,
+          304
+        ],
+        "id": "efe51635-5674-4308-8773-a6fdb67e154e",
+        "name": "Get many events in Google Calendar",
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "PqacoYjKhCXLSGf8",
+            "name": "Google Calendar account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+            "mode": "list",
+            "cachedResultName": "User_Profile",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Лист1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit#gid=0"
+          },
+          "filtersUI": {
+            "values": [
+              {
+                "lookupColumn": "Telegram_ID",
+                "lookupValue": "={{ $('Главврач').first().json.message.from.id.toString() }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          16,
+          -16
+        ],
+        "id": "94f2a3ce-1fab-461c-ae10-f85b0a6e88f3",
+        "name": "User Profile",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "inputSource": "passthrough"
+        },
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -176,
+          -16
+        ],
+        "id": "788b6413-0da8-4c92-aeb5-5f5a942a5419",
+        "name": "Главврач"
+      },
+      {
+        "parameters": {
+          "description": "Используй этот инструмент для получения анализа питания (нутрициологии) пациента. Возвращает данные о БЖУ, калориях и дефицитах.",
+          "workflowId": {
+            "__rl": true,
+            "value": "9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+            "cachedResultName": "Sub-Agent: Nutrition Analyzer"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('date', ``, 'string') }}",
+              "userID": "={{ $json.medical_record.User_ID }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "date",
+                "displayName": "date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "userID",
+                "displayName": "userID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "Chat ID",
+                "displayName": "Chat ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+        "typeVersion": 2.2,
+        "position": [
+          640,
+          336
+        ],
+        "id": "8ae6ab18-4175-4799-9814-b8d862aadb22",
+        "name": "Call 'Sub-Agent: Nutrition Analyzer'"
+      },
+      {
+        "parameters": {
+          "jsCode": "let text = $json.output || \"\";\n\n// 1. Превращаем <br> и <p> в нормальные текстовые переносы\ntext = text.replace(/<br\\s*\\/?>/gi, '\\n');\ntext = text.replace(/<\\/?p>/gi, '\\n\\n');\n\n// 2. Спасаем жирный шрифт (Markdown в HTML)\ntext = text.replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>');\ntext = text.replace(/\\*/g, '');\n\n// 3. СПАСАЕМ МЕДИЦИНСКИЕ АНАЛИЗЫ (знаки < и >)\n// Если после < идет пробел или цифра - это точно математика, а не тег\ntext = text.replace(/<(?=\\s|[0-9])/g, '&lt;');\n// Аналогично для знака >\ntext = text.replace(/(?<=\\s|[0-9])>/g, '&gt;');\n\n// 4. Оставляем только разрешенные теги Телеграма\nconst allowedTags = \"b|strong|i|em|u|s|strike|del|a|code|pre\";\nconst sanitizeRegex = new RegExp(`<\\/?(?!(?:${allowedTags})\\\\b)[a-z0-9]+[^>]*>`, 'gi');\ntext = text.replace(sanitizeRegex, '');\n\n// 5. 🏗 АВТО-БАЛАНСИРОВЩИК ТЕГОВ (Лечит ошибку Unmatched end tag)\nconst stack =[];\nconst tagRegex = /<\\/?([a-z]+)[^>]*>/gi;\nlet match;\n\n// Проходим по всем тегам в тексте\nwhile ((match = tagRegex.exec(text)) !== null) {\n  const tag = match[1].toLowerCase();\n  const isClosing = match[0].startsWith('</');\n\n  if (!isClosing) {\n    // Если тег открылся - кладем его в \"память\"\n    stack.push(tag);\n  } else {\n    // Если тег закрылся - убираем его из памяти\n    const lastIndex = stack.lastIndexOf(tag);\n    if (lastIndex !== -1) {\n      stack.splice(lastIndex, 1); \n    }\n  }\n}\n\n// Все теги, которые остались в \"памяти\" - нейросеть забыла закрыть!\n// Аккуратно закрываем их в самом конце текста в обратном порядке\nfor (let i = stack.length - 1; i >= 0; i--) {\n  text += `</${stack[i]}>`;\n}\n\n// 6. Убираем лишние пустые строки\ntext = text.replace(/\\n{3,}/g, '\\n\\n');\n\nreturn { \n  json: { \n    ...$json,\n    output: text.trim() \n  } \n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          736,
+          -16
+        ],
+        "id": "8f7b4ae7-a948-4b89-87b1-bb1f4bac9d5f",
+        "name": "Sanitizer"
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Используй этот инструмент, ЕСЛИ пациент жалуется на обострение, боль или новые симптомы. Инструмент вернет историю прошлых обращений (Doctor Notes), прошлые триггеры и реакции на лечение. Обязательно сопоставь текущую жалобу с историей прошлых записей из этого инструмента.",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Doctor_Notes",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheetsTool",
+        "typeVersion": 4.7,
+        "position": [
+          800,
+          320
+        ],
+        "id": "7af95a32-b1c2-42f4-a7a2-a09a6d1f4bd1",
+        "name": "Get_Patient_Medical_History",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Вызывай эту функцию каждый раз, когда пациент сообщает о новых симптомах, реакциях на препараты или обострениях. Инструмент запишет эти данные напрямую в базу данных пациента.",
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Doctor_Notes",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd') }}",
+              "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+              "Note": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Note', ``, 'string') }}",
+              "Trigger": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Trigger', ``, 'string') }}",
+              "Plan": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Plan', ``, 'string') }}",
+              "Doctor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Doctor', ``, 'string') }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Category",
+                "displayName": "Category",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Note",
+                "displayName": "Note",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Trigger",
+                "displayName": "Trigger",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Plan",
+                "displayName": "Plan",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Doctor",
+                "displayName": "Doctor",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheetsTool",
+        "typeVersion": 4.7,
+        "position": [
+          960,
+          304
+        ],
+        "id": "3d3dd8e5-b472-408d-b6e9-fc9cb682a88a",
+        "name": "Add_Medical_Note",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "sendChatAction",
+          "chatId": "={{ $json.chat_id || $json.message?.chat?.id }}",
+          "action": "typing"
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -176,
+          124
+        ],
+        "id": "d56205cf-ba7f-4aa2-be02-beebed6d9dd1",
+        "name": "typing (doctor)",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        },
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Sanitizer",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ответ в Telegram1": {
+        "main": [
+          []
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simple Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get many events in Google Calendar": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "User Profile": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Главврач": {
+        "main": [
+          [
+            {
+              "node": "User Profile",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "typing (doctor)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Call 'Sub-Agent: Nutrition Analyzer'": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sanitizer": {
+        "main": [
+          [
+            {
+              "node": "Ответ в Telegram1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get_Patient_Medical_History": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Add_Medical_Note": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: clean prompt anchor)",
+    "name": "Patch 602a55f0 — clean prompt anchor",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
