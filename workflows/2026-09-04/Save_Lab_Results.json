@@ -1,0 +1,877 @@
+{
+  "updatedAt": "2026-09-03T06:34:02.000Z",
+  "createdAt": "2026-09-03T05:54:06.902Z",
+  "id": "a7d1c4e2-9b30-4f55-8c21-6de2b1a4f7c0",
+  "name": "Save_Lab_Results",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "document_date"
+            },
+            {
+              "name": "lab_name"
+            },
+            {
+              "name": "notes"
+            },
+            {
+              "name": "markers_json"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -900,
+        0
+      ],
+      "id": "5fa21578-7b8c-438c-912f-f8c4e51182ef",
+      "name": "Registrar Labs"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Markers",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "5a63bb16-5563-4d6f-b5db-9ffba8f7a4e4",
+      "name": "Get Markers",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Visits",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "c80271fa-3efc-4b93-9183-f220de9b12d4",
+      "name": "Get Visits",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Visit — определяет визит для результатов.\n// Дату берём из trigger-поля document_date (нода \"Registrar Labs\"), НЕ из $input\n// (перед этой нодой стоит Get Visits, его вывод — это строки листа Visits).\n// Если визит с такой датой уже есть в книге — переиспользуем его Visit_ID (без дублей).\nconst t = $('Registrar Labs').first().json;\nconst existing = $('Get Visits').all().map(i => i.json);\n\nfunction pd(v){\n  var s=String(v==null?'':v).trim().replace(/[\\/\\-]/g,'.');\n  var m=s.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})/); if(m) return {iso:m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'), ru:m[1].padStart(2,'0')+'.'+m[2].padStart(2,'0')+'.'+m[3]};\n  m=s.match(/^(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})/); if(m) return {iso:m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'), ru:m[3].padStart(2,'0')+'.'+m[2].padStart(2,'0')+'.'+m[1]};\n  return null;\n}\n\nvar today = $now.setZone('Asia/Vladivostok');\nvar p = pd(t.document_date);\nif(!p || p.iso > today.toFormat('yyyy-MM-dd')) {\n  p = {iso: today.toFormat('yyyy-MM-dd'), ru: today.toFormat('dd.MM.yyyy')};\n}\n\nvar incLab = (t.lab_name || '').toString().trim();\nvar incNotes = (t.notes || '').toString().trim();\n\n// ищем существующий визит по совпадению даты\nvar match = null;\nfor (var i=0;i<existing.length;i++){\n  var ep = pd(existing[i].Date);\n  if (ep && ep.iso === p.iso) { match = existing[i]; break; }\n}\n\nif (match) {\n  return [{ json: {\n    Visit_ID: String(match.Visit_ID),\n    Date: p.ru,\n    Age_at_Visit: (match.Age_at_Visit !== '' && match.Age_at_Visit != null) ? match.Age_at_Visit : (parseInt(p.iso.slice(0,4),10) - 1982),\n    Lab_Name: (match.Lab_Name && String(match.Lab_Name).trim()) ? match.Lab_Name : incLab,\n    Notes: (match.Notes && String(match.Notes).trim()) ? match.Notes : incNotes,\n    _matched_existing: true\n  }}];\n}\n\nreturn [{ json: {\n  Visit_ID: 'V' + p.iso.replace(/-/g,''),\n  Date: p.ru,\n  Age_at_Visit: parseInt(p.iso.slice(0,4),10) - 1982,   // год рождения Влада — 1982\n  Lab_Name: incLab,\n  Notes: incNotes,\n  _matched_existing: false\n}}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -300,
+        0
+      ],
+      "id": "b1fb0814-113c-4d18-8e7e-0ad3387c5b78",
+      "name": "Build Visit"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Visits",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Visit_ID": "={{ $json[\"Visit_ID\"] }}",
+            "Date": "={{ $json[\"Date\"] }}",
+            "Age_at_Visit": "={{ $json[\"Age_at_Visit\"] }}",
+            "Lab_Name": "={{ $json[\"Lab_Name\"] }}",
+            "Notes": "={{ $json[\"Notes\"] }}"
+          },
+          "matchingColumns": [
+            "Visit_ID"
+          ],
+          "schema": [
+            {
+              "id": "Visit_ID",
+              "displayName": "Visit_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Age_at_Visit",
+              "displayName": "Age_at_Visit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Lab_Name",
+              "displayName": "Lab_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -100,
+        0
+      ],
+      "id": "c7f1d0af-8dd1-422e-9a57-77b55052317f",
+      "name": "Write Visit",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Save_Lab_Results → нода \"Map\".\n// Вход: trigger-поля document_date / lab_name / notes / markers_json (JSON-строка массива\n// {name,value,unit,ref_low,ref_high}); листы Markers и Visits книги phenoage; результат ноды \"Build Visit\".\n// Выход: строки для листа Results ({Visit_ID,Marker_ID,Value,Original_Unit,Lab_Min,Lab_Max}),\n// на каждой строке дублируется _summary для ноды Respond.\n// Run Once for All Items.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\n\nconst trig = (() => {\n  try { return $('Registrar Labs').first().json; } catch (e) { return $input.first().json || {}; }\n})();\nconst visit = $('Build Visit').first().json;\nconst markerRows = safeAll('Get Markers');   // Marker_ID, Name, Category, Standard_Unit, ...\n\n// ---------- нормализация имени показателя ----------\nfunction norm(s) {\n  return String(s == null ? '' : s)\n    .toLowerCase()\n    .replace(/ё/g, 'е')\n    .replace(/\\([^)]*\\)/g, ' ')            // убрать скобки с содержимым\n    .replace(/[^a-zа-я0-9%]+/g, ' ')       // оставить буквы/цифры/%\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n// свернуть кириллические буквы-двойники в латиницу — чтобы ловить аббревиатуры,\n// которые в бланках печатают вперемешку (МСHС, НGB и т.п.)\nfunction fold(s) {\n  const m = { 'а': 'a', 'в': 'b', 'е': 'e', 'к': 'k', 'м': 'm', 'н': 'h', 'о': 'o',\n    'р': 'p', 'с': 'c', 'т': 't', 'х': 'x', 'у': 'y', 'і': 'i' };\n  return String(s || '').replace(/[а-яёі]/g, ch => m[ch] || ch);\n}\nfunction toComma(v) {\n  if (v == null || v === '') return '';\n  return String(v).trim().replace(/\\s+/g, '').replace('.', ',');\n}\nfunction numOf(v) {\n  if (v == null || v === '') return null;\n  const n = parseFloat(String(v).replace(/\\s+/g, '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\n\n// индекс по названиям из листа Markers\nconst byName = {};\nfor (const m of markerRows) {\n  if (!m.Marker_ID) continue;\n  byName[norm(m.Name)] = m.Marker_ID;\n}\n\n// ручной словарь синонимов/аббревиатур -> Marker_ID\nconst SYN = {\n  'билирубин общий': 'M001', 'общий билирубин': 'M001', 'билирубин': 'M001',\n  'билирубин прямой': 'M002', 'прямой билирубин': 'M002', 'билирубин конъюгированный': 'M002',\n  'глюкоза': 'M003', 'глюкоза плазмы': 'M003', 'глюкоза венозной крови': 'M003', 'глюкоза натощак': 'M003',\n  'креатинин': 'M004',\n  'мочевая кислота': 'M005',\n  'мочевина': 'M006', 'urea': 'M006',\n  'общий белок': 'M007', 'белок общий': 'M007',\n  'альбумин': 'M008',\n  'триглицериды': 'M009', 'тг': 'M009',\n  'холестерин общий': 'M010', 'холестерин': 'M010', 'общий холестерин': 'M010', 'холестерин суммарный': 'M010',\n  'холестерин лпвп': 'M011', 'лпвп': 'M011', 'hdl': 'M011', 'хс лпвп': 'M011', 'холестерин hdl': 'M011',\n  'холестерин лпнп': 'M012', 'лпнп': 'M012', 'ldl': 'M012', 'хс лпнп': 'M012', 'холестерин ldl': 'M012',\n  'холестерин лпонп': 'M013', 'лпонп': 'M013', 'vldl': 'M013',\n  'холестерин не лпвп': 'M014', 'не hdl': 'M014', 'non hdl': 'M014', 'холестерин неквп': 'M014',\n  'аланинаминотрансфераза': 'M015', 'алат': 'M015', 'алт': 'M015', 'alt': 'M015',\n  'аспартатаминотрансфераза': 'M016', 'асат': 'M016', 'аст': 'M016', 'ast': 'M016',\n  'щелочная фосфатаза': 'M017', 'alp': 'M017', 'щф': 'M017',\n  'т4 свободный': 'M018', 'свободный т4': 'M018', 'ft4': 'M018',\n  'ттг': 'M019', 'tsh': 'M019', 'тиреотропный гормон': 'M019',\n  'тестостерон общий': 'M020', 'тестостерон': 'M020',\n  'пса общий': 'M021', 'пса': 'M021', 'psa': 'M021', 'простатический специфический антиген': 'M021',\n  'пса свободный': 'M022', 'свободный пса': 'M022',\n  'пса свободный пса': 'M023', 'соотношение пса': 'M023',\n  'с реактивный белок': 'M024', 'срб': 'M024', 'crp': 'M024', 'hs crp': 'M024', 'вчсрб': 'M024', 'с реактивный белок высокочувствительный': 'M024',\n  'ревматоидный фактор': 'M025', 'рф': 'M025',\n  'антитела сср': 'M026', 'аццп': 'M026',\n  'ферритин': 'M027',\n  'железо': 'M028', 'железо сывороточное': 'M028', 'сывороточное железо': 'M028', 'fe': 'M028',\n  'натрий': 'M029', 'na': 'M029',\n  'калий': 'M030', 'k': 'M030',\n  'гликированный гемоглобин': 'M031', 'hba1c': 'M031', 'гликированный гемоглобин hba1c': 'M031', 'гликогемоглобин': 'M031',\n  'инсулин': 'M032',\n  'фолиевая кислота': 'M033', 'фолаты': 'M033',\n  'витамин b12': 'M034', 'b12': 'M034', 'цианокобаламин': 'M034', 'витамин в12': 'M034',\n  'витамин d': 'M035', 'витамин d 25 oh': 'M035', 'витамин d 25 он': 'M035', '25 oh витамин d': 'M035', '25 он витамин d': 'M035', 'витамин д': 'M035', '25 гидроксивитамин d': 'M035',\n  'ige общий': 'M036', 'ige': 'M036', 'иммуноглобулин e общий': 'M036', 'иммуноглобулин e': 'M036',\n  'гемоглобин в кале': 'M037',\n  'трансферрин в кале': 'M038',\n  'лейкоциты': 'M039', 'wbc': 'M039',\n  'эритроциты': 'M040', 'rbc': 'M040',\n  'гемоглобин': 'M041', 'hgb': 'M041', 'hb': 'M041',\n  'гематокрит': 'M042', 'hct': 'M042',\n  'средний объем эритроцита': 'M043', 'средний объем эритроцитов': 'M043', 'mcv': 'M043',\n  'среднее содержание hb': 'M044', 'среднее содержание гемоглобина': 'M044', 'mch': 'M044',\n  'средняя концентрация hb': 'M045', 'средняя концентрация гемоглобина': 'M045', 'mchc': 'M045',\n  'тромбоциты': 'M046', 'plt': 'M046',\n  'цветовой показатель': 'M047', 'цп': 'M047',\n  'соэ': 'M048', 'esr': 'M048', 'скорость оседания эритроцитов': 'M048',\n  'ширина распред эритроцитов': 'M049', 'rdw': 'M049', 'rdw cv': 'M049',\n  'rdw sd': 'M050',\n  'ширина распред тромбоцитов': 'M051', 'pdw': 'M051',\n  'средний объем тромбоцитов': 'M052', 'mpv': 'M052',\n  'тромбокрит': 'M053', 'pct': 'M053',\n  'крупные тромбоциты': 'M054', 'p lcr': 'M054',\n  'крупные тромбоциты абс': 'M055', 'p lcc': 'M055',\n  'незрелые гранулоциты абс': 'M056',\n  'незрелые гранулоциты': 'M057', 'незрелые гранулоциты процент': 'M057',\n  'нейтрофилы абс': 'M058', 'нейтрофилы абсолютное': 'M058', 'нейтрофилы абсолютные': 'M058',\n  'нейтрофилы': 'M059', 'нейтрофилы процент': 'M059', 'нейтрофилы отн': 'M059', 'neu': 'M059',\n  'лимфоциты абс': 'M061', 'лимфоциты абсолютное': 'M061', 'лимфоциты абсолютные': 'M061',\n  'лимфоциты': 'M062', 'лимфоциты процент': 'M062', 'лимфоциты отн': 'M062', 'lym': 'M062',\n  'моноциты абс': 'M063', 'моноциты абсолютное': 'M063',\n  'моноциты': 'M064', 'моноциты процент': 'M064', 'моноциты отн': 'M064',\n  'эозинофилы абс': 'M065', 'эозинофилы абсолютное': 'M065',\n  'эозинофилы': 'M066', 'эозинофилы процент': 'M066', 'эозинофилы отн': 'M066',\n  'базофилы абс': 'M067', 'базофилы абсолютное': 'M067',\n  'базофилы': 'M068', 'базофилы процент': 'M068', 'базофилы отн': 'M068',\n  'палочкоядерные нейтрофилы': 'M060', 'палочкоядерные': 'M060', 'нейтрофилы палочкоядерные': 'M060',\n  'сегментоядерные нейтрофилы': 'M059', 'сегментоядерные': 'M059', 'нейтрофилы сегментоядерные': 'M059',\n  'ачтв': 'M069', 'aptt': 'M069',\n  'тромбиновое время': 'M070', 'тв': 'M070',\n  'фибриноген': 'M071',\n  'антитромбин iii': 'M072', 'антитромбин 3': 'M072',\n  'мно': 'M073', 'inr': 'M073',\n  'протромбиновое отношение': 'M074', 'по': 'M074',\n  'агрескрин тест': 'M075',\n  'рфмк': 'M076',\n  'пти': 'M077', 'протромбиновый индекс': 'M077',\n};\n\n// пары «% <-> абс» для 5-компонентной лейкоформулы.\n// В SYN голое имя («нейтрофилы») ведёт на %-вариант; здесь выбираем по единице измерения.\nconst PCT_TO_ABS = { M059: 'M058', M062: 'M061', M064: 'M063', M066: 'M065', M068: 'M067' };\nconst ABS_SET = new Set(['M058', 'M061', 'M063', 'M065', 'M067']);\n\nfunction unitIsPct(u) { return u === '%' || /процент|отн\\b/.test(u); }\nfunction unitIsAbs(u) {\n  return /10\\s*\\^?\\s*9|10\\s*\\*\\s*9|10\\s*9|кл\\/мкл|g\\/l|10\\^9\\/л|абс|x10/.test(u) || /\\/\\s*л$/.test(u);\n}\n\n// латинские аббревиатуры (точное совпадение целиком, после fold)\nconst ABBR = {\n  mchc: 'M045', mch: 'M044', mcv: 'M043', wbc: 'M039', rbc: 'M040', hgb: 'M041', hb: 'M041',\n  hct: 'M042', plt: 'M046', rdw: 'M049', rdwcv: 'M049', rdwsd: 'M050', mpv: 'M052', pdw: 'M051',\n  pct: 'M053', esr: 'M048', soe: 'M048', alt: 'M015', ast: 'M016', alp: 'M017', tsh: 'M019',\n  ft4: 'M018', psa: 'M021', crp: 'M024', hscrp: 'M024', hba1c: 'M031', inr: 'M073', pti: 'M077',\n  aptt: 'M069', neu: 'M059', lym: 'M062', mono: 'M064', eos: 'M066', baso: 'M068',\n};\n\nfunction resolveId(name, unit) {\n  const n = norm(name);\n  const nf = fold(n);\n  const u = norm(unit);\n  let id = SYN[n] || byName[n] || SYN[nf] || byName[nf] || null;\n  if (!id) {\n    const flat = nf.replace(/[\\s-]/g, '');\n    if (ABBR[flat]) id = ABBR[flat];\n  }\n  if (!id) {\n    for (const k of Object.keys(SYN)) {\n      if (k.length >= 4 && n.indexOf(k) === 0) { id = SYN[k]; break; }\n    }\n  }\n  if (!id) return null;\n  // лейкоформула: имя в тексте может уже нести «абс»/«%», иначе решаем по единице\n  if (/\\bабс/.test(n)) { for (const [p, a] of Object.entries(PCT_TO_ABS)) if (id === p) id = a; }\n  else if (/\\bотн|%/.test(n)) { /* оставляем %-вариант */ }\n  else if (PCT_TO_ABS[id]) {\n    if (unitIsAbs(u) && !unitIsPct(u)) id = PCT_TO_ABS[id];   // -> абс\n  }\n  // если по имени попали в абс-вариант, но единица — процент, вернуть %\n  if (ABS_SET.has(id) && unitIsPct(u)) {\n    for (const [p, a] of Object.entries(PCT_TO_ABS)) if (a === id) id = p;\n  }\n  return id;\n}\n\n// ---------- конвертация единиц для маркеров PhenoAge ----------\n// PhenoAge-формула чувствительна к единицам. Приводим 4 «опасных» маркера к стандартной.\n// Возвращает {value, unit, converted} или null (оставить как есть).\nfunction convUnit(id, value, unit) {\n  const u = norm(unit).replace(/\\s/g, '');                 // остаются только буквы/цифры/%\n  const isGdl = /(gdl|гдл)/.test(u);                       // g/dl\n  const isMgdl = /(mgdl|мгдл)/.test(u);                    // mg/dl\n  if (id === 'M008' && isGdl) return { value: value * 10, unit: 'г/л', note: 'из г/дл' };            // альбумин\n  if (id === 'M003' && isMgdl) return { value: value / 18.0, unit: 'ммоль/л', note: 'из мг/дл' };    // глюкоза\n  if (id === 'M004' && isMgdl) return { value: value * 88.4, unit: 'мкмоль/л', note: 'из мг/дл' };   // креатинин\n  if (id === 'M024' && isMgdl) return { value: value * 10, unit: 'мг/л', note: 'из мг/дл' };         // СРБ\n  return null;\n}\n\n// ---------- разбор входного массива ----------\nlet raw = trig.markers_json;\nlet list = [];\ntry {\n  if (Array.isArray(raw)) list = raw;\n  else if (typeof raw === 'string' && raw.trim()) list = JSON.parse(raw);\n  else if (raw && typeof raw === 'object') list = raw.markers || [];\n} catch (e) { list = []; }\n\nconst vid = visit.Visit_ID;\nconst seen = new Set();\nconst rows = [];\nconst matched = [];\nconst unmatched = [];\nconst converted = [];\n\nfor (const it of list) {\n  if (!it) continue;\n  const name = it.name || it.Name || it.marker || it.title || '';\n  const valRaw = it.value != null ? it.value : (it.Value != null ? it.Value : it.result);\n  if (!name || valRaw == null || String(valRaw).trim() === '') continue;\n  if (numOf(valRaw) == null) continue; // «отрицательно», «не обнаружено» и т.п. — пропускаем\n  const unit = it.unit || it.Unit || it.units || '';\n  const id = resolveId(name, unit);\n  if (!id) { unmatched.push(String(name).trim()); continue; }\n  if (seen.has(id)) continue;\n  seen.add(id);\n\n  let outVal = toComma(valRaw);\n  let outUnit = String(unit || '').trim();\n  const c = convUnit(id, numOf(valRaw), unit);\n  if (c) {\n    outVal = toComma(Math.round(c.value * 1000) / 1000);\n    outUnit = c.unit + ' (' + (String(unit || '').trim() || c.note) + ')';\n    converted.push(name + ' ' + c.note);\n  }\n\n  rows.push({\n    Visit_ID: vid,\n    Marker_ID: id,\n    Value: outVal,\n    Original_Unit: outUnit,\n    Lab_Min: toComma(it.ref_low != null ? it.ref_low : it.refLow != null ? it.refLow : it.min),\n    Lab_Max: toComma(it.ref_high != null ? it.ref_high : it.refHigh != null ? it.refHigh : it.max),\n  });\n  matched.push(id);\n}\n\nlet summary;\nif (rows.length) {\n  summary = 'Лабораторные результаты сохранены: визит ' + vid + ' (' + visit.Date + ', ' +\n    (visit.Lab_Name || 'лаборатория не указана') + '), показателей записано: ' + rows.length + '.';\n  if (converted.length) summary += ' Приведены к стандартным единицам: ' + converted.join('; ') + '.';\n  if (unmatched.length) summary += ' Не распознаны и НЕ записаны в структуру: ' + unmatched.join('; ') + '.';\n} else {\n  summary = 'Структурные показатели не сохранены: ' +\n    (list.length ? 'ни одно из названий не распознано (' + unmatched.join('; ') + ')' :\n      'в вызове не передан массив показателей') + '. Клиническая сводка в медкарте не затронута.';\n  rows.push({ Visit_ID: vid, Marker_ID: '_none', Value: '', Original_Unit: '', Lab_Min: '', Lab_Max: '' });\n}\n\nreturn rows.map(r => ({ json: { ...r, _summary: summary } }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        0
+      ],
+      "id": "f3192fd0-953d-4800-9ee5-06be0d0cc49c",
+      "name": "Map"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Results",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Visit_ID": "={{ $json[\"Visit_ID\"] }}",
+            "Marker_ID": "={{ $json[\"Marker_ID\"] }}",
+            "Value": "={{ $json[\"Value\"] }}",
+            "Original_Unit": "={{ $json[\"Original_Unit\"] }}",
+            "Lab_Min": "={{ $json[\"Lab_Min\"] }}",
+            "Lab_Max": "={{ $json[\"Lab_Max\"] }}"
+          },
+          "matchingColumns": [
+            "Visit_ID",
+            "Marker_ID"
+          ],
+          "schema": [
+            {
+              "id": "Visit_ID",
+              "displayName": "Visit_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Marker_ID",
+              "displayName": "Marker_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Value",
+              "displayName": "Value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Original_Unit",
+              "displayName": "Original_Unit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Lab_Min",
+              "displayName": "Lab_Min",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Lab_Max",
+              "displayName": "Lab_Max",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        340,
+        0
+      ],
+      "id": "70f5e3da-0e2f-4097-abb9-5141d2765185",
+      "name": "Write Results",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { response: $('Map').first().json._summary } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "8fa60590-1acb-4f9e-bf3a-83a40d87e1c9",
+      "name": "Respond"
+    }
+  ],
+  "connections": {
+    "Registrar Labs": {
+      "main": [
+        [
+          {
+            "node": "Get Markers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Markers": {
+      "main": [
+        [
+          {
+            "node": "Get Visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Visits": {
+      "main": [
+        [
+          {
+            "node": "Build Visit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Visit": {
+      "main": [
+        [
+          {
+            "node": "Write Visit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Visit": {
+      "main": [
+        [
+          {
+            "node": "Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map": {
+      "main": [
+        [
+          {
+            "node": "Write Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Results": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "47e01ec8-7de8-4ae9-a2df-be5cd28779da",
+  "activeVersionId": "47e01ec8-7de8-4ae9-a2df-be5cd28779da",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T05:54:06.914Z",
+      "createdAt": "2026-09-03T05:54:06.914Z",
+      "role": "workflow:owner",
+      "workflowId": "a7d1c4e2-9b30-4f55-8c21-6de2b1a4f7c0",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T06:33:55.074Z",
+    "createdAt": "2026-09-03T06:33:55.074Z",
+    "versionId": "47e01ec8-7de8-4ae9-a2df-be5cd28779da",
+    "workflowId": "a7d1c4e2-9b30-4f55-8c21-6de2b1a4f7c0",
+    "nodes": [
+      {
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "document_date"
+              },
+              {
+                "name": "lab_name"
+              },
+              {
+                "name": "notes"
+              },
+              {
+                "name": "markers_json"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -900,
+          0
+        ],
+        "id": "5fa21578-7b8c-438c-912f-f8c4e51182ef",
+        "name": "Registrar Labs"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Markers",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -700,
+          0
+        ],
+        "id": "5a63bb16-5563-4d6f-b5db-9ffba8f7a4e4",
+        "name": "Get Markers",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Visits",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -500,
+          0
+        ],
+        "id": "c80271fa-3efc-4b93-9183-f220de9b12d4",
+        "name": "Get Visits",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Build Visit — определяет визит для результатов.\n// Дату берём из trigger-поля document_date (нода \"Registrar Labs\"), НЕ из $input\n// (перед этой нодой стоит Get Visits, его вывод — это строки листа Visits).\n// Если визит с такой датой уже есть в книге — переиспользуем его Visit_ID (без дублей).\nconst t = $('Registrar Labs').first().json;\nconst existing = $('Get Visits').all().map(i => i.json);\n\nfunction pd(v){\n  var s=String(v==null?'':v).trim().replace(/[\\/\\-]/g,'.');\n  var m=s.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})/); if(m) return {iso:m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'), ru:m[1].padStart(2,'0')+'.'+m[2].padStart(2,'0')+'.'+m[3]};\n  m=s.match(/^(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})/); if(m) return {iso:m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'), ru:m[3].padStart(2,'0')+'.'+m[2].padStart(2,'0')+'.'+m[1]};\n  return null;\n}\n\nvar today = $now.setZone('Asia/Vladivostok');\nvar p = pd(t.document_date);\nif(!p || p.iso > today.toFormat('yyyy-MM-dd')) {\n  p = {iso: today.toFormat('yyyy-MM-dd'), ru: today.toFormat('dd.MM.yyyy')};\n}\n\nvar incLab = (t.lab_name || '').toString().trim();\nvar incNotes = (t.notes || '').toString().trim();\n\n// ищем существующий визит по совпадению даты\nvar match = null;\nfor (var i=0;i<existing.length;i++){\n  var ep = pd(existing[i].Date);\n  if (ep && ep.iso === p.iso) { match = existing[i]; break; }\n}\n\nif (match) {\n  return [{ json: {\n    Visit_ID: String(match.Visit_ID),\n    Date: p.ru,\n    Age_at_Visit: (match.Age_at_Visit !== '' && match.Age_at_Visit != null) ? match.Age_at_Visit : (parseInt(p.iso.slice(0,4),10) - 1982),\n    Lab_Name: (match.Lab_Name && String(match.Lab_Name).trim()) ? match.Lab_Name : incLab,\n    Notes: (match.Notes && String(match.Notes).trim()) ? match.Notes : incNotes,\n    _matched_existing: true\n  }}];\n}\n\nreturn [{ json: {\n  Visit_ID: 'V' + p.iso.replace(/-/g,''),\n  Date: p.ru,\n  Age_at_Visit: parseInt(p.iso.slice(0,4),10) - 1982,   // год рождения Влада — 1982\n  Lab_Name: incLab,\n  Notes: incNotes,\n  _matched_existing: false\n}}];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -300,
+          0
+        ],
+        "id": "b1fb0814-113c-4d18-8e7e-0ad3387c5b78",
+        "name": "Build Visit"
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Visits",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Visit_ID": "={{ $json[\"Visit_ID\"] }}",
+              "Date": "={{ $json[\"Date\"] }}",
+              "Age_at_Visit": "={{ $json[\"Age_at_Visit\"] }}",
+              "Lab_Name": "={{ $json[\"Lab_Name\"] }}",
+              "Notes": "={{ $json[\"Notes\"] }}"
+            },
+            "matchingColumns": [
+              "Visit_ID"
+            ],
+            "schema": [
+              {
+                "id": "Visit_ID",
+                "displayName": "Visit_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Age_at_Visit",
+                "displayName": "Age_at_Visit",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Lab_Name",
+                "displayName": "Lab_Name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Notes",
+                "displayName": "Notes",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -100,
+          0
+        ],
+        "id": "c7f1d0af-8dd1-422e-9a57-77b55052317f",
+        "name": "Write Visit",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// Save_Lab_Results → нода \"Map\".\n// Вход: trigger-поля document_date / lab_name / notes / markers_json (JSON-строка массива\n// {name,value,unit,ref_low,ref_high}); листы Markers и Visits книги phenoage; результат ноды \"Build Visit\".\n// Выход: строки для листа Results ({Visit_ID,Marker_ID,Value,Original_Unit,Lab_Min,Lab_Max}),\n// на каждой строке дублируется _summary для ноды Respond.\n// Run Once for All Items.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\n\nconst trig = (() => {\n  try { return $('Registrar Labs').first().json; } catch (e) { return $input.first().json || {}; }\n})();\nconst visit = $('Build Visit').first().json;\nconst markerRows = safeAll('Get Markers');   // Marker_ID, Name, Category, Standard_Unit, ...\n\n// ---------- нормализация имени показателя ----------\nfunction norm(s) {\n  return String(s == null ? '' : s)\n    .toLowerCase()\n    .replace(/ё/g, 'е')\n    .replace(/\\([^)]*\\)/g, ' ')            // убрать скобки с содержимым\n    .replace(/[^a-zа-я0-9%]+/g, ' ')       // оставить буквы/цифры/%\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n// свернуть кириллические буквы-двойники в латиницу — чтобы ловить аббревиатуры,\n// которые в бланках печатают вперемешку (МСHС, НGB и т.п.)\nfunction fold(s) {\n  const m = { 'а': 'a', 'в': 'b', 'е': 'e', 'к': 'k', 'м': 'm', 'н': 'h', 'о': 'o',\n    'р': 'p', 'с': 'c', 'т': 't', 'х': 'x', 'у': 'y', 'і': 'i' };\n  return String(s || '').replace(/[а-яёі]/g, ch => m[ch] || ch);\n}\nfunction toComma(v) {\n  if (v == null || v === '') return '';\n  return String(v).trim().replace(/\\s+/g, '').replace('.', ',');\n}\nfunction numOf(v) {\n  if (v == null || v === '') return null;\n  const n = parseFloat(String(v).replace(/\\s+/g, '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\n\n// индекс по названиям из листа Markers\nconst byName = {};\nfor (const m of markerRows) {\n  if (!m.Marker_ID) continue;\n  byName[norm(m.Name)] = m.Marker_ID;\n}\n\n// ручной словарь синонимов/аббревиатур -> Marker_ID\nconst SYN = {\n  'билирубин общий': 'M001', 'общий билирубин': 'M001', 'билирубин': 'M001',\n  'билирубин прямой': 'M002', 'прямой билирубин': 'M002', 'билирубин конъюгированный': 'M002',\n  'глюкоза': 'M003', 'глюкоза плазмы': 'M003', 'глюкоза венозной крови': 'M003', 'глюкоза натощак': 'M003',\n  'креатинин': 'M004',\n  'мочевая кислота': 'M005',\n  'мочевина': 'M006', 'urea': 'M006',\n  'общий белок': 'M007', 'белок общий': 'M007',\n  'альбумин': 'M008',\n  'триглицериды': 'M009', 'тг': 'M009',\n  'холестерин общий': 'M010', 'холестерин': 'M010', 'общий холестерин': 'M010', 'холестерин суммарный': 'M010',\n  'холестерин лпвп': 'M011', 'лпвп': 'M011', 'hdl': 'M011', 'хс лпвп': 'M011', 'холестерин hdl': 'M011',\n  'холестерин лпнп': 'M012', 'лпнп': 'M012', 'ldl': 'M012', 'хс лпнп': 'M012', 'холестерин ldl': 'M012',\n  'холестерин лпонп': 'M013', 'лпонп': 'M013', 'vldl': 'M013',\n  'холестерин не лпвп': 'M014', 'не hdl': 'M014', 'non hdl': 'M014', 'холестерин неквп': 'M014',\n  'аланинаминотрансфераза': 'M015', 'алат': 'M015', 'алт': 'M015', 'alt': 'M015',\n  'аспартатаминотрансфераза': 'M016', 'асат': 'M016', 'аст': 'M016', 'ast': 'M016',\n  'щелочная фосфатаза': 'M017', 'alp': 'M017', 'щф': 'M017',\n  'т4 свободный': 'M018', 'свободный т4': 'M018', 'ft4': 'M018',\n  'ттг': 'M019', 'tsh': 'M019', 'тиреотропный гормон': 'M019',\n  'тестостерон общий': 'M020', 'тестостерон': 'M020',\n  'пса общий': 'M021', 'пса': 'M021', 'psa': 'M021', 'простатический специфический антиген': 'M021',\n  'пса свободный': 'M022', 'свободный пса': 'M022',\n  'пса свободный пса': 'M023', 'соотношение пса': 'M023',\n  'с реактивный белок': 'M024', 'срб': 'M024', 'crp': 'M024', 'hs crp': 'M024', 'вчсрб': 'M024', 'с реактивный белок высокочувствительный': 'M024',\n  'ревматоидный фактор': 'M025', 'рф': 'M025',\n  'антитела сср': 'M026', 'аццп': 'M026',\n  'ферритин': 'M027',\n  'железо': 'M028', 'железо сывороточное': 'M028', 'сывороточное железо': 'M028', 'fe': 'M028',\n  'натрий': 'M029', 'na': 'M029',\n  'калий': 'M030', 'k': 'M030',\n  'гликированный гемоглобин': 'M031', 'hba1c': 'M031', 'гликированный гемоглобин hba1c': 'M031', 'гликогемоглобин': 'M031',\n  'инсулин': 'M032',\n  'фолиевая кислота': 'M033', 'фолаты': 'M033',\n  'витамин b12': 'M034', 'b12': 'M034', 'цианокобаламин': 'M034', 'витамин в12': 'M034',\n  'витамин d': 'M035', 'витамин d 25 oh': 'M035', 'витамин d 25 он': 'M035', '25 oh витамин d': 'M035', '25 он витамин d': 'M035', 'витамин д': 'M035', '25 гидроксивитамин d': 'M035',\n  'ige общий': 'M036', 'ige': 'M036', 'иммуноглобулин e общий': 'M036', 'иммуноглобулин e': 'M036',\n  'гемоглобин в кале': 'M037',\n  'трансферрин в кале': 'M038',\n  'лейкоциты': 'M039', 'wbc': 'M039',\n  'эритроциты': 'M040', 'rbc': 'M040',\n  'гемоглобин': 'M041', 'hgb': 'M041', 'hb': 'M041',\n  'гематокрит': 'M042', 'hct': 'M042',\n  'средний объем эритроцита': 'M043', 'средний объем эритроцитов': 'M043', 'mcv': 'M043',\n  'среднее содержание hb': 'M044', 'среднее содержание гемоглобина': 'M044', 'mch': 'M044',\n  'средняя концентрация hb': 'M045', 'средняя концентрация гемоглобина': 'M045', 'mchc': 'M045',\n  'тромбоциты': 'M046', 'plt': 'M046',\n  'цветовой показатель': 'M047', 'цп': 'M047',\n  'соэ': 'M048', 'esr': 'M048', 'скорость оседания эритроцитов': 'M048',\n  'ширина распред эритроцитов': 'M049', 'rdw': 'M049', 'rdw cv': 'M049',\n  'rdw sd': 'M050',\n  'ширина распред тромбоцитов': 'M051', 'pdw': 'M051',\n  'средний объем тромбоцитов': 'M052', 'mpv': 'M052',\n  'тромбокрит': 'M053', 'pct': 'M053',\n  'крупные тромбоциты': 'M054', 'p lcr': 'M054',\n  'крупные тромбоциты абс': 'M055', 'p lcc': 'M055',\n  'незрелые гранулоциты абс': 'M056',\n  'незрелые гранулоциты': 'M057', 'незрелые гранулоциты процент': 'M057',\n  'нейтрофилы абс': 'M058', 'нейтрофилы абсолютное': 'M058', 'нейтрофилы абсолютные': 'M058',\n  'нейтрофилы': 'M059', 'нейтрофилы процент': 'M059', 'нейтрофилы отн': 'M059', 'neu': 'M059',\n  'лимфоциты абс': 'M061', 'лимфоциты абсолютное': 'M061', 'лимфоциты абсолютные': 'M061',\n  'лимфоциты': 'M062', 'лимфоциты процент': 'M062', 'лимфоциты отн': 'M062', 'lym': 'M062',\n  'моноциты абс': 'M063', 'моноциты абсолютное': 'M063',\n  'моноциты': 'M064', 'моноциты процент': 'M064', 'моноциты отн': 'M064',\n  'эозинофилы абс': 'M065', 'эозинофилы абсолютное': 'M065',\n  'эозинофилы': 'M066', 'эозинофилы процент': 'M066', 'эозинофилы отн': 'M066',\n  'базофилы абс': 'M067', 'базофилы абсолютное': 'M067',\n  'базофилы': 'M068', 'базофилы процент': 'M068', 'базофилы отн': 'M068',\n  'палочкоядерные нейтрофилы': 'M060', 'палочкоядерные': 'M060', 'нейтрофилы палочкоядерные': 'M060',\n  'сегментоядерные нейтрофилы': 'M059', 'сегментоядерные': 'M059', 'нейтрофилы сегментоядерные': 'M059',\n  'ачтв': 'M069', 'aptt': 'M069',\n  'тромбиновое время': 'M070', 'тв': 'M070',\n  'фибриноген': 'M071',\n  'антитромбин iii': 'M072', 'антитромбин 3': 'M072',\n  'мно': 'M073', 'inr': 'M073',\n  'протромбиновое отношение': 'M074', 'по': 'M074',\n  'агрескрин тест': 'M075',\n  'рфмк': 'M076',\n  'пти': 'M077', 'протромбиновый индекс': 'M077',\n};\n\n// пары «% <-> абс» для 5-компонентной лейкоформулы.\n// В SYN голое имя («нейтрофилы») ведёт на %-вариант; здесь выбираем по единице измерения.\nconst PCT_TO_ABS = { M059: 'M058', M062: 'M061', M064: 'M063', M066: 'M065', M068: 'M067' };\nconst ABS_SET = new Set(['M058', 'M061', 'M063', 'M065', 'M067']);\n\nfunction unitIsPct(u) { return u === '%' || /процент|отн\\b/.test(u); }\nfunction unitIsAbs(u) {\n  return /10\\s*\\^?\\s*9|10\\s*\\*\\s*9|10\\s*9|кл\\/мкл|g\\/l|10\\^9\\/л|абс|x10/.test(u) || /\\/\\s*л$/.test(u);\n}\n\n// латинские аббревиатуры (точное совпадение целиком, после fold)\nconst ABBR = {\n  mchc: 'M045', mch: 'M044', mcv: 'M043', wbc: 'M039', rbc: 'M040', hgb: 'M041', hb: 'M041',\n  hct: 'M042', plt: 'M046', rdw: 'M049', rdwcv: 'M049', rdwsd: 'M050', mpv: 'M052', pdw: 'M051',\n  pct: 'M053', esr: 'M048', soe: 'M048', alt: 'M015', ast: 'M016', alp: 'M017', tsh: 'M019',\n  ft4: 'M018', psa: 'M021', crp: 'M024', hscrp: 'M024', hba1c: 'M031', inr: 'M073', pti: 'M077',\n  aptt: 'M069', neu: 'M059', lym: 'M062', mono: 'M064', eos: 'M066', baso: 'M068',\n};\n\nfunction resolveId(name, unit) {\n  const n = norm(name);\n  const nf = fold(n);\n  const u = norm(unit);\n  let id = SYN[n] || byName[n] || SYN[nf] || byName[nf] || null;\n  if (!id) {\n    const flat = nf.replace(/[\\s-]/g, '');\n    if (ABBR[flat]) id = ABBR[flat];\n  }\n  if (!id) {\n    for (const k of Object.keys(SYN)) {\n      if (k.length >= 4 && n.indexOf(k) === 0) { id = SYN[k]; break; }\n    }\n  }\n  if (!id) return null;\n  // лейкоформула: имя в тексте может уже нести «абс»/«%», иначе решаем по единице\n  if (/\\bабс/.test(n)) { for (const [p, a] of Object.entries(PCT_TO_ABS)) if (id === p) id = a; }\n  else if (/\\bотн|%/.test(n)) { /* оставляем %-вариант */ }\n  else if (PCT_TO_ABS[id]) {\n    if (unitIsAbs(u) && !unitIsPct(u)) id = PCT_TO_ABS[id];   // -> абс\n  }\n  // если по имени попали в абс-вариант, но единица — процент, вернуть %\n  if (ABS_SET.has(id) && unitIsPct(u)) {\n    for (const [p, a] of Object.entries(PCT_TO_ABS)) if (a === id) id = p;\n  }\n  return id;\n}\n\n// ---------- конвертация единиц для маркеров PhenoAge ----------\n// PhenoAge-формула чувствительна к единицам. Приводим 4 «опасных» маркера к стандартной.\n// Возвращает {value, unit, converted} или null (оставить как есть).\nfunction convUnit(id, value, unit) {\n  const u = norm(unit).replace(/\\s/g, '');                 // остаются только буквы/цифры/%\n  const isGdl = /(gdl|гдл)/.test(u);                       // g/dl\n  const isMgdl = /(mgdl|мгдл)/.test(u);                    // mg/dl\n  if (id === 'M008' && isGdl) return { value: value * 10, unit: 'г/л', note: 'из г/дл' };            // альбумин\n  if (id === 'M003' && isMgdl) return { value: value / 18.0, unit: 'ммоль/л', note: 'из мг/дл' };    // глюкоза\n  if (id === 'M004' && isMgdl) return { value: value * 88.4, unit: 'мкмоль/л', note: 'из мг/дл' };   // креатинин\n  if (id === 'M024' && isMgdl) return { value: value * 10, unit: 'мг/л', note: 'из мг/дл' };         // СРБ\n  return null;\n}\n\n// ---------- разбор входного массива ----------\nlet raw = trig.markers_json;\nlet list = [];\ntry {\n  if (Array.isArray(raw)) list = raw;\n  else if (typeof raw === 'string' && raw.trim()) list = JSON.parse(raw);\n  else if (raw && typeof raw === 'object') list = raw.markers || [];\n} catch (e) { list = []; }\n\nconst vid = visit.Visit_ID;\nconst seen = new Set();\nconst rows = [];\nconst matched = [];\nconst unmatched = [];\nconst converted = [];\n\nfor (const it of list) {\n  if (!it) continue;\n  const name = it.name || it.Name || it.marker || it.title || '';\n  const valRaw = it.value != null ? it.value : (it.Value != null ? it.Value : it.result);\n  if (!name || valRaw == null || String(valRaw).trim() === '') continue;\n  if (numOf(valRaw) == null) continue; // «отрицательно», «не обнаружено» и т.п. — пропускаем\n  const unit = it.unit || it.Unit || it.units || '';\n  const id = resolveId(name, unit);\n  if (!id) { unmatched.push(String(name).trim()); continue; }\n  if (seen.has(id)) continue;\n  seen.add(id);\n\n  let outVal = toComma(valRaw);\n  let outUnit = String(unit || '').trim();\n  const c = convUnit(id, numOf(valRaw), unit);\n  if (c) {\n    outVal = toComma(Math.round(c.value * 1000) / 1000);\n    outUnit = c.unit + ' (' + (String(unit || '').trim() || c.note) + ')';\n    converted.push(name + ' ' + c.note);\n  }\n\n  rows.push({\n    Visit_ID: vid,\n    Marker_ID: id,\n    Value: outVal,\n    Original_Unit: outUnit,\n    Lab_Min: toComma(it.ref_low != null ? it.ref_low : it.refLow != null ? it.refLow : it.min),\n    Lab_Max: toComma(it.ref_high != null ? it.ref_high : it.refHigh != null ? it.refHigh : it.max),\n  });\n  matched.push(id);\n}\n\nlet summary;\nif (rows.length) {\n  summary = 'Лабораторные результаты сохранены: визит ' + vid + ' (' + visit.Date + ', ' +\n    (visit.Lab_Name || 'лаборатория не указана') + '), показателей записано: ' + rows.length + '.';\n  if (converted.length) summary += ' Приведены к стандартным единицам: ' + converted.join('; ') + '.';\n  if (unmatched.length) summary += ' Не распознаны и НЕ записаны в структуру: ' + unmatched.join('; ') + '.';\n} else {\n  summary = 'Структурные показатели не сохранены: ' +\n    (list.length ? 'ни одно из названий не распознано (' + unmatched.join('; ') + ')' :\n      'в вызове не передан массив показателей') + '. Клиническая сводка в медкарте не затронута.';\n  rows.push({ Visit_ID: vid, Marker_ID: '_none', Value: '', Original_Unit: '', Lab_Min: '', Lab_Max: '' });\n}\n\nreturn rows.map(r => ({ json: { ...r, _summary: summary } }));\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          120,
+          0
+        ],
+        "id": "f3192fd0-953d-4800-9ee5-06be0d0cc49c",
+        "name": "Map"
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Results",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Visit_ID": "={{ $json[\"Visit_ID\"] }}",
+              "Marker_ID": "={{ $json[\"Marker_ID\"] }}",
+              "Value": "={{ $json[\"Value\"] }}",
+              "Original_Unit": "={{ $json[\"Original_Unit\"] }}",
+              "Lab_Min": "={{ $json[\"Lab_Min\"] }}",
+              "Lab_Max": "={{ $json[\"Lab_Max\"] }}"
+            },
+            "matchingColumns": [
+              "Visit_ID",
+              "Marker_ID"
+            ],
+            "schema": [
+              {
+                "id": "Visit_ID",
+                "displayName": "Visit_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Marker_ID",
+                "displayName": "Marker_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Value",
+                "displayName": "Value",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Original_Unit",
+                "displayName": "Original_Unit",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Lab_Min",
+                "displayName": "Lab_Min",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Lab_Max",
+                "displayName": "Lab_Max",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          340,
+          0
+        ],
+        "id": "70f5e3da-0e2f-4097-abb9-5141d2765185",
+        "name": "Write Results",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { response: $('Map').first().json._summary } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          560,
+          0
+        ],
+        "id": "8fa60590-1acb-4f9e-bf3a-83a40d87e1c9",
+        "name": "Respond"
+      }
+    ],
+    "connections": {
+      "Registrar Labs": {
+        "main": [
+          [
+            {
+              "node": "Get Markers",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Markers": {
+        "main": [
+          [
+            {
+              "node": "Get Visits",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Visits": {
+        "main": [
+          [
+            {
+              "node": "Build Visit",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Visit": {
+        "main": [
+          [
+            {
+              "node": "Write Visit",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write Visit": {
+        "main": [
+          [
+            {
+              "node": "Map",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Map": {
+        "main": [
+          [
+            {
+              "node": "Write Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write Results": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: Save_Lab_Results v2: date from trigger, dedupe visit, unit conv)",
+    "name": "Patch 47e01ec8 — Save_Lab_Results v2: date from trigger, dedupe visit, unit conv",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
