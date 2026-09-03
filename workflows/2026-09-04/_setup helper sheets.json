@@ -1,0 +1,771 @@
+{
+  "updatedAt": "2026-09-03T04:12:41.000Z",
+  "createdAt": "2026-09-02T23:03:58.967Z",
+  "id": "8ee9acf0-9681-49e2-a5d2-ab8a09f047cf",
+  "name": "_setup helper sheets",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "32d1b499-b216-49fa-9c15-ca43b3f10b41",
+      "name": "When clicking Test"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "title": "Recommendations_Log",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "78007151-8224-4d53-bfff-0007031a1466",
+      "name": "Create Recommendations_Log",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: {\"Date\": \"2000-01-01\", \"Period_Type\": \"init\", \"Recommendation_Text\": \"(инициализация листа — можно удалить)\", \"Based_On\": \"\", \"Status\": \"init\", \"Priority\": \"0\"} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "699947db-1b03-4252-b4df-308a2d232c60",
+      "name": "Seed Recommendations_Log"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Recommendations_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        0
+      ],
+      "id": "a620fa20-a518-4eaf-ae78-022839045840",
+      "name": "Headers Recommendations_Log",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "title": "Error_Log",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        880,
+        0
+      ],
+      "id": "cb61f0bf-6687-4a61-998a-de7d2435e6e5",
+      "name": "Create Error_Log",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: {\"Timestamp\": \"2000-01-01 00:00:00\", \"Workflow\": \"init\", \"Node\": \"\", \"Error_Message\": \"(инициализация листа — можно удалить)\", \"Execution_ID\": \"0\", \"Execution_URL\": \"\", \"Stack\": \"\", \"Status\": \"init\"} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        0
+      ],
+      "id": "11c34b78-3216-4a39-b840-3bd16d417584",
+      "name": "Seed Error_Log"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Error_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1328,
+        0
+      ],
+      "id": "ece2e038-fbd3-47e5-9ec6-c6aa7bcced98",
+      "name": "Headers Error_Log",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "title": "PhenoAge_Log",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        220,
+        300
+      ],
+      "id": "4339dc38-587a-446e-a409-b48199a80c99",
+      "name": "Create PhenoAge_Log",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { date:'2000-01-01', chrono_age:'', phenoage:'', delta:'', markers_used:'init', missing:'', formula_version:'init' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "id": "54003927-1ca5-4ced-acde-44e45b3a04b8",
+      "name": "Seed PhenoAge_Log"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PhenoAge_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        660,
+        300
+      ],
+      "id": "dc1db54d-2947-4818-afbd-90e47804436a",
+      "name": "Headers PhenoAge_Log",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking Test": {
+      "main": [
+        [
+          {
+            "node": "Create Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Seed Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seed Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Headers Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Headers Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Create Error_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Error_Log": {
+      "main": [
+        [
+          {
+            "node": "Seed Error_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seed Error_Log": {
+      "main": [
+        [
+          {
+            "node": "Headers Error_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Headers Error_Log": {
+      "main": [
+        [
+          {
+            "node": "Create PhenoAge_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create PhenoAge_Log": {
+      "main": [
+        [
+          {
+            "node": "Seed PhenoAge_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seed PhenoAge_Log": {
+      "main": [
+        [
+          {
+            "node": "Headers PhenoAge_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "2aa1c58e-20d9-42cb-a782-9cd4a2cc6eb4",
+  "activeVersionId": "2aa1c58e-20d9-42cb-a782-9cd4a2cc6eb4",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-02T23:03:58.977Z",
+      "createdAt": "2026-09-02T23:03:58.977Z",
+      "role": "workflow:owner",
+      "workflowId": "8ee9acf0-9681-49e2-a5d2-ab8a09f047cf",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T04:12:34.265Z",
+    "createdAt": "2026-09-03T04:12:34.265Z",
+    "versionId": "2aa1c58e-20d9-42cb-a782-9cd4a2cc6eb4",
+    "workflowId": "8ee9acf0-9681-49e2-a5d2-ab8a09f047cf",
+    "nodes": [
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "32d1b499-b216-49fa-9c15-ca43b3f10b41",
+        "name": "When clicking Test"
+      },
+      {
+        "parameters": {
+          "operation": "create",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "title": "Recommendations_Log",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          224,
+          0
+        ],
+        "id": "78007151-8224-4d53-bfff-0007031a1466",
+        "name": "Create Recommendations_Log",
+        "alwaysOutputData": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: {\"Date\": \"2000-01-01\", \"Period_Type\": \"init\", \"Recommendation_Text\": \"(инициализация листа — можно удалить)\", \"Based_On\": \"\", \"Status\": \"init\", \"Priority\": \"0\"} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          0
+        ],
+        "id": "699947db-1b03-4252-b4df-308a2d232c60",
+        "name": "Seed Recommendations_Log"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Recommendations_Log",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          672,
+          0
+        ],
+        "id": "a620fa20-a518-4eaf-ae78-022839045840",
+        "name": "Headers Recommendations_Log",
+        "alwaysOutputData": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "operation": "create",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "title": "Error_Log",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          880,
+          0
+        ],
+        "id": "cb61f0bf-6687-4a61-998a-de7d2435e6e5",
+        "name": "Create Error_Log",
+        "alwaysOutputData": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: {\"Timestamp\": \"2000-01-01 00:00:00\", \"Workflow\": \"init\", \"Node\": \"\", \"Error_Message\": \"(инициализация листа — можно удалить)\", \"Execution_ID\": \"0\", \"Execution_URL\": \"\", \"Stack\": \"\", \"Status\": \"init\"} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1104,
+          0
+        ],
+        "id": "11c34b78-3216-4a39-b840-3bd16d417584",
+        "name": "Seed Error_Log"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Error_Log",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1328,
+          0
+        ],
+        "id": "ece2e038-fbd3-47e5-9ec6-c6aa7bcced98",
+        "name": "Headers Error_Log",
+        "alwaysOutputData": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "resource": "sheet",
+          "operation": "create",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "title": "PhenoAge_Log",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          220,
+          300
+        ],
+        "id": "4339dc38-587a-446e-a409-b48199a80c99",
+        "name": "Create PhenoAge_Log",
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { date:'2000-01-01', chrono_age:'', phenoage:'', delta:'', markers_used:'init', missing:'', formula_version:'init' } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          300
+        ],
+        "id": "54003927-1ca5-4ced-acde-44e45b3a04b8",
+        "name": "Seed PhenoAge_Log"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "PhenoAge_Log",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          660,
+          300
+        ],
+        "id": "dc1db54d-2947-4818-afbd-90e47804436a",
+        "name": "Headers PhenoAge_Log",
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "When clicking Test": {
+        "main": [
+          [
+            {
+              "node": "Create Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Seed Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Seed Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Headers Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Headers Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Create Error_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Error_Log": {
+        "main": [
+          [
+            {
+              "node": "Seed Error_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Seed Error_Log": {
+        "main": [
+          [
+            {
+              "node": "Headers Error_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Headers Error_Log": {
+        "main": [
+          [
+            {
+              "node": "Create PhenoAge_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create PhenoAge_Log": {
+        "main": [
+          [
+            {
+              "node": "Seed PhenoAge_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Seed PhenoAge_Log": {
+        "main": [
+          [
+            {
+              "node": "Headers PhenoAge_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: +PhenoAge_Log setup)",
+    "name": "Patch 2aa1c58e — +PhenoAge_Log setup",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
