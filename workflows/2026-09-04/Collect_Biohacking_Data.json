@@ -1,0 +1,2361 @@
+{
+  "updatedAt": "2026-09-02T22:52:25.000Z",
+  "createdAt": "2026-06-05T03:07:45.992Z",
+  "id": "5hf37JwpiJIs0pFb",
+  "name": "Collect_Biohacking_Data",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8be1dae1-bd8b-4fa3-be40-f85989274c78",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -160,
+        16
+      ],
+      "typeVersion": 1,
+      "webhookId": "8be1dae1-bd8b-4fa3-be40-f85989274c78",
+      "id": "44227183-abdc-46fc-99be-eb4486b5414b"
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "name": "Wait (Anti-Bug)",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        480,
+        16
+      ],
+      "typeVersion": 1,
+      "id": "5b029eb0-d04b-4e2f-84ef-0b46e712a00b",
+      "webhookId": "4794af04-193b-4d4c-bacd-2e71c0b0521d",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "options": {}
+      },
+      "name": "Get Nutrition",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        672,
+        16
+      ],
+      "typeVersion": 4.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "26d84289-d479-44b3-9ee5-ab1a3909ba82",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "vasukvladislav@gmail.com",
+          "mode": "list"
+        },
+        "timeMin": "={{ DateTime.fromISO($('Webhook').first().json.body.date).minus({ days: 1 }).toISODate() + 'T00:00:00Z' }}",
+        "timeMax": "={{ DateTime.fromISO($('Webhook').first().json.body.date).minus({ days: 1 }).toISODate() + 'T23:59:59Z' }}",
+        "options": {}
+      },
+      "name": "Get Calendar Events",
+      "type": "n8n-nodes-base.googleCalendar",
+      "position": [
+        1536,
+        16
+      ],
+      "typeVersion": 1.3,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "528a3600-102e-411f-9d44-8b0a28a59dc2",
+      "executeOnce": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PqacoYjKhCXLSGf8",
+          "name": "Google Calendar account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. ИНИЦИАЛИЗАЦИЯ ДАННЫХ\nfunction getSafeArray(nodeName) {\n  try { return $(nodeName).all().map(item => item.json); } catch (e) { return []; }\n}\nfunction getSafeFirst(nodeName) {\n  try { const data = $(nodeName).all(); return data.length > 0 ? data[0].json : {}; } catch (e) { return {}; }\n}\n\nlet garminNode = getSafeFirst('Webhook') || {};\nif (Object.keys(garminNode).length === 0) garminNode = getSafeFirst('Webhook1');\nlet garmin = garminNode.body || garminNode;\n\nconst nutritionList = getSafeArray('Get Nutrition');\nconst climateRecords = getSafeArray('Get Climate');\nconst calendarItems = getSafeArray('Get Calendar Events');\nconst rescueData = getSafeFirst('Get RescueTime');\n\nconst weather = getSafeFirst('Get Weather'); \nconst weatherDeltas = getSafeFirst('Перепады давления');\n\nconst rnd = (val) => (val !== null && val !== undefined && !isNaN(val) && val !== '') ? Math.round(Number(val) * 10) / 10 : null;\n\n// 2. ДАТЫ И ВРЕМЕННЫЕ МЕТКИ\nlet btMs = 0; \nlet wtMs = 0;\n\nif (garmin.bedtime && garmin.wakeup_time) {\n  let btStr = String(garmin.bedtime).replace(' ', 'T');\n  if (!btStr.includes('+') && !btStr.endsWith('Z')) btStr += '+10:00';\n  btMs = new Date(btStr).getTime();\n\n  let wtStr = String(garmin.wakeup_time).replace(' ', 'T');\n  if (!wtStr.includes('+') && !wtStr.endsWith('Z')) wtStr += '+10:00';\n  wtMs = new Date(wtStr).getTime();\n}\n\n// Дата строки пробуждения (например, 2026-08-19)\nlet todayStr = garmin.date;\nlet startOfTodayMs = todayStr ? new Date(`${todayStr}T00:00:00+10:00`).getTime() : 0;\n\n// Вчерашний день (сутки накануне сна: 2026-08-18 00:00 - 23:59)\nlet startOfYesterdayMs = startOfTodayMs - 24 * 60 * 60 * 1000;\nlet endOfYesterdayMs = startOfTodayMs;\n\nconst netSleep = garmin.sleep_total_min || 0;\nconst awake = garmin.awake_time_min || 0;\nconst inBed = netSleep + awake;\nconst lightSleep = netSleep - (garmin.sleep_deep_min || 0) - (garmin.sleep_rem_min || 0);\n\n// 3. УНИВЕРСАЛЬНЫЙ НАДЕЖНЫЙ ПАРСЕР ДАТЫ ИЗ ТАБЛИЦЫ MEALS\nconst parseAnyDate = (dStr) => {\n  if (!dStr) return NaN;\n  let s = String(dStr).trim();\n  \n  // Формат DD.MM.YYYY HH:mm:ss\n  if (s.match(/^\\d{1,2}\\.\\d{1,2}\\.\\d{4}/)) {\n    let p = s.split(' ');\n    let d = p[0].split('.');\n    s = `${d[2]}-${d[1].padStart(2, '0')}-${d[0].padStart(2, '0')}T${p[1] || '00:00:00'}+10:00`;\n  }\n  // Формат DD/MM/YYYY HH:mm:ss\n  else if (s.match(/^\\d{1,2}\\/\\d{1,2}\\/\\d{4}/)) {\n    let p = s.split(' ');\n    let d = p[0].split('/');\n    s = `${d[2]}-${d[0].padStart(2, '0')}-${d[1].padStart(2, '0')}T${p[1] || '00:00:00'}+10:00`;\n  }\n  // Формат ISO или с пробелом YYYY-MM-DD HH:mm:ss\n  else {\n    s = s.replace(' ', 'T');\n    if (!s.includes('+') && !s.endsWith('Z')) s += '+10:00';\n  }\n  return new Date(s).getTime();\n};\n\n// 4. АНАЛИТИКА ПИТАНИЯ (СТРОГО ЗА ВЧЕРАШНИЙ ДЕНЬ)\nlet dinner = { time: null, kcal: 0, p: 0, f: 0, c: 0, fastWindow: null, totalFasting: null };\nlet dailyMacros = { kcal: 0, p: 0, f: 0, c: 0 };\nlet breakfastTime = null;\nlet totalAlcohol = 0;\nlet lastCoffeeTime = null;\n\nif (nutritionList.length > 0 && startOfTodayMs > 0) {\n  const allMeals = [];\n  \n  nutritionList.forEach(r => {\n    // Проверяем разные возможные имена столбца с датой в Meals\n    const rawDateVal = r['Date'] || r['Дата'] || r['date'];\n    const ms = parseAnyDate(rawDateVal);\n    if (!isNaN(ms)) {\n      allMeals.push({ row: r, ms: ms, rawDate: rawDateVal });\n    }\n  });\n  \n  // Сортируем от самых ранних к самым поздним\n  allMeals.sort((a, b) => a.ms - b.ms);\n\n  // Фильтруем приемы пищи СТРОГО за вчерашний день (00:00:00 - 23:59:59 накануне)\n  const yesterdaysMeals = allMeals.filter(m => m.ms >= startOfYesterdayMs && m.ms < endOfYesterdayMs);\n\n  if (yesterdaysMeals.length > 0) {\n    yesterdaysMeals.forEach(item => {\n      const r = item.row;\n      dailyMacros.kcal += Number(r['Calories'] || r['Ккал'] || r['Калории'] || 0);\n      dailyMacros.p += Number(r['Proteins'] || r['Белки'] || r['Белки, гр'] || 0);\n      dailyMacros.f += Number(r['Fats'] || r['Жиры'] || r['Жиры, гр'] || 0);\n      dailyMacros.c += Number(r['Carbs'] || r['Углеводы'] || r['Углеводы, гр'] || 0);\n      totalAlcohol += Number(r['Алкоголь'] || r['Алкоголь, гр'] || r['алкоголь, гр'] || 0);\n\n      const caffeineVal = r['кофеин'] || r['Кофеин'];\n      if (caffeineVal && String(caffeineVal).trim() !== '' && String(caffeineVal).trim() !== '0') {\n        lastCoffeeTime = item.rawDate; \n      }\n    });\n\n    // Определение Ужина:\n    // 1. Ищем приемы пищи после 17:00 вчера, но ДО времени отбоя btMs\n    let dinnerThreshold = startOfYesterdayMs + 17 * 60 * 60 * 1000;\n    let dinnerItems = yesterdaysMeals.filter(m => m.ms >= dinnerThreshold && (btMs === 0 || m.ms <= btMs));\n    \n    // 2. Если после 17:00 ничего не было, берем самый последний вчерашний прием пищи до отбоя\n    if (dinnerItems.length === 0) {\n      let beforeSleepMeals = yesterdaysMeals.filter(m => btMs === 0 || m.ms <= btMs);\n      if (beforeSleepMeals.length > 0) {\n        dinnerItems = [beforeSleepMeals[beforeSleepMeals.length - 1]];\n      }\n    }\n\n    if (dinnerItems.length > 0) {\n      dinnerItems.forEach(item => {\n        const r = item.row;\n        dinner.kcal += Number(r['Calories'] || r['Ккал'] || r['Калории'] || 0);\n        dinner.p += Number(r['Proteins'] || r['Белки'] || r['Белки, гр'] || 0);\n        dinner.f += Number(r['Fats'] || r['Жиры'] || r['Жиры, гр'] || 0);\n        dinner.c += Number(r['Carbs'] || r['Углеводы'] || r['Углеводы, гр'] || 0);\n      });\n      dinner.time = dinnerItems[dinnerItems.length - 1].rawDate;\n    }\n  }\n\n  // Расчет Окна голода до сна и Длительности голодания\n  if (btMs > 0) {\n    // Последний прием пищи перед сном (из всех записей до отбоя)\n    const mealsBeforeSleep = allMeals.filter(m => m.ms <= btMs);\n    if (mealsBeforeSleep.length > 0) {\n      const lastMeal = mealsBeforeSleep[mealsBeforeSleep.length - 1];\n      const lastMealMs = lastMeal.ms;\n      \n      // Окно голода до сна (ч)\n      if ((btMs - lastMealMs) < 24 * 60 * 60 * 1000 && (btMs - lastMealMs) > 0) {\n        dinner.fastWindow = rnd((btMs - lastMealMs) / (1000 * 60 * 60));\n      }\n\n      // Завтрак СЕГОДНЯ после подъема\n      if (wtMs > 0) {\n        const mealsAfterWake = allMeals.filter(m => m.ms >= wtMs);\n        if (mealsAfterWake.length > 0) {\n          const firstMeal = mealsAfterWake[0];\n          breakfastTime = firstMeal.rawDate;\n          \n          if ((firstMeal.ms - lastMealMs) < 36 * 60 * 60 * 1000 && (firstMeal.ms - lastMealMs) > 0) {\n            dinner.totalFasting = rnd((firstMeal.ms - lastMealMs) / (1000 * 60 * 60));\n          }\n        }\n      }\n    }\n  }\n}\n\n// 5. ТРЕНИРОВКИ\nlet t1_type = null, t1_min = null;\nlet t2_type = null, t2_min = null;\nlet t3_type = null, t3_min = null;\nlet workout_kcal = 0;\n\nif (garmin.workouts_raw) {\n  const wList = garmin.workouts_raw.split(';;');\n  wList.forEach((w, index) => {\n    const parts = w.split('|');\n    if (parts.length === 3) {\n      const wName = parts[0];\n      const wMin = Number(parts[1]) || 0;\n      const wKcal = Number(parts[2]) || 0;\n      workout_kcal += wKcal;\n      if (index === 0) { t1_type = wName; t1_min = wMin; }\n      else if (index === 1) { t2_type = wName; t2_min = wMin; }\n      else if (index === 2) { t3_type = wName; t3_min = wMin; }\n    }\n  });\n}\n\n// 6. КЛИМАТ ВО ВРЕМЯ СНА (В спальне)\nconst getMultiVal = (row, keysArray) => {\n  for (let k of keysArray) {\n    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return Number(row[k]);\n  }\n  return null;\n};\n\nconst avgMultiClimate = (arr, keysArray) => {\n  if (!arr || arr.length === 0) return null;\n  let sum = 0; let count = 0;\n  arr.forEach(r => {\n    const rawDate = r['Дата'] || r['Date'] || r['date'];\n    if (rawDate) {\n      let rowTimeMs = parseAnyDate(rawDate);\n      if (!isNaN(rowTimeMs)) {\n        if (btMs > 0 && wtMs > 0) {\n          if (rowTimeMs < btMs || rowTimeMs > wtMs) return; // Строго в часы сна\n        } else if (startOfYesterdayMs > 0) {\n          if (rowTimeMs < startOfYesterdayMs || rowTimeMs > endOfYesterdayMs) return;\n        }\n      }\n    }\n    const val = getMultiVal(r, keysArray);\n    if (val !== null && !isNaN(val)) { sum += val; count++; }\n  });\n  return count > 0 ? rnd(sum / count) : null;\n};\n\nconst avgTempC = avgMultiClimate(climateRecords, ['temp', 'Temp', 'Температура', 'температура', 'Temperature']);\nconst avgHumPct = avgMultiClimate(climateRecords, ['humidity', 'Humidity', 'Влажность', 'влажность']);\nconst avgPM25 = avgMultiClimate(climateRecords, ['pm25', 'PM25', 'PM2.5', 'pm 2.5']);\nconst dewPointRecords = getSafeArray('Точка росы');\nconst avgDewPoint = avgMultiClimate(dewPointRecords, ['Точка_росы_avg_C', 'Точка росы', 'dew_point', 'DewPoint']);\n\n// 7. ЛЕКАРСТВА\nlet medsList = [];\nif (calendarItems.length > 0) {\n  calendarItems.forEach(event => {\n    const title = (event.summary || event.text || '').toLowerCase();\n    if (title && (title.includes('мг') || title.includes('таб') || title.includes('капс') || /\\d+/.test(title))) {\n      if (!title.includes('встреча') && !title.includes('позвонить')) medsList.push((event.summary || event.text).trim());\n    }\n  });\n}\n\n// 8. ДАВЛЕНИЕ\nlet avgNightPressure = null;\nif (weather && weather.hourly && weather.hourly.time && weather.hourly.surface_pressure && btMs > 0 && wtMs > 0) {\n  let pressSum = 0; let pressCount = 0;\n  for (let i = 0; i < weather.hourly.time.length; i++) {\n    const tMs = new Date(String(weather.hourly.time[i]) + '+10:00').getTime();\n    if (tMs >= btMs && tMs <= wtMs) { pressSum += Number(weather.hourly.surface_pressure[i]); pressCount++; }\n  }\n  if (pressCount > 0) avgNightPressure = rnd(pressSum / pressCount);\n}\n\n// 9. RESCUETIME (Экранное время за вчера)\nlet screenTotalSec = 0; let screenProdSec = 0; let screenDistractSec = 0;\nlet screenBeforeBedSec = 0;\nlet deepWorkSeconds = 0; let lightWorkSeconds = 0;\n\nif (rescueData && rescueData.rows) {\n  rescueData.rows.forEach(row => {\n    const rTimeStr = String(row[0]);\n    const timeSpent = row[1];\n    const prodLevel = row[3];\n\n    let rMs = parseAnyDate(rTimeStr);\n\n    if (!isNaN(rMs) && rMs >= startOfYesterdayMs && rMs < endOfYesterdayMs) {\n      screenTotalSec += timeSpent;\n      if (prodLevel > 0) screenProdSec += timeSpent; else if (prodLevel < 0) screenDistractSec += timeSpent;\n      if (prodLevel === 2) deepWorkSeconds += timeSpent;\n      else if (prodLevel === 1) lightWorkSeconds += timeSpent;\n    }\n\n    if (btMs > 0 && !isNaN(rMs) && rMs <= btMs && (rMs + 3600 * 1000) > (btMs - 2 * 60 * 60 * 1000)) {\n      screenBeforeBedSec += timeSpent;\n    }\n  });\n}\n\nlet cognitiveLoadIndex = null;\nif (screenTotalSec > 0) {\n  const deepWorkHours = deepWorkSeconds / 3600;\n  const lightWorkHours = lightWorkSeconds / 3600;\n  const cognitiveLoadScore = (deepWorkHours * 1.5) + (lightWorkHours * 0.5);\n  cognitiveLoadIndex = rnd(Math.min((cognitiveLoadScore / 12) * 10, 10));\n}\n\n// 10. ИТОГОВЫЙ ОБЪЕКТ ДЛЯ ЗАПИСИ\nreturn {\n  \"Дата\": garmin.date || null,\n  \"Время_отбоя\": garmin.bedtime || null,\n  \"Время_подъема\": garmin.wakeup_time || null,\n  \"Время_в_кровати_мин\": inBed,\n  \"Чистый_сон_мин\": netSleep,\n  \"Эффективность_сна_\": inBed > 0 ? rnd((netSleep / inBed) * 100) + '%' : null,\n  \"Оценка_сна_балл\": garmin.sleep_score || null,\n  \n  \"Глубокий_сон_мин\": garmin.sleep_deep_min || 0,\n  \"Глубокий_1_половина_мин\": garmin.deep1_min || 0,\n  \"Глубокий_2_половина_мин\": garmin.deep2_min || 0,\n  \"REM_сон_мин\": garmin.sleep_rem_min || 0,\n  \"Легкий_сон_мин\": lightSleep > 0 ? lightSleep : 0,\n  \n  \"Пробуждения_кол_во\": garmin.awake_count || 0,\n  \"Беспокойные_моменты\": garmin.restless_moments || 0,\n  \"Бодрствование_мин\": awake,\n\n  \"Пульс_ночной_средний\": garmin.hr_night_avg || null,\n  \"Пульс_ночной_мин\": garmin.hr_night_min || null,\n  \"Пульс_ночной_макс\": garmin.hr_night_max || null,\n  \"ВСР_ночная\": garmin.hrv_night || null,\n  \n  \"Дыхание_ночь_среднее\": garmin.respiration_avg || null,\n  \"SpO2_ночь_среднее\": garmin.spo2_avg || null,\n  \"Восстановление_BodyBattery\": garmin.body_battery_recharge || null,\n  \"Стресс_дневной_средний\": garmin.day_stress_avg || null,\n\n  \"Температура_avg_C\": avgTempC,\n  \"Влажность_avg_%\": avgHumPct,\n  \"Точка_росы_avg_C\": avgDewPoint,\n  \"PM25_avg\": avgPM25,\n\n  \"Питание_Всего_Ккал\": rnd(dailyMacros.kcal),\n  \"Питание_Всего_Белки_г\": rnd(dailyMacros.p),\n  \"Питание_Всего_Жиры_г\": rnd(dailyMacros.f),\n  \"Питание_Всего_Углеводы_г\": rnd(dailyMacros.c),\n\n  \"Время_последнего_кофе\": lastCoffeeTime,\n\n  \"Ужин_время\": dinner.time,\n  \"Окно_голода_до_сна_ч\": dinner.fastWindow,\n  \"Завтрак_время\": breakfastTime,\n  \"Длительность_голода_ч\": dinner.totalFasting,\n  \"Ужин_Ккал\": rnd(dinner.kcal),\n  \"Ужин_Белки_г\": rnd(dinner.p),\n  \"Ужин_Жиры_г\": rnd(dinner.f),\n  \"Ужин_Углеводы_г\": rnd(dinner.c),\n  \"Алкоголь_гр\": rnd(totalAlcohol),\n\n  \"Шаги_за_вчера\": (garmin.steps === undefined || garmin.steps === null || garmin.steps === \"\") ? null : garmin.steps,\n  \"VO2_Max\": garmin.vo2max || null,\n  \n  \"Тренировка_1_Тип\": t1_type || 'Нет',\n  \"Тренировка_1_Мин\": t1_min,\n  \"Тренировка_2_Тип\": t2_type,\n  \"Тренировка_2_Мин\": t2_min,\n  \"Тренировка_3_Тип\": t3_type,\n  \"Тренировка_3_Мин\": t3_min,\n  \"Тренировка_Ккал\": workout_kcal > 0 ? workout_kcal : null,\n  \n  \"Тренировка_поздняя\": garmin.late_workout_flag ? \"Да\" : \"Нет\",\n  \"Дыхание_тип\": garmin.breathwork_type || 'Нет',\n  \"Дыхание_мин\": garmin.breathwork_min || 0,\n\n  \"Атмосферное_давление_ночь_hPa\": avgNightPressure,\n  \"Атм_давление_Дельта_12ч\": weatherDeltas.pressure_delta_12h !== undefined ? rnd(weatherDeltas.pressure_delta_12h) : null,\n  \"Атм_давление_Дельта_24ч\": weatherDeltas.pressure_delta_24h !== undefined ? rnd(weatherDeltas.pressure_delta_24h) : null,\n  \"Освещенность_ч_сутки\": weatherDeltas.sunshine_hours_last_24h !== undefined ? weatherDeltas.sunshine_hours_last_24h : null,\n  \"Лекарства_принимаемые\": medsList.length > 0 ? medsList.join('\\n') : null,\n  \n  \"Экранное_время_всего_ч\": screenTotalSec > 0 ? rnd(screenTotalSec / 3600) : null,\n  \"Экран_Продуктивно_ч\": screenProdSec > 0 ? rnd(screenProdSec / 3600) : null,\n  \"Экран_Отвлечения_ч\": screenDistractSec > 0 ? rnd(screenDistractSec / 3600) : null,\n  \"Экран_перед_сном_мин\": rnd(screenBeforeBedSec / 60),\n  \"Индекс_когнитивной_нагрузки\": cognitiveLoadIndex,\n\n  \"Темп_тренировки_avg_C\": garmin.temp_activity_avg_c || null,\n  \"Темп_тренировки_min_C\": garmin.temp_activity_min_c || null,\n  \"Темп_тренировки_max_C\": garmin.temp_activity_max_c || null,\n  \"Training_Status\": garmin.training_status || null,\n  \"Training_Acute_Load\": garmin.training_acute_load || null,\n  \"Training_Chronic_Load\": garmin.training_chronic_load || null\n};"
+      },
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1776,
+        16
+      ],
+      "typeVersion": 2,
+      "id": "8ac245c2-0973-43e7-8421-0bc1936afaa8"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw",
+          "mode": "list",
+          "cachedResultName": "MicroClimate",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "name": "Get Climate",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        48,
+        16
+      ],
+      "typeVersion": 4.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "448f081c-7fbf-4c78-b638-5c8e791e444c",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://www.rescuetime.com/anapi/data",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "B632cZG41SdgEtIkxYeMAa7T8X8eJcS952lCYRfK"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "rs",
+              "value": "hour"
+            },
+            {
+              "name": "rk",
+              "value": "productivity"
+            },
+            {
+              "name": "restrict_begin",
+              "value": "={{ DateTime.fromISO($('Webhook').first().json.body.date).minus({ days: 1 }).toISODate() }}"
+            },
+            {
+              "name": "restrict_end",
+              "value": "={{ $('Webhook').first().json.body.date }}"
+            },
+            {
+              "name": "pv",
+              "value": "interval"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "name": "Get RescueTime",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1296,
+        16
+      ],
+      "typeVersion": 4.4,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "a120a4c3-563c-4284-8dbf-ad9133e1197a",
+      "executeOnce": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем все входящие элементы (строки из Google Таблицы)\nconst items = $input.all();\n\n// Константы формулы Магнуса\nconst a = 17.27;\nconst b = 237.7;\n\n// Проходим циклом по каждому элементу\nfor (const item of items) {\n  const tempCelsius = item.json[\"Температура\"];\n  const relativeHumidity = item.json[\"Влажность\"];\n\n  // Проверяем, существуют ли числовые данные, чтобы скрипт не упал на пустой строке\n  if (typeof tempCelsius === 'number' && typeof relativeHumidity === 'number') {\n    \n    // Математика: расчет точки росы\n    const alpha = ((a * tempCelsius) / (b + tempCelsius)) + Math.log(relativeHumidity / 100.0);\n    const dewPoint = (b * alpha) / (a - alpha);\n    \n    // Добавляем новое поле в JSON текущего элемента\n    item.json[\"Точка росы\"] = parseFloat(dewPoint.toFixed(2));\n  }\n}\n\n// Возвращаем обогащенный массив дальше по цепочке\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        16
+      ],
+      "id": "da2b850f-90a6-4955-ba5f-2bbf8555bf4e",
+      "name": "Точка росы"
+    },
+    {
+      "parameters": {
+        "jsCode": "const hourlyData = $input.first().json.hourly;\nconst pressureArray = hourlyData.surface_pressure;\nconst timeArray = hourlyData.time;\n\n// Находим индекс часа, ближайшего к текущему моменту (вместо жёсткого 24)\nconst now = new Date();\nlet currentHourIndex = timeArray.findIndex(t => {\n  const hourTime = new Date(t);\n  return hourTime.getUTCFullYear() === now.getUTCFullYear() &&\n         hourTime.getUTCMonth() === now.getUTCMonth() &&\n         hourTime.getUTCDate() === now.getUTCDate() &&\n         hourTime.getUTCHours() === now.getUTCHours();\n});\n\nif (currentHourIndex === -1) currentHourIndex = Math.floor(timeArray.length / 2);\nif (currentHourIndex < 24) currentHourIndex = 24;\n\nconst currentPressure = pressureArray[currentHourIndex];\nconst pressure24hAgo = pressureArray[currentHourIndex - 24];\nconst pressure12hAgo = pressureArray[currentHourIndex - 12];\n\nconst delta24h = currentPressure - pressure24hAgo;\nconst delta12h = currentPressure - pressure12hAgo;\n\n// Суммарная продолжительность солнечного сияния за прошедшие 24 часа (в секундах)\nlet sunshineTotalSec = 0;\nfor (let i = currentHourIndex - 24; i < currentHourIndex; i++) {\n  sunshineTotalSec += hourlyData.sunshine_duration[i] || 0;\n}\nconst sunshineHours = Math.round((sunshineTotalSec / 3600) * 10) / 10;\n\nreturn {\n  json: {\n    current_pressure: currentPressure,\n    pressure_delta_24h: delta24h,\n    pressure_delta_12h: delta12h,\n    sunshine_hours_last_24h: sunshineHours,\n  }\n};"
+      },
+      "name": "Перепады давления",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1104,
+        16
+      ],
+      "typeVersion": 2,
+      "id": "c7f1b888-d8a5-4eba-9f14-d0c6c51f6730"
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "latitude",
+              "value": "43.11"
+            },
+            {
+              "name": "longitude",
+              "value": "131.88"
+            },
+            {
+              "name": "hourly",
+              "value": "surface_pressure,sunshine_duration,shortwave_radiation"
+            },
+            {
+              "name": "past_days",
+              "value": "1"
+            },
+            {
+              "name": "forecast_days",
+              "value": "1"
+            },
+            {
+              "name": "timezone",
+              "value": "Asia/Vladivostok"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Weather",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        880,
+        16
+      ],
+      "typeVersion": 4.4,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "e8baac06-c5a9-4aab-a54d-586eb6b21c05",
+      "executeOnce": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Дата"
+          ],
+          "schema": [
+            {
+              "id": "Дата",
+              "displayName": "Дата",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_отбоя",
+              "displayName": "Время_отбоя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_подъема",
+              "displayName": "Время_подъема",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_в_кровати_мин",
+              "displayName": "Время_в_кровати_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Чистый_сон_мин",
+              "displayName": "Чистый_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Эффективность_сна_",
+              "displayName": "Эффективность_сна_",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Глубокий_сон_мин",
+              "displayName": "Глубокий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Глубокий_1_половина_мин",
+              "displayName": "Глубокий_1_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Глубокий_2_половина_мин",
+              "displayName": "Глубокий_2_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "REM_сон_мин",
+              "displayName": "REM_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Легкий_сон_мин",
+              "displayName": "Легкий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пробуждения_кол_во",
+              "displayName": "Пробуждения_кол_во",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Бодрствование_мин",
+              "displayName": "Бодрствование_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пульс_ночной_средний",
+              "displayName": "Пульс_ночной_средний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пульс_ночной_мин",
+              "displayName": "Пульс_ночной_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пульс_ночной_макс",
+              "displayName": "Пульс_ночной_макс",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Оценка_сна_балл",
+              "displayName": "Оценка_сна_балл",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Беспокойные_моменты",
+              "displayName": "Беспокойные_моменты",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дыхание_ночь_среднее",
+              "displayName": "Дыхание_ночь_среднее",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SpO2_ночь_среднее",
+              "displayName": "SpO2_ночь_среднее",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Температура_avg_C",
+              "displayName": "Температура_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Влажность_avg_%",
+              "displayName": "Влажность_avg_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PM25_avg",
+              "displayName": "PM25_avg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_время",
+              "displayName": "Ужин_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Завтрак_время",
+              "displayName": "Завтрак_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Окно_голода_до_сна_ч",
+              "displayName": "Окно_голода_до_сна_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Длительность_голода_ч",
+              "displayName": "Длительность_голода_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Ккал",
+              "displayName": "Ужин_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Белки_г",
+              "displayName": "Ужин_Белки_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Жиры_г",
+              "displayName": "Ужин_Жиры_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ужин_Углеводы_г",
+              "displayName": "Ужин_Углеводы_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Шаги_за_вчера",
+              "displayName": "Шаги_за_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_Ккал",
+              "displayName": "Тренировка_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_поздняя",
+              "displayName": "Тренировка_поздняя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Атмосферное_давление_ночь_hPa",
+              "displayName": "Атмосферное_давление_ночь_hPa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Лекарства_принимаемые",
+              "displayName": "Лекарства_принимаемые",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_последнего_кофе",
+              "displayName": "Время_последнего_кофе",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Алкоголь_гр",
+              "displayName": "Алкоголь_гр",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Жалобы_вчера",
+              "displayName": "Жалобы_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Пометки",
+              "displayName": "Пометки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дефициты",
+              "displayName": "Дефициты",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экранное_время_всего_ч",
+              "displayName": "Экранное_время_всего_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экран_Продуктивно_ч",
+              "displayName": "Экран_Продуктивно_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экран_Отвлечения_ч",
+              "displayName": "Экран_Отвлечения_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Восстановление_BodyBattery",
+              "displayName": "Восстановление_BodyBattery",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Стресс_дневной_средний",
+              "displayName": "Стресс_дневной_средний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "VO2_Max",
+              "displayName": "VO2_Max",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дыхание_тип",
+              "displayName": "Дыхание_тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Дыхание_мин",
+              "displayName": "Дыхание_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Экран_перед_сном_мин",
+              "displayName": "Экран_перед_сном_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ВСР_ночная",
+              "displayName": "ВСР_ночная",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Ккал",
+              "displayName": "Питание_Всего_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Белки_г",
+              "displayName": "Питание_Всего_Белки_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Жиры_г",
+              "displayName": "Питание_Всего_Жиры_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Питание_Всего_Углеводы_г",
+              "displayName": "Питание_Всего_Углеводы_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_1_Тип",
+              "displayName": "Тренировка_1_Тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_1_Мин",
+              "displayName": "Тренировка_1_Мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_2_Тип",
+              "displayName": "Тренировка_2_Тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_2_Мин",
+              "displayName": "Тренировка_2_Мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_3_Тип",
+              "displayName": "Тренировка_3_Тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Тренировка_3_Мин",
+              "displayName": "Тренировка_3_Мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Темп_тренировки_avg_C",
+              "displayName": "Темп_тренировки_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Темп_тренировки_min_C",
+              "displayName": "Темп_тренировки_min_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Темп_тренировки_max_C",
+              "displayName": "Темп_тренировки_max_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Training_Status",
+              "displayName": "Training_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Training_Acute_Load",
+              "displayName": "Training_Acute_Load",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Training_Chronic_Load",
+              "displayName": "Training_Chronic_Load",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Точка_росы_avg_C",
+              "displayName": "Точка_росы_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Атм_давление_Дельта_12ч",
+              "displayName": "Атм_давление_Дельта_12ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Атм_давление_Дельта_24ч",
+              "displayName": "Атм_давление_Дельта_24ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Освещенность_ч_сутки",
+              "displayName": "Освещенность_ч_сутки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Индекс_когнитивной_нагрузки",
+              "displayName": "Индекс_когнитивной_нагрузки",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Append or update row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1968,
+        16
+      ],
+      "typeVersion": 4.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "5099721f-f500-4fc9-876a-33f834b13e54",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Climate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (Anti-Bug)": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrition": {
+      "main": [
+        [
+          {
+            "node": "Get Weather",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Calendar Events": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Climate": {
+      "main": [
+        [
+          {
+            "node": "Точка росы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get RescueTime": {
+      "main": [
+        [
+          {
+            "node": "Get Calendar Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Точка росы": {
+      "main": [
+        [
+          {
+            "node": "Wait (Anti-Bug)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Перепады давления": {
+      "main": [
+        [
+          {
+            "node": "Get RescueTime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Weather": {
+      "main": [
+        [
+          {
+            "node": "Перепады давления",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "bec31bed-03fe-4cb6-8fe2-bb67385f2903",
+  "activeVersionId": "bec31bed-03fe-4cb6-8fe2-bb67385f2903",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-05T03:07:45.997Z",
+      "createdAt": "2026-06-05T03:07:45.997Z",
+      "role": "workflow:owner",
+      "workflowId": "5hf37JwpiJIs0pFb",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-02T22:52:18.210Z",
+    "createdAt": "2026-09-02T22:52:18.210Z",
+    "versionId": "bec31bed-03fe-4cb6-8fe2-bb67385f2903",
+    "workflowId": "5hf37JwpiJIs0pFb",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "8be1dae1-bd8b-4fa3-be40-f85989274c78",
+          "options": {}
+        },
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "position": [
+          -160,
+          16
+        ],
+        "typeVersion": 1,
+        "webhookId": "8be1dae1-bd8b-4fa3-be40-f85989274c78",
+        "id": "44227183-abdc-46fc-99be-eb4486b5414b"
+      },
+      {
+        "parameters": {
+          "amount": 5,
+          "unit": "seconds"
+        },
+        "name": "Wait (Anti-Bug)",
+        "type": "n8n-nodes-base.wait",
+        "position": [
+          480,
+          16
+        ],
+        "typeVersion": 1,
+        "id": "5b029eb0-d04b-4e2f-84ef-0b46e712a00b",
+        "webhookId": "4794af04-193b-4d4c-bacd-2e71c0b0521d",
+        "executeOnce": true
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "options": {}
+        },
+        "name": "Get Nutrition",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          672,
+          16
+        ],
+        "typeVersion": 4.7,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "26d84289-d479-44b3-9ee5-ab1a3909ba82",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "calendar": {
+            "__rl": true,
+            "value": "vasukvladislav@gmail.com",
+            "mode": "list"
+          },
+          "timeMin": "={{ DateTime.fromISO($('Webhook').first().json.body.date).minus({ days: 1 }).toISODate() + 'T00:00:00Z' }}",
+          "timeMax": "={{ DateTime.fromISO($('Webhook').first().json.body.date).minus({ days: 1 }).toISODate() + 'T23:59:59Z' }}",
+          "options": {}
+        },
+        "name": "Get Calendar Events",
+        "type": "n8n-nodes-base.googleCalendar",
+        "position": [
+          1536,
+          16
+        ],
+        "typeVersion": 1.3,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "528a3600-102e-411f-9d44-8b0a28a59dc2",
+        "executeOnce": true,
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "PqacoYjKhCXLSGf8",
+            "name": "Google Calendar account"
+          }
+        },
+        "onError": "continueErrorOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. ИНИЦИАЛИЗАЦИЯ ДАННЫХ\nfunction getSafeArray(nodeName) {\n  try { return $(nodeName).all().map(item => item.json); } catch (e) { return []; }\n}\nfunction getSafeFirst(nodeName) {\n  try { const data = $(nodeName).all(); return data.length > 0 ? data[0].json : {}; } catch (e) { return {}; }\n}\n\nlet garminNode = getSafeFirst('Webhook') || {};\nif (Object.keys(garminNode).length === 0) garminNode = getSafeFirst('Webhook1');\nlet garmin = garminNode.body || garminNode;\n\nconst nutritionList = getSafeArray('Get Nutrition');\nconst climateRecords = getSafeArray('Get Climate');\nconst calendarItems = getSafeArray('Get Calendar Events');\nconst rescueData = getSafeFirst('Get RescueTime');\n\nconst weather = getSafeFirst('Get Weather'); \nconst weatherDeltas = getSafeFirst('Перепады давления');\n\nconst rnd = (val) => (val !== null && val !== undefined && !isNaN(val) && val !== '') ? Math.round(Number(val) * 10) / 10 : null;\n\n// 2. ДАТЫ И ВРЕМЕННЫЕ МЕТКИ\nlet btMs = 0; \nlet wtMs = 0;\n\nif (garmin.bedtime && garmin.wakeup_time) {\n  let btStr = String(garmin.bedtime).replace(' ', 'T');\n  if (!btStr.includes('+') && !btStr.endsWith('Z')) btStr += '+10:00';\n  btMs = new Date(btStr).getTime();\n\n  let wtStr = String(garmin.wakeup_time).replace(' ', 'T');\n  if (!wtStr.includes('+') && !wtStr.endsWith('Z')) wtStr += '+10:00';\n  wtMs = new Date(wtStr).getTime();\n}\n\n// Дата строки пробуждения (например, 2026-08-19)\nlet todayStr = garmin.date;\nlet startOfTodayMs = todayStr ? new Date(`${todayStr}T00:00:00+10:00`).getTime() : 0;\n\n// Вчерашний день (сутки накануне сна: 2026-08-18 00:00 - 23:59)\nlet startOfYesterdayMs = startOfTodayMs - 24 * 60 * 60 * 1000;\nlet endOfYesterdayMs = startOfTodayMs;\n\nconst netSleep = garmin.sleep_total_min || 0;\nconst awake = garmin.awake_time_min || 0;\nconst inBed = netSleep + awake;\nconst lightSleep = netSleep - (garmin.sleep_deep_min || 0) - (garmin.sleep_rem_min || 0);\n\n// 3. УНИВЕРСАЛЬНЫЙ НАДЕЖНЫЙ ПАРСЕР ДАТЫ ИЗ ТАБЛИЦЫ MEALS\nconst parseAnyDate = (dStr) => {\n  if (!dStr) return NaN;\n  let s = String(dStr).trim();\n  \n  // Формат DD.MM.YYYY HH:mm:ss\n  if (s.match(/^\\d{1,2}\\.\\d{1,2}\\.\\d{4}/)) {\n    let p = s.split(' ');\n    let d = p[0].split('.');\n    s = `${d[2]}-${d[1].padStart(2, '0')}-${d[0].padStart(2, '0')}T${p[1] || '00:00:00'}+10:00`;\n  }\n  // Формат DD/MM/YYYY HH:mm:ss\n  else if (s.match(/^\\d{1,2}\\/\\d{1,2}\\/\\d{4}/)) {\n    let p = s.split(' ');\n    let d = p[0].split('/');\n    s = `${d[2]}-${d[0].padStart(2, '0')}-${d[1].padStart(2, '0')}T${p[1] || '00:00:00'}+10:00`;\n  }\n  // Формат ISO или с пробелом YYYY-MM-DD HH:mm:ss\n  else {\n    s = s.replace(' ', 'T');\n    if (!s.includes('+') && !s.endsWith('Z')) s += '+10:00';\n  }\n  return new Date(s).getTime();\n};\n\n// 4. АНАЛИТИКА ПИТАНИЯ (СТРОГО ЗА ВЧЕРАШНИЙ ДЕНЬ)\nlet dinner = { time: null, kcal: 0, p: 0, f: 0, c: 0, fastWindow: null, totalFasting: null };\nlet dailyMacros = { kcal: 0, p: 0, f: 0, c: 0 };\nlet breakfastTime = null;\nlet totalAlcohol = 0;\nlet lastCoffeeTime = null;\n\nif (nutritionList.length > 0 && startOfTodayMs > 0) {\n  const allMeals = [];\n  \n  nutritionList.forEach(r => {\n    // Проверяем разные возможные имена столбца с датой в Meals\n    const rawDateVal = r['Date'] || r['Дата'] || r['date'];\n    const ms = parseAnyDate(rawDateVal);\n    if (!isNaN(ms)) {\n      allMeals.push({ row: r, ms: ms, rawDate: rawDateVal });\n    }\n  });\n  \n  // Сортируем от самых ранних к самым поздним\n  allMeals.sort((a, b) => a.ms - b.ms);\n\n  // Фильтруем приемы пищи СТРОГО за вчерашний день (00:00:00 - 23:59:59 накануне)\n  const yesterdaysMeals = allMeals.filter(m => m.ms >= startOfYesterdayMs && m.ms < endOfYesterdayMs);\n\n  if (yesterdaysMeals.length > 0) {\n    yesterdaysMeals.forEach(item => {\n      const r = item.row;\n      dailyMacros.kcal += Number(r['Calories'] || r['Ккал'] || r['Калории'] || 0);\n      dailyMacros.p += Number(r['Proteins'] || r['Белки'] || r['Белки, гр'] || 0);\n      dailyMacros.f += Number(r['Fats'] || r['Жиры'] || r['Жиры, гр'] || 0);\n      dailyMacros.c += Number(r['Carbs'] || r['Углеводы'] || r['Углеводы, гр'] || 0);\n      totalAlcohol += Number(r['Алкоголь'] || r['Алкоголь, гр'] || r['алкоголь, гр'] || 0);\n\n      const caffeineVal = r['кофеин'] || r['Кофеин'];\n      if (caffeineVal && String(caffeineVal).trim() !== '' && String(caffeineVal).trim() !== '0') {\n        lastCoffeeTime = item.rawDate; \n      }\n    });\n\n    // Определение Ужина:\n    // 1. Ищем приемы пищи после 17:00 вчера, но ДО времени отбоя btMs\n    let dinnerThreshold = startOfYesterdayMs + 17 * 60 * 60 * 1000;\n    let dinnerItems = yesterdaysMeals.filter(m => m.ms >= dinnerThreshold && (btMs === 0 || m.ms <= btMs));\n    \n    // 2. Если после 17:00 ничего не было, берем самый последний вчерашний прием пищи до отбоя\n    if (dinnerItems.length === 0) {\n      let beforeSleepMeals = yesterdaysMeals.filter(m => btMs === 0 || m.ms <= btMs);\n      if (beforeSleepMeals.length > 0) {\n        dinnerItems = [beforeSleepMeals[beforeSleepMeals.length - 1]];\n      }\n    }\n\n    if (dinnerItems.length > 0) {\n      dinnerItems.forEach(item => {\n        const r = item.row;\n        dinner.kcal += Number(r['Calories'] || r['Ккал'] || r['Калории'] || 0);\n        dinner.p += Number(r['Proteins'] || r['Белки'] || r['Белки, гр'] || 0);\n        dinner.f += Number(r['Fats'] || r['Жиры'] || r['Жиры, гр'] || 0);\n        dinner.c += Number(r['Carbs'] || r['Углеводы'] || r['Углеводы, гр'] || 0);\n      });\n      dinner.time = dinnerItems[dinnerItems.length - 1].rawDate;\n    }\n  }\n\n  // Расчет Окна голода до сна и Длительности голодания\n  if (btMs > 0) {\n    // Последний прием пищи перед сном (из всех записей до отбоя)\n    const mealsBeforeSleep = allMeals.filter(m => m.ms <= btMs);\n    if (mealsBeforeSleep.length > 0) {\n      const lastMeal = mealsBeforeSleep[mealsBeforeSleep.length - 1];\n      const lastMealMs = lastMeal.ms;\n      \n      // Окно голода до сна (ч)\n      if ((btMs - lastMealMs) < 24 * 60 * 60 * 1000 && (btMs - lastMealMs) > 0) {\n        dinner.fastWindow = rnd((btMs - lastMealMs) / (1000 * 60 * 60));\n      }\n\n      // Завтрак СЕГОДНЯ после подъема\n      if (wtMs > 0) {\n        const mealsAfterWake = allMeals.filter(m => m.ms >= wtMs);\n        if (mealsAfterWake.length > 0) {\n          const firstMeal = mealsAfterWake[0];\n          breakfastTime = firstMeal.rawDate;\n          \n          if ((firstMeal.ms - lastMealMs) < 36 * 60 * 60 * 1000 && (firstMeal.ms - lastMealMs) > 0) {\n            dinner.totalFasting = rnd((firstMeal.ms - lastMealMs) / (1000 * 60 * 60));\n          }\n        }\n      }\n    }\n  }\n}\n\n// 5. ТРЕНИРОВКИ\nlet t1_type = null, t1_min = null;\nlet t2_type = null, t2_min = null;\nlet t3_type = null, t3_min = null;\nlet workout_kcal = 0;\n\nif (garmin.workouts_raw) {\n  const wList = garmin.workouts_raw.split(';;');\n  wList.forEach((w, index) => {\n    const parts = w.split('|');\n    if (parts.length === 3) {\n      const wName = parts[0];\n      const wMin = Number(parts[1]) || 0;\n      const wKcal = Number(parts[2]) || 0;\n      workout_kcal += wKcal;\n      if (index === 0) { t1_type = wName; t1_min = wMin; }\n      else if (index === 1) { t2_type = wName; t2_min = wMin; }\n      else if (index === 2) { t3_type = wName; t3_min = wMin; }\n    }\n  });\n}\n\n// 6. КЛИМАТ ВО ВРЕМЯ СНА (В спальне)\nconst getMultiVal = (row, keysArray) => {\n  for (let k of keysArray) {\n    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return Number(row[k]);\n  }\n  return null;\n};\n\nconst avgMultiClimate = (arr, keysArray) => {\n  if (!arr || arr.length === 0) return null;\n  let sum = 0; let count = 0;\n  arr.forEach(r => {\n    const rawDate = r['Дата'] || r['Date'] || r['date'];\n    if (rawDate) {\n      let rowTimeMs = parseAnyDate(rawDate);\n      if (!isNaN(rowTimeMs)) {\n        if (btMs > 0 && wtMs > 0) {\n          if (rowTimeMs < btMs || rowTimeMs > wtMs) return; // Строго в часы сна\n        } else if (startOfYesterdayMs > 0) {\n          if (rowTimeMs < startOfYesterdayMs || rowTimeMs > endOfYesterdayMs) return;\n        }\n      }\n    }\n    const val = getMultiVal(r, keysArray);\n    if (val !== null && !isNaN(val)) { sum += val; count++; }\n  });\n  return count > 0 ? rnd(sum / count) : null;\n};\n\nconst avgTempC = avgMultiClimate(climateRecords, ['temp', 'Temp', 'Температура', 'температура', 'Temperature']);\nconst avgHumPct = avgMultiClimate(climateRecords, ['humidity', 'Humidity', 'Влажность', 'влажность']);\nconst avgPM25 = avgMultiClimate(climateRecords, ['pm25', 'PM25', 'PM2.5', 'pm 2.5']);\nconst dewPointRecords = getSafeArray('Точка росы');\nconst avgDewPoint = avgMultiClimate(dewPointRecords, ['Точка_росы_avg_C', 'Точка росы', 'dew_point', 'DewPoint']);\n\n// 7. ЛЕКАРСТВА\nlet medsList = [];\nif (calendarItems.length > 0) {\n  calendarItems.forEach(event => {\n    const title = (event.summary || event.text || '').toLowerCase();\n    if (title && (title.includes('мг') || title.includes('таб') || title.includes('капс') || /\\d+/.test(title))) {\n      if (!title.includes('встреча') && !title.includes('позвонить')) medsList.push((event.summary || event.text).trim());\n    }\n  });\n}\n\n// 8. ДАВЛЕНИЕ\nlet avgNightPressure = null;\nif (weather && weather.hourly && weather.hourly.time && weather.hourly.surface_pressure && btMs > 0 && wtMs > 0) {\n  let pressSum = 0; let pressCount = 0;\n  for (let i = 0; i < weather.hourly.time.length; i++) {\n    const tMs = new Date(String(weather.hourly.time[i]) + '+10:00').getTime();\n    if (tMs >= btMs && tMs <= wtMs) { pressSum += Number(weather.hourly.surface_pressure[i]); pressCount++; }\n  }\n  if (pressCount > 0) avgNightPressure = rnd(pressSum / pressCount);\n}\n\n// 9. RESCUETIME (Экранное время за вчера)\nlet screenTotalSec = 0; let screenProdSec = 0; let screenDistractSec = 0;\nlet screenBeforeBedSec = 0;\nlet deepWorkSeconds = 0; let lightWorkSeconds = 0;\n\nif (rescueData && rescueData.rows) {\n  rescueData.rows.forEach(row => {\n    const rTimeStr = String(row[0]);\n    const timeSpent = row[1];\n    const prodLevel = row[3];\n\n    let rMs = parseAnyDate(rTimeStr);\n\n    if (!isNaN(rMs) && rMs >= startOfYesterdayMs && rMs < endOfYesterdayMs) {\n      screenTotalSec += timeSpent;\n      if (prodLevel > 0) screenProdSec += timeSpent; else if (prodLevel < 0) screenDistractSec += timeSpent;\n      if (prodLevel === 2) deepWorkSeconds += timeSpent;\n      else if (prodLevel === 1) lightWorkSeconds += timeSpent;\n    }\n\n    if (btMs > 0 && !isNaN(rMs) && rMs <= btMs && (rMs + 3600 * 1000) > (btMs - 2 * 60 * 60 * 1000)) {\n      screenBeforeBedSec += timeSpent;\n    }\n  });\n}\n\nlet cognitiveLoadIndex = null;\nif (screenTotalSec > 0) {\n  const deepWorkHours = deepWorkSeconds / 3600;\n  const lightWorkHours = lightWorkSeconds / 3600;\n  const cognitiveLoadScore = (deepWorkHours * 1.5) + (lightWorkHours * 0.5);\n  cognitiveLoadIndex = rnd(Math.min((cognitiveLoadScore / 12) * 10, 10));\n}\n\n// 10. ИТОГОВЫЙ ОБЪЕКТ ДЛЯ ЗАПИСИ\nreturn {\n  \"Дата\": garmin.date || null,\n  \"Время_отбоя\": garmin.bedtime || null,\n  \"Время_подъема\": garmin.wakeup_time || null,\n  \"Время_в_кровати_мин\": inBed,\n  \"Чистый_сон_мин\": netSleep,\n  \"Эффективность_сна_\": inBed > 0 ? rnd((netSleep / inBed) * 100) + '%' : null,\n  \"Оценка_сна_балл\": garmin.sleep_score || null,\n  \n  \"Глубокий_сон_мин\": garmin.sleep_deep_min || 0,\n  \"Глубокий_1_половина_мин\": garmin.deep1_min || 0,\n  \"Глубокий_2_половина_мин\": garmin.deep2_min || 0,\n  \"REM_сон_мин\": garmin.sleep_rem_min || 0,\n  \"Легкий_сон_мин\": lightSleep > 0 ? lightSleep : 0,\n  \n  \"Пробуждения_кол_во\": garmin.awake_count || 0,\n  \"Беспокойные_моменты\": garmin.restless_moments || 0,\n  \"Бодрствование_мин\": awake,\n\n  \"Пульс_ночной_средний\": garmin.hr_night_avg || null,\n  \"Пульс_ночной_мин\": garmin.hr_night_min || null,\n  \"Пульс_ночной_макс\": garmin.hr_night_max || null,\n  \"ВСР_ночная\": garmin.hrv_night || null,\n  \n  \"Дыхание_ночь_среднее\": garmin.respiration_avg || null,\n  \"SpO2_ночь_среднее\": garmin.spo2_avg || null,\n  \"Восстановление_BodyBattery\": garmin.body_battery_recharge || null,\n  \"Стресс_дневной_средний\": garmin.day_stress_avg || null,\n\n  \"Температура_avg_C\": avgTempC,\n  \"Влажность_avg_%\": avgHumPct,\n  \"Точка_росы_avg_C\": avgDewPoint,\n  \"PM25_avg\": avgPM25,\n\n  \"Питание_Всего_Ккал\": rnd(dailyMacros.kcal),\n  \"Питание_Всего_Белки_г\": rnd(dailyMacros.p),\n  \"Питание_Всего_Жиры_г\": rnd(dailyMacros.f),\n  \"Питание_Всего_Углеводы_г\": rnd(dailyMacros.c),\n\n  \"Время_последнего_кофе\": lastCoffeeTime,\n\n  \"Ужин_время\": dinner.time,\n  \"Окно_голода_до_сна_ч\": dinner.fastWindow,\n  \"Завтрак_время\": breakfastTime,\n  \"Длительность_голода_ч\": dinner.totalFasting,\n  \"Ужин_Ккал\": rnd(dinner.kcal),\n  \"Ужин_Белки_г\": rnd(dinner.p),\n  \"Ужин_Жиры_г\": rnd(dinner.f),\n  \"Ужин_Углеводы_г\": rnd(dinner.c),\n  \"Алкоголь_гр\": rnd(totalAlcohol),\n\n  \"Шаги_за_вчера\": (garmin.steps === undefined || garmin.steps === null || garmin.steps === \"\") ? null : garmin.steps,\n  \"VO2_Max\": garmin.vo2max || null,\n  \n  \"Тренировка_1_Тип\": t1_type || 'Нет',\n  \"Тренировка_1_Мин\": t1_min,\n  \"Тренировка_2_Тип\": t2_type,\n  \"Тренировка_2_Мин\": t2_min,\n  \"Тренировка_3_Тип\": t3_type,\n  \"Тренировка_3_Мин\": t3_min,\n  \"Тренировка_Ккал\": workout_kcal > 0 ? workout_kcal : null,\n  \n  \"Тренировка_поздняя\": garmin.late_workout_flag ? \"Да\" : \"Нет\",\n  \"Дыхание_тип\": garmin.breathwork_type || 'Нет',\n  \"Дыхание_мин\": garmin.breathwork_min || 0,\n\n  \"Атмосферное_давление_ночь_hPa\": avgNightPressure,\n  \"Атм_давление_Дельта_12ч\": weatherDeltas.pressure_delta_12h !== undefined ? rnd(weatherDeltas.pressure_delta_12h) : null,\n  \"Атм_давление_Дельта_24ч\": weatherDeltas.pressure_delta_24h !== undefined ? rnd(weatherDeltas.pressure_delta_24h) : null,\n  \"Освещенность_ч_сутки\": weatherDeltas.sunshine_hours_last_24h !== undefined ? weatherDeltas.sunshine_hours_last_24h : null,\n  \"Лекарства_принимаемые\": medsList.length > 0 ? medsList.join('\\n') : null,\n  \n  \"Экранное_время_всего_ч\": screenTotalSec > 0 ? rnd(screenTotalSec / 3600) : null,\n  \"Экран_Продуктивно_ч\": screenProdSec > 0 ? rnd(screenProdSec / 3600) : null,\n  \"Экран_Отвлечения_ч\": screenDistractSec > 0 ? rnd(screenDistractSec / 3600) : null,\n  \"Экран_перед_сном_мин\": rnd(screenBeforeBedSec / 60),\n  \"Индекс_когнитивной_нагрузки\": cognitiveLoadIndex,\n\n  \"Темп_тренировки_avg_C\": garmin.temp_activity_avg_c || null,\n  \"Темп_тренировки_min_C\": garmin.temp_activity_min_c || null,\n  \"Темп_тренировки_max_C\": garmin.temp_activity_max_c || null,\n  \"Training_Status\": garmin.training_status || null,\n  \"Training_Acute_Load\": garmin.training_acute_load || null,\n  \"Training_Chronic_Load\": garmin.training_chronic_load || null\n};"
+        },
+        "name": "Code in JavaScript",
+        "type": "n8n-nodes-base.code",
+        "position": [
+          1776,
+          16
+        ],
+        "typeVersion": 2,
+        "id": "8ac245c2-0973-43e7-8421-0bc1936afaa8"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw",
+            "mode": "list",
+            "cachedResultName": "MicroClimate",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Лист1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit#gid=0"
+          },
+          "options": {}
+        },
+        "name": "Get Climate",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          48,
+          16
+        ],
+        "typeVersion": 4.7,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "448f081c-7fbf-4c78-b638-5c8e791e444c",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "url": "https://www.rescuetime.com/anapi/data",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "key",
+                "value": "B632cZG41SdgEtIkxYeMAa7T8X8eJcS952lCYRfK"
+              },
+              {
+                "name": "format",
+                "value": "json"
+              },
+              {
+                "name": "rs",
+                "value": "hour"
+              },
+              {
+                "name": "rk",
+                "value": "productivity"
+              },
+              {
+                "name": "restrict_begin",
+                "value": "={{ DateTime.fromISO($('Webhook').first().json.body.date).minus({ days: 1 }).toISODate() }}"
+              },
+              {
+                "name": "restrict_end",
+                "value": "={{ $('Webhook').first().json.body.date }}"
+              },
+              {
+                "name": "pv",
+                "value": "interval"
+              }
+            ]
+          },
+          "options": {
+            "allowUnauthorizedCerts": true
+          }
+        },
+        "name": "Get RescueTime",
+        "type": "n8n-nodes-base.httpRequest",
+        "position": [
+          1296,
+          16
+        ],
+        "typeVersion": 4.4,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "a120a4c3-563c-4284-8dbf-ad9133e1197a",
+        "executeOnce": true,
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем все входящие элементы (строки из Google Таблицы)\nconst items = $input.all();\n\n// Константы формулы Магнуса\nconst a = 17.27;\nconst b = 237.7;\n\n// Проходим циклом по каждому элементу\nfor (const item of items) {\n  const tempCelsius = item.json[\"Температура\"];\n  const relativeHumidity = item.json[\"Влажность\"];\n\n  // Проверяем, существуют ли числовые данные, чтобы скрипт не упал на пустой строке\n  if (typeof tempCelsius === 'number' && typeof relativeHumidity === 'number') {\n    \n    // Математика: расчет точки росы\n    const alpha = ((a * tempCelsius) / (b + tempCelsius)) + Math.log(relativeHumidity / 100.0);\n    const dewPoint = (b * alpha) / (a - alpha);\n    \n    // Добавляем новое поле в JSON текущего элемента\n    item.json[\"Точка росы\"] = parseFloat(dewPoint.toFixed(2));\n  }\n}\n\n// Возвращаем обогащенный массив дальше по цепочке\nreturn items;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          272,
+          16
+        ],
+        "id": "da2b850f-90a6-4955-ba5f-2bbf8555bf4e",
+        "name": "Точка росы"
+      },
+      {
+        "parameters": {
+          "jsCode": "const hourlyData = $input.first().json.hourly;\nconst pressureArray = hourlyData.surface_pressure;\nconst timeArray = hourlyData.time;\n\n// Находим индекс часа, ближайшего к текущему моменту (вместо жёсткого 24)\nconst now = new Date();\nlet currentHourIndex = timeArray.findIndex(t => {\n  const hourTime = new Date(t);\n  return hourTime.getUTCFullYear() === now.getUTCFullYear() &&\n         hourTime.getUTCMonth() === now.getUTCMonth() &&\n         hourTime.getUTCDate() === now.getUTCDate() &&\n         hourTime.getUTCHours() === now.getUTCHours();\n});\n\nif (currentHourIndex === -1) currentHourIndex = Math.floor(timeArray.length / 2);\nif (currentHourIndex < 24) currentHourIndex = 24;\n\nconst currentPressure = pressureArray[currentHourIndex];\nconst pressure24hAgo = pressureArray[currentHourIndex - 24];\nconst pressure12hAgo = pressureArray[currentHourIndex - 12];\n\nconst delta24h = currentPressure - pressure24hAgo;\nconst delta12h = currentPressure - pressure12hAgo;\n\n// Суммарная продолжительность солнечного сияния за прошедшие 24 часа (в секундах)\nlet sunshineTotalSec = 0;\nfor (let i = currentHourIndex - 24; i < currentHourIndex; i++) {\n  sunshineTotalSec += hourlyData.sunshine_duration[i] || 0;\n}\nconst sunshineHours = Math.round((sunshineTotalSec / 3600) * 10) / 10;\n\nreturn {\n  json: {\n    current_pressure: currentPressure,\n    pressure_delta_24h: delta24h,\n    pressure_delta_12h: delta12h,\n    sunshine_hours_last_24h: sunshineHours,\n  }\n};"
+        },
+        "name": "Перепады давления",
+        "type": "n8n-nodes-base.code",
+        "position": [
+          1104,
+          16
+        ],
+        "typeVersion": 2,
+        "id": "c7f1b888-d8a5-4eba-9f14-d0c6c51f6730"
+      },
+      {
+        "parameters": {
+          "url": "https://api.open-meteo.com/v1/forecast",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "latitude",
+                "value": "43.11"
+              },
+              {
+                "name": "longitude",
+                "value": "131.88"
+              },
+              {
+                "name": "hourly",
+                "value": "surface_pressure,sunshine_duration,shortwave_radiation"
+              },
+              {
+                "name": "past_days",
+                "value": "1"
+              },
+              {
+                "name": "forecast_days",
+                "value": "1"
+              },
+              {
+                "name": "timezone",
+                "value": "Asia/Vladivostok"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "name": "Get Weather",
+        "type": "n8n-nodes-base.httpRequest",
+        "position": [
+          880,
+          16
+        ],
+        "typeVersion": 4.4,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "e8baac06-c5a9-4aab-a54d-586eb6b21c05",
+        "executeOnce": true,
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [
+              "Дата"
+            ],
+            "schema": [
+              {
+                "id": "Дата",
+                "displayName": "Дата",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_отбоя",
+                "displayName": "Время_отбоя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_подъема",
+                "displayName": "Время_подъема",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_в_кровати_мин",
+                "displayName": "Время_в_кровати_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Чистый_сон_мин",
+                "displayName": "Чистый_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Эффективность_сна_",
+                "displayName": "Эффективность_сна_",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Глубокий_сон_мин",
+                "displayName": "Глубокий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Глубокий_1_половина_мин",
+                "displayName": "Глубокий_1_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Глубокий_2_половина_мин",
+                "displayName": "Глубокий_2_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "REM_сон_мин",
+                "displayName": "REM_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Легкий_сон_мин",
+                "displayName": "Легкий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пробуждения_кол_во",
+                "displayName": "Пробуждения_кол_во",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Бодрствование_мин",
+                "displayName": "Бодрствование_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пульс_ночной_средний",
+                "displayName": "Пульс_ночной_средний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пульс_ночной_мин",
+                "displayName": "Пульс_ночной_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пульс_ночной_макс",
+                "displayName": "Пульс_ночной_макс",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Оценка_сна_балл",
+                "displayName": "Оценка_сна_балл",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Беспокойные_моменты",
+                "displayName": "Беспокойные_моменты",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дыхание_ночь_среднее",
+                "displayName": "Дыхание_ночь_среднее",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "SpO2_ночь_среднее",
+                "displayName": "SpO2_ночь_среднее",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Температура_avg_C",
+                "displayName": "Температура_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Влажность_avg_%",
+                "displayName": "Влажность_avg_%",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "PM25_avg",
+                "displayName": "PM25_avg",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_время",
+                "displayName": "Ужин_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Завтрак_время",
+                "displayName": "Завтрак_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Окно_голода_до_сна_ч",
+                "displayName": "Окно_голода_до_сна_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Длительность_голода_ч",
+                "displayName": "Длительность_голода_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Ккал",
+                "displayName": "Ужин_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Белки_г",
+                "displayName": "Ужин_Белки_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Жиры_г",
+                "displayName": "Ужин_Жиры_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Ужин_Углеводы_г",
+                "displayName": "Ужин_Углеводы_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Шаги_за_вчера",
+                "displayName": "Шаги_за_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_Ккал",
+                "displayName": "Тренировка_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_поздняя",
+                "displayName": "Тренировка_поздняя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Атмосферное_давление_ночь_hPa",
+                "displayName": "Атмосферное_давление_ночь_hPa",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Лекарства_принимаемые",
+                "displayName": "Лекарства_принимаемые",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_последнего_кофе",
+                "displayName": "Время_последнего_кофе",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Алкоголь_гр",
+                "displayName": "Алкоголь_гр",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Жалобы_вчера",
+                "displayName": "Жалобы_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Пометки",
+                "displayName": "Пометки",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дефициты",
+                "displayName": "Дефициты",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экранное_время_всего_ч",
+                "displayName": "Экранное_время_всего_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экран_Продуктивно_ч",
+                "displayName": "Экран_Продуктивно_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экран_Отвлечения_ч",
+                "displayName": "Экран_Отвлечения_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Восстановление_BodyBattery",
+                "displayName": "Восстановление_BodyBattery",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Стресс_дневной_средний",
+                "displayName": "Стресс_дневной_средний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "VO2_Max",
+                "displayName": "VO2_Max",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дыхание_тип",
+                "displayName": "Дыхание_тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Дыхание_мин",
+                "displayName": "Дыхание_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Экран_перед_сном_мин",
+                "displayName": "Экран_перед_сном_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "ВСР_ночная",
+                "displayName": "ВСР_ночная",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Ккал",
+                "displayName": "Питание_Всего_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Белки_г",
+                "displayName": "Питание_Всего_Белки_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Жиры_г",
+                "displayName": "Питание_Всего_Жиры_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Питание_Всего_Углеводы_г",
+                "displayName": "Питание_Всего_Углеводы_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_1_Тип",
+                "displayName": "Тренировка_1_Тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_1_Мин",
+                "displayName": "Тренировка_1_Мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_2_Тип",
+                "displayName": "Тренировка_2_Тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_2_Мин",
+                "displayName": "Тренировка_2_Мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_3_Тип",
+                "displayName": "Тренировка_3_Тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Тренировка_3_Мин",
+                "displayName": "Тренировка_3_Мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Темп_тренировки_avg_C",
+                "displayName": "Темп_тренировки_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Темп_тренировки_min_C",
+                "displayName": "Темп_тренировки_min_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Темп_тренировки_max_C",
+                "displayName": "Темп_тренировки_max_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Training_Status",
+                "displayName": "Training_Status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Training_Acute_Load",
+                "displayName": "Training_Acute_Load",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Training_Chronic_Load",
+                "displayName": "Training_Chronic_Load",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Точка_росы_avg_C",
+                "displayName": "Точка_росы_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Атм_давление_Дельта_12ч",
+                "displayName": "Атм_давление_Дельта_12ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Атм_давление_Дельта_24ч",
+                "displayName": "Атм_давление_Дельта_24ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Освещенность_ч_сутки",
+                "displayName": "Освещенность_ч_сутки",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Индекс_когнитивной_нагрузки",
+                "displayName": "Индекс_когнитивной_нагрузки",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "name": "Append or update row in sheet",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          1968,
+          16
+        ],
+        "typeVersion": 4.7,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "5099721f-f500-4fc9-876a-33f834b13e54",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Get Climate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait (Anti-Bug)": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrition",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrition": {
+        "main": [
+          [
+            {
+              "node": "Get Weather",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Calendar Events": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Append or update row in sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Climate": {
+        "main": [
+          [
+            {
+              "node": "Точка росы",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get RescueTime": {
+        "main": [
+          [
+            {
+              "node": "Get Calendar Events",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Точка росы": {
+        "main": [
+          [
+            {
+              "node": "Wait (Anti-Bug)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Перепады давления": {
+        "main": [
+          [
+            {
+              "node": "Get RescueTime",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Weather": {
+        "main": [
+          [
+            {
+              "node": "Перепады давления",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: calendar-empty fix: alwaysOutputData)",
+    "name": "Patch bec31bed — calendar-empty fix: alwaysOutputData",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
