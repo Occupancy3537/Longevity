@@ -1,0 +1,464 @@
+{
+  "updatedAt": "2026-09-03T01:55:52.000Z",
+  "createdAt": "2026-04-14T01:38:50.091Z",
+  "id": "970fafc9-748a-4622-aa71-9adb212e5cad",
+  "name": "Sub-Agent: Calendar",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        272,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — заботливый медицинский ассистент. Твоя задача — помогать пользователю управлять графиком приема лекарств и БАДов.\n\nТЕКУЩЕЕ ВРЕМЯ И ДАТА: {{ $now }} (Формат: YYYY-MM-DDTHH:mm:ssZ). Всегда отталкивайся от этой даты при поиске и создании событий.\n\nТВОЙ АЛГОРИТМ РАБОТЫ:\n1. Внимательно изучи запрос пользователя: какое лекарство он хочет добавить, как часто и в каких дозировках.\n2. Используй инструмент для поиска по календарю (Google Calendar Read), чтобы посмотреть события на ближайшие 7 дней. Твоя цель — найти уже принимаемые лекарства (обычно они записаны в календаре).\n3. Проанализируй совместимость: нет ли конфликтов между новым лекарством и теми, что пользователь уже принимает (например, железо нельзя пить одновременно с кальцием или кофе, нужен разнос по времени).\n4. Если есть серьезный конфликт — предупреди пользователя и предложи другое время приема.\n5. Если конфликтов нет или найдено оптимальное время — используй инструмент создания события (Google Calendar Write), чтобы добавить расписание приема нового лекарства в календарь. \n6. Дай пользователю понятный и теплый ответ: что добавлено, в какое время, и какие есть рекомендации по приему (до/после еды, с чем не смешивать).\n\nПРАВИЛА:\n- Если пользователь не указал длительность курса, спроси его об этом, прежде чем создавать 100 событий.\n- Создавай события в календаре с понятными названиями, например: \"💊 Прием: Витамин D (5000 ME)\".",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        480,
+        352
+      ],
+      "id": "235bf11d-1d8d-4cd8-b18d-1960e60c89c7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "vasukvladislav@gmail.com",
+          "mode": "list",
+          "cachedResultName": "vasukvladislav@gmail.com"
+        },
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', ``, 'string') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        592
+      ],
+      "id": "953b7dfa-5d1a-4a7d-a35e-0024031f5329",
+      "name": "Google Calendar Read",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PqacoYjKhCXLSGf8",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "vasukvladislav@gmail.com",
+          "mode": "list",
+          "cachedResultName": "vasukvladislav@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        640
+      ],
+      "id": "ba3081d2-a777-421e-ba9a-66222f26196e",
+      "name": "Google Calendar Write",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PqacoYjKhCXLSGf8",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        368,
+        608
+      ],
+      "id": "143bf6d9-802e-4c2d-95c0-ba1b474b784b",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('When Executed by Another Workflow').first().json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        496,
+        576
+      ],
+      "id": "3f6d5108-f7ae-40f8-b36b-b57782935577",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('When Executed by Another Workflow').first().json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        352
+      ],
+      "id": "cbd2d712-56f9-4f0a-beab-c14794709a34",
+      "name": "Telegram",
+      "webhookId": "fc28de8f-aaf5-470e-9036-5a90dea4cb24",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar Read": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar Write": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "timezone": "Asia/Vladivostok"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "dd56ea5e-82d1-4e4c-bd90-f07762c4fae2",
+  "activeVersionId": "dd56ea5e-82d1-4e4c-bd90-f07762c4fae2",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T00:44:02.516Z",
+      "createdAt": "2026-09-03T00:44:02.516Z",
+      "role": "workflow:owner",
+      "workflowId": "970fafc9-748a-4622-aa71-9adb212e5cad",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T01:55:46.055Z",
+    "createdAt": "2026-09-03T01:55:46.055Z",
+    "versionId": "dd56ea5e-82d1-4e4c-bd90-f07762c4fae2",
+    "workflowId": "970fafc9-748a-4622-aa71-9adb212e5cad",
+    "nodes": [
+      {
+        "parameters": {
+          "inputSource": "passthrough"
+        },
+        "id": "c055762a-8fe7-4141-a639-df2372f30060",
+        "typeVersion": 1.1,
+        "name": "When Executed by Another Workflow",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "position": [
+          272,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Ты — заботливый медицинский ассистент. Твоя задача — помогать пользователю управлять графиком приема лекарств и БАДов.\n\nТЕКУЩЕЕ ВРЕМЯ И ДАТА: {{ $now }} (Формат: YYYY-MM-DDTHH:mm:ssZ). Всегда отталкивайся от этой даты при поиске и создании событий.\n\nТВОЙ АЛГОРИТМ РАБОТЫ:\n1. Внимательно изучи запрос пользователя: какое лекарство он хочет добавить, как часто и в каких дозировках.\n2. Используй инструмент для поиска по календарю (Google Calendar Read), чтобы посмотреть события на ближайшие 7 дней. Твоя цель — найти уже принимаемые лекарства (обычно они записаны в календаре).\n3. Проанализируй совместимость: нет ли конфликтов между новым лекарством и теми, что пользователь уже принимает (например, железо нельзя пить одновременно с кальцием или кофе, нужен разнос по времени).\n4. Если есть серьезный конфликт — предупреди пользователя и предложи другое время приема.\n5. Если конфликтов нет или найдено оптимальное время — используй инструмент создания события (Google Calendar Write), чтобы добавить расписание приема нового лекарства в календарь. \n6. Дай пользователю понятный и теплый ответ: что добавлено, в какое время, и какие есть рекомендации по приему (до/после еды, с чем не смешивать).\n\nПРАВИЛА:\n- Если пользователь не указал длительность курса, спроси его об этом, прежде чем создавать 100 событий.\n- Создавай события в календаре с понятными названиями, например: \"💊 Прием: Витамин D (5000 ME)\".",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          480,
+          352
+        ],
+        "id": "235bf11d-1d8d-4cd8-b18d-1960e60c89c7",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "calendar": {
+            "__rl": true,
+            "value": "vasukvladislav@gmail.com",
+            "mode": "list",
+            "cachedResultName": "vasukvladislav@gmail.com"
+          },
+          "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', ``, 'string') }}",
+          "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', ``, 'string') }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleCalendarTool",
+        "typeVersion": 1.3,
+        "position": [
+          656,
+          592
+        ],
+        "id": "953b7dfa-5d1a-4a7d-a35e-0024031f5329",
+        "name": "Google Calendar Read",
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "PqacoYjKhCXLSGf8",
+            "name": "Google Calendar account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "calendar": {
+            "__rl": true,
+            "value": "vasukvladislav@gmail.com",
+            "mode": "list",
+            "cachedResultName": "vasukvladislav@gmail.com"
+          },
+          "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+          "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+          "additionalFields": {}
+        },
+        "type": "n8n-nodes-base.googleCalendarTool",
+        "typeVersion": 1.3,
+        "position": [
+          800,
+          640
+        ],
+        "id": "ba3081d2-a777-421e-ba9a-66222f26196e",
+        "name": "Google Calendar Write",
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "PqacoYjKhCXLSGf8",
+            "name": "Google Calendar account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "model": "google/gemini-3.1-flash-lite",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          368,
+          608
+        ],
+        "id": "143bf6d9-802e-4c2d-95c0-ba1b474b784b",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "sessionIdType": "customKey",
+          "sessionKey": "={{ $('When Executed by Another Workflow').first().json.message.chat.id }}",
+          "contextWindowLength": 10
+        },
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.3,
+        "position": [
+          496,
+          576
+        ],
+        "id": "3f6d5108-f7ae-40f8-b36b-b57782935577",
+        "name": "Simple Memory"
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('When Executed by Another Workflow').first().json.message.chat.id }}",
+          "text": "={{ $json.output }}",
+          "additionalFields": {}
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          816,
+          352
+        ],
+        "id": "cbd2d712-56f9-4f0a-beab-c14794709a34",
+        "name": "Telegram",
+        "webhookId": "fc28de8f-aaf5-470e-9036-5a90dea4cb24",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "When Executed by Another Workflow": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Calendar Read": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Calendar Write": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simple Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Telegram",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: fix telegram bot cred + typing status)",
+    "name": "Patch dd56ea5e — fix telegram bot cred + typing status",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
