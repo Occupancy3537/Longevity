@@ -1,0 +1,1544 @@
+{
+  "updatedAt": "2026-09-03T07:36:43.000Z",
+  "createdAt": "2026-04-14T01:36:35.912Z",
+  "id": "c16668da-c4ef-4f46-9e72-9419320d25d9",
+  "name": "🚨Capitan",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        416
+      ],
+      "id": "05c08a79-ef10-40a6-ae8c-9c3942dbbad4",
+      "name": "Telegram Trigger",
+      "webhookId": "bec9ab66-9d6f-4cae-a301-c175802efd3b",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "SYMPTOM",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "9cf4de70-30da-4824-8ca3-5609117d4fe8"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SYMPTOM"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3727fbdb-f9d4-4211-95d2-1131c69befd7",
+                    "leftValue": "={{ $json.text }} || {{ $json.intent }}",
+                    "rightValue": "TEST",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TEST"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e7f22969-79a1-4e36-8c23-68ddd00b8fab",
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "CALENDAR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CALENDAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c436e2d8-f700-4bb2-9758-06b8e511345a",
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "SLEEP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=SLEEP"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        368,
+        224
+      ],
+      "id": "97ae0517-fe1e-4534-a6e7-4cac209ba47d",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3.8-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        224
+      ],
+      "id": "738c2871-121a-4fb3-9e61-ae5227db8591",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.caption || input.message?.text || '';\n\n// Получаем binary данные\nconst binaryData = $input.first().binary;\n\nreturn {\n  json: {\n    hasImage: true,\n    userText: userText\n  },\n  binary: binaryData // Передаем binary дальше\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        -112
+      ],
+      "id": "db43dd4f-f4d9-409a-9d9f-f2e3c4ed68ca",
+      "name": "текст и фото"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем binary данные\nconst binaryData = $input.first().binary;\n\nreturn {\n  json: {\n    hasImage: true,\n    userText: ''\n  },\n  binary: binaryData // Передаем binary дальше\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        192
+      ],
+      "id": "c55f05ec-f9d6-4604-839b-bcf40e1c1686",
+      "name": "фото"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.text || '';\n\nreturn {\n  json: {\n    hasImage: false,\n    userText: userText\n  }\n  // binary не передаем\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        32
+      ],
+      "id": "270c7262-dd10-4f86-9afe-17a1b9e902e6",
+      "name": "текст"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.photo != null && ($json.message.caption != null || $json.message.text != null) }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "e802ad4f-f756-4778-9f74-7b80f68dc1c3"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "текст и фото"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0807eaa9-1d3e-42cc-b2a4-d371a412da27",
+                    "leftValue": "={{ $json.message.text != null && $json.message.photo == null }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "текст"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c19a7018-ed1e-474a-94f3-925140d5ab93",
+                    "leftValue": "={{ $json.message.photo != null && $json.message.caption == null }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "фото"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e75dc217-2be9-4f85-80cd-dc39cdeabb86",
+                    "leftValue": "={{ $json.message.document != null }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "документ"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -912,
+        16
+      ],
+      "id": "7bc3517f-1adf-4037-a602-0776d2a8a442",
+      "name": "type"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — медицинский диспетчер-маршрутизатор. Твоя задача — классифицировать запрос пользователя строго в одну из категорий.\n\nВХОДНЫЕ ДАННЫЕ:\n- Текст: {{ $json.userText }}\n- Есть фото: {{ $json.hasImage }}\n\nПРАВИЛО ПРИОРИТЕТОВ (КРИТИЧЕСКИ ВАЖНО):\nПрямая команда пользователя записать, сохранить или зафиксировать информацию (состав, анализы, БАДы) имеет НАИВЫСШИЙ приоритет. Если есть команда \"запиши\", \"добавь в карту\", ИГНОРИРУЙ наличие жалоб на самочувствие и относи запрос к категории TEST.\nПрямой запрос на обзор данных относи к категории SYMPTOM\n\nКЛАССИФИКАЦИЯ (ответь ОДНИМ словом):\n\nTEST — работа с данными и картой (выбирай это, если цель — логирование):\n• Прямой запрос на запись в электронную медицинскую карту или трекер (составы продуктов, аллергены, метрики).\n• Фото лабораторных анализов, бланков, составов продуктов питания (например, этикетки).\n• Текст про результаты: \"холестерин\", \"гемоглобин\", \"ТТГ\".\n• Фото заключения врача с диагнозом.\n\nSYMPTOM — поиск лечения или диагноза (выбирай, если НЕТ команды на запись данных):\n• Жалобы на здоровье, симптомы, боль, усталость.\n• Запрос помощи врача, консультация по вопросам здоровья.\n• Фото: сыпь, отёки, визуальные симптомы (если пользователь спрашивает \"что это?\", а не просит сохранить).\n• Запрос на анализ медицинской карты, данных с трекеров, данных сна, запрос на оценку последних данных здоровья\n• Пример: \"болит голова, что выпить?\"\n\n\nCALENDAR — расписание и напоминания:\n• Вопросы про расписание, записи к врачу.\n• Напоминания о приёме лекарств.\n• Запись приема лекарств в календарь.\n\nSLEEP — вопросы о сне:\n• Качество сна, длительность сна.\n• Восстановление.\n\nОТВЕТ: только одно слово из списка выше. Без точек, кавычек и пояснений.",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "={{ $json.userText }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -336,
+        -128
+      ],
+      "id": "119b8886-8f92-48c9-ad68-93de835b26e7",
+      "name": "Текст"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — медицинский диспетчер-маршрутизатор. Твоя задача — классифицировать запрос пользователя строго в одну из категорий.\n\nВХОДНЫЕ ДАННЫЕ:\n- Текст: {{ $json.userText }}\n- Есть фото: {{ $json.hasImage }}\n\nПРАВИЛО ПРИОРИТЕТОВ (КРИТИЧЕСКИ ВАЖНО):\nПрямая команда пользователя записать, сохранить или зафиксировать информацию (состав, анализы, БАДы) имеет НАИВЫСШИЙ приоритет. Если есть команда \"запиши\", \"добавь в карту\", ИГНОРИРУЙ наличие жалоб на самочувствие и относи запрос к категории TEST.\n\nКЛАССИФИКАЦИЯ (ответь ОДНИМ словом):\n\nTEST — работа с данными и картой (выбирай это, если цель — логирование):\n• Прямой запрос на запись в электронную медицинскую карту или трекер (составы продуктов, аллергены, метрики).\n• Фото лабораторных анализов, бланков, составов продуктов питания (например, этикетки).\n• Текст про результаты: \"холестерин\", \"гемоглобин\", \"ТТГ\".\n• Фото заключения врача с диагнозом.\n\nSYMPTOM — поиск лечения или диагноза (выбирай, если НЕТ команды на запись данных):\n• Жалобы на здоровье, симптомы, боль, усталость.\n• Запрос помощи врача, консультация по вопросам здоровья.\n• Фото: сыпь, отёки, визуальные симптомы (если пользователь спрашивает \"что это?\", а не просит сохранить).\n• Пример: \"болит голова, что выпить?\"\n\nCALENDAR — расписание и напоминания:\n• Вопросы про расписание, записи к врачу.\n• Напоминания о приёме лекарств.\n• Запись приема лекарств в календарь.\n\nSLEEP — вопросы о сне:\n• Качество сна, длительность сна.\n• Восстановление.\n\nОТВЕТ: только одно слово из списка выше. Без точек, кавычек и пояснений.",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "messageType": "imageBinary"
+            },
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "={{ $json.userText }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -336,
+        48
+      ],
+      "id": "f71136cb-906b-4402-a0c2-416e359770f2",
+      "name": "Фото"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        144,
+        16
+      ],
+      "id": "4c6ccc66-57dc-4dd8-8495-428d6c1037a7",
+      "name": "MergeFinal"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -48,
+        -32
+      ],
+      "id": "39aae29f-f08c-4104-befe-f5c8398349bf",
+      "name": "MergeLLM"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+          "cachedResultName": "Sub-Agent: AI Doctor"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        -112
+      ],
+      "id": "c2239a38-984a-40c5-bf22-78742e73cd6d",
+      "name": "Call 'Sub-Agent: AI Doctor'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "63e03896-e6bc-4df4-a2fa-318240170693",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/63e03896-e6bc-4df4-a2fa-318240170693",
+          "cachedResultName": "Sub-Agent: Registrar"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        96
+      ],
+      "id": "b04b8016-83d6-463a-8f23-cb89394b41e9",
+      "name": "Call 'Sub-Agent: Registrar'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "970fafc9-748a-4622-aa71-9adb212e5cad",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/970fafc9-748a-4622-aa71-9adb212e5cad",
+          "cachedResultName": "Sub-Agent: Calendar"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        272
+      ],
+      "id": "7caccc3a-1a70-4795-ac6b-1761e315c38d",
+      "name": "Call 'Sub-Agent: Calendar'"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -496,
+        80
+      ],
+      "id": "23bb05d6-20bb-4a60-82b3-49e43bca2196",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Берем ВСЁ оригинальное сообщение из Телеграма\nconst originalItem = $input.first().json;\nconst userText = originalItem.message?.caption || originalItem.message?.document?.file_name || 'Документ без описания';\n\nreturn {\n  json: {\n    ...originalItem, // Оставляем все ID, Chat ID и прочие важные данные\n    intent: 'TEST',  // ЖЕСТКО задаем маршрут для финального Switch\n    userText: userText\n  },\n  binary: $input.first().binary // Бережно проносим сам PDF/CSV дальше\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        336
+      ],
+      "id": "8fa50a5a-4552-448b-9336-39e8ec118e63",
+      "name": "документ"
+    },
+    {
+      "parameters": {
+        "operation": "sendChatAction",
+        "chatId": "={{ $json.message.chat.id }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        608
+      ],
+      "id": "680fe594-9b6f-4044-a73e-3375b838bbe9",
+      "name": "typing…",
+      "webhookId": "426b6981-0840-42ca-9d19-33344f82a643",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Держим индикатор «печатает…» пока агент думает: Telegram гасит его через ~5 сек,\n// поэтому обновляем каждые 4.5 сек. ~9 циклов ≈ 40 сек (под лимитом задачи 60 сек).\nconst token = '8413234787:AAEUX3sgJcD13_N8QTJMJkbBHmwbAXW-bP4';\nlet chatId;\ntry { chatId = $('Telegram Trigger').first().json.message.chat.id; } catch (e) {}\nif (!chatId) return [{ json: { typing: 'no chat id' } }];\nfor (let i = 0; i < 9; i++) {\n  try {\n    await fetch('https://api.telegram.org/bot' + token + '/sendChatAction', {\n      method: 'POST',\n      headers: { 'content-type': 'application/json' },\n      body: JSON.stringify({ chat_id: chatId, action: 'typing' }),\n    });\n  } catch (e) {}\n  if (i < 8) await new Promise(r => setTimeout(r, 4500));\n}\nreturn [{ json: { typing: 'done', cycles: 9 } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        720
+      ],
+      "id": "9bc24ebb-060b-4a11-9f8d-a6175d30497b",
+      "name": "typing loop",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "type",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MergeFinal",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "typing…",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Call 'Sub-Agent: AI Doctor'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call 'Sub-Agent: Registrar'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call 'Sub-Agent: Calendar'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call 'Sub-Agent: AI Doctor'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Фото",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Текст",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "текст и фото": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "фото": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "текст": {
+      "main": [
+        [
+          {
+            "node": "Текст",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "type": {
+      "main": [
+        [
+          {
+            "node": "текст и фото",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "текст",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "фото",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "документ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Текст": {
+      "main": [
+        [
+          {
+            "node": "MergeLLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Фото": {
+      "main": [
+        [
+          {
+            "node": "MergeLLM",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "MergeFinal": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MergeLLM": {
+      "main": [
+        [
+          {
+            "node": "MergeFinal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Фото",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "документ": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "typing…": {
+      "main": [
+        [
+          {
+            "node": "typing loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "92020607-e8db-4a48-bfb9-f5c2ee8aea77",
+  "activeVersionId": "92020607-e8db-4a48-bfb9-f5c2ee8aea77",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T00:43:35.727Z",
+      "createdAt": "2026-09-03T00:43:35.727Z",
+      "role": "workflow:owner",
+      "workflowId": "c16668da-c4ef-4f46-9e72-9419320d25d9",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T07:36:36.623Z",
+    "createdAt": "2026-09-03T07:36:36.623Z",
+    "versionId": "92020607-e8db-4a48-bfb9-f5c2ee8aea77",
+    "workflowId": "c16668da-c4ef-4f46-9e72-9419320d25d9",
+    "nodes": [
+      {
+        "parameters": {
+          "updates": [
+            "message"
+          ],
+          "additionalFields": {
+            "download": true
+          }
+        },
+        "type": "n8n-nodes-base.telegramTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -304,
+          416
+        ],
+        "id": "05c08a79-ef10-40a6-ae8c-9c3942dbbad4",
+        "name": "Telegram Trigger",
+        "webhookId": "bec9ab66-9d6f-4cae-a301-c175802efd3b",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.text }}",
+                      "rightValue": "SYMPTOM",
+                      "operator": {
+                        "type": "string",
+                        "operation": "contains"
+                      },
+                      "id": "9cf4de70-30da-4824-8ca3-5609117d4fe8"
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "SYMPTOM"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "3727fbdb-f9d4-4211-95d2-1131c69befd7",
+                      "leftValue": "={{ $json.text }} || {{ $json.intent }}",
+                      "rightValue": "TEST",
+                      "operator": {
+                        "type": "string",
+                        "operation": "contains"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "TEST"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "e7f22969-79a1-4e36-8c23-68ddd00b8fab",
+                      "leftValue": "={{ $json.text }}",
+                      "rightValue": "CALENDAR",
+                      "operator": {
+                        "type": "string",
+                        "operation": "contains"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "CALENDAR"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "c436e2d8-f700-4bb2-9758-06b8e511345a",
+                      "leftValue": "={{ $json.text }}",
+                      "rightValue": "SLEEP",
+                      "operator": {
+                        "type": "string",
+                        "operation": "contains"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "=SLEEP"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          368,
+          224
+        ],
+        "id": "97ae0517-fe1e-4534-a6e7-4cac209ba47d",
+        "name": "Switch"
+      },
+      {
+        "parameters": {
+          "model": "google/gemini-3.8-flash",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          -288,
+          224
+        ],
+        "id": "738c2871-121a-4fb3-9e61-ae5227db8591",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.caption || input.message?.text || '';\n\n// Получаем binary данные\nconst binaryData = $input.first().binary;\n\nreturn {\n  json: {\n    hasImage: true,\n    userText: userText\n  },\n  binary: binaryData // Передаем binary дальше\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -688,
+          -112
+        ],
+        "id": "db43dd4f-f4d9-409a-9d9f-f2e3c4ed68ca",
+        "name": "текст и фото"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем binary данные\nconst binaryData = $input.first().binary;\n\nreturn {\n  json: {\n    hasImage: true,\n    userText: ''\n  },\n  binary: binaryData // Передаем binary дальше\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -688,
+          192
+        ],
+        "id": "c55f05ec-f9d6-4604-839b-bcf40e1c1686",
+        "name": "фото"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.text || '';\n\nreturn {\n  json: {\n    hasImage: false,\n    userText: userText\n  }\n  // binary не передаем\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -688,
+          32
+        ],
+        "id": "270c7262-dd10-4f86-9afe-17a1b9e902e6",
+        "name": "текст"
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.message.photo != null && ($json.message.caption != null || $json.message.text != null) }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true",
+                        "singleValue": true
+                      },
+                      "id": "e802ad4f-f756-4778-9f74-7b80f68dc1c3"
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "текст и фото"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "0807eaa9-1d3e-42cc-b2a4-d371a412da27",
+                      "leftValue": "={{ $json.message.text != null && $json.message.photo == null }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true",
+                        "singleValue": true
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "текст"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "c19a7018-ed1e-474a-94f3-925140d5ab93",
+                      "leftValue": "={{ $json.message.photo != null && $json.message.caption == null }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true",
+                        "singleValue": true
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "фото"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "e75dc217-2be9-4f85-80cd-dc39cdeabb86",
+                      "leftValue": "={{ $json.message.document != null }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true",
+                        "singleValue": true
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "документ"
+              }
+            ]
+          },
+          "looseTypeValidation": true,
+          "options": {}
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          -912,
+          16
+        ],
+        "id": "7bc3517f-1adf-4037-a602-0776d2a8a442",
+        "name": "type"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Ты — медицинский диспетчер-маршрутизатор. Твоя задача — классифицировать запрос пользователя строго в одну из категорий.\n\nВХОДНЫЕ ДАННЫЕ:\n- Текст: {{ $json.userText }}\n- Есть фото: {{ $json.hasImage }}\n\nПРАВИЛО ПРИОРИТЕТОВ (КРИТИЧЕСКИ ВАЖНО):\nПрямая команда пользователя записать, сохранить или зафиксировать информацию (состав, анализы, БАДы) имеет НАИВЫСШИЙ приоритет. Если есть команда \"запиши\", \"добавь в карту\", ИГНОРИРУЙ наличие жалоб на самочувствие и относи запрос к категории TEST.\nПрямой запрос на обзор данных относи к категории SYMPTOM\n\nКЛАССИФИКАЦИЯ (ответь ОДНИМ словом):\n\nTEST — работа с данными и картой (выбирай это, если цель — логирование):\n• Прямой запрос на запись в электронную медицинскую карту или трекер (составы продуктов, аллергены, метрики).\n• Фото лабораторных анализов, бланков, составов продуктов питания (например, этикетки).\n• Текст про результаты: \"холестерин\", \"гемоглобин\", \"ТТГ\".\n• Фото заключения врача с диагнозом.\n\nSYMPTOM — поиск лечения или диагноза (выбирай, если НЕТ команды на запись данных):\n• Жалобы на здоровье, симптомы, боль, усталость.\n• Запрос помощи врача, консультация по вопросам здоровья.\n• Фото: сыпь, отёки, визуальные симптомы (если пользователь спрашивает \"что это?\", а не просит сохранить).\n• Запрос на анализ медицинской карты, данных с трекеров, данных сна, запрос на оценку последних данных здоровья\n• Пример: \"болит голова, что выпить?\"\n\n\nCALENDAR — расписание и напоминания:\n• Вопросы про расписание, записи к врачу.\n• Напоминания о приёме лекарств.\n• Запись приема лекарств в календарь.\n\nSLEEP — вопросы о сне:\n• Качество сна, длительность сна.\n• Восстановление.\n\nОТВЕТ: только одно слово из списка выше. Без точек, кавычек и пояснений.",
+          "messages": {
+            "messageValues": [
+              {
+                "type": "HumanMessagePromptTemplate",
+                "message": "={{ $json.userText }}"
+              }
+            ]
+          },
+          "batching": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.9,
+        "position": [
+          -336,
+          -128
+        ],
+        "id": "119b8886-8f92-48c9-ad68-93de835b26e7",
+        "name": "Текст"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Ты — медицинский диспетчер-маршрутизатор. Твоя задача — классифицировать запрос пользователя строго в одну из категорий.\n\nВХОДНЫЕ ДАННЫЕ:\n- Текст: {{ $json.userText }}\n- Есть фото: {{ $json.hasImage }}\n\nПРАВИЛО ПРИОРИТЕТОВ (КРИТИЧЕСКИ ВАЖНО):\nПрямая команда пользователя записать, сохранить или зафиксировать информацию (состав, анализы, БАДы) имеет НАИВЫСШИЙ приоритет. Если есть команда \"запиши\", \"добавь в карту\", ИГНОРИРУЙ наличие жалоб на самочувствие и относи запрос к категории TEST.\n\nКЛАССИФИКАЦИЯ (ответь ОДНИМ словом):\n\nTEST — работа с данными и картой (выбирай это, если цель — логирование):\n• Прямой запрос на запись в электронную медицинскую карту или трекер (составы продуктов, аллергены, метрики).\n• Фото лабораторных анализов, бланков, составов продуктов питания (например, этикетки).\n• Текст про результаты: \"холестерин\", \"гемоглобин\", \"ТТГ\".\n• Фото заключения врача с диагнозом.\n\nSYMPTOM — поиск лечения или диагноза (выбирай, если НЕТ команды на запись данных):\n• Жалобы на здоровье, симптомы, боль, усталость.\n• Запрос помощи врача, консультация по вопросам здоровья.\n• Фото: сыпь, отёки, визуальные симптомы (если пользователь спрашивает \"что это?\", а не просит сохранить).\n• Пример: \"болит голова, что выпить?\"\n\nCALENDAR — расписание и напоминания:\n• Вопросы про расписание, записи к врачу.\n• Напоминания о приёме лекарств.\n• Запись приема лекарств в календарь.\n\nSLEEP — вопросы о сне:\n• Качество сна, длительность сна.\n• Восстановление.\n\nОТВЕТ: только одно слово из списка выше. Без точек, кавычек и пояснений.",
+          "messages": {
+            "messageValues": [
+              {
+                "type": "HumanMessagePromptTemplate",
+                "messageType": "imageBinary"
+              },
+              {
+                "type": "HumanMessagePromptTemplate",
+                "message": "={{ $json.userText }}"
+              }
+            ]
+          },
+          "batching": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.9,
+        "position": [
+          -336,
+          48
+        ],
+        "id": "f71136cb-906b-4402-a0c2-416e359770f2",
+        "name": "Фото"
+      },
+      {
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          144,
+          16
+        ],
+        "id": "4c6ccc66-57dc-4dd8-8495-428d6c1037a7",
+        "name": "MergeFinal"
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          -48,
+          -32
+        ],
+        "id": "39aae29f-f08c-4104-befe-f5c8398349bf",
+        "name": "MergeLLM"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+            "cachedResultName": "Sub-Agent: AI Doctor"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          624,
+          -112
+        ],
+        "id": "c2239a38-984a-40c5-bf22-78742e73cd6d",
+        "name": "Call 'Sub-Agent: AI Doctor'"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "63e03896-e6bc-4df4-a2fa-318240170693",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/63e03896-e6bc-4df4-a2fa-318240170693",
+            "cachedResultName": "Sub-Agent: Registrar"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          640,
+          96
+        ],
+        "id": "b04b8016-83d6-463a-8f23-cb89394b41e9",
+        "name": "Call 'Sub-Agent: Registrar'"
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "970fafc9-748a-4622-aa71-9adb212e5cad",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/970fafc9-748a-4622-aa71-9adb212e5cad",
+            "cachedResultName": "Sub-Agent: Calendar"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          624,
+          272
+        ],
+        "id": "7caccc3a-1a70-4795-ac6b-1761e315c38d",
+        "name": "Call 'Sub-Agent: Calendar'"
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          -496,
+          80
+        ],
+        "id": "23bb05d6-20bb-4a60-82b3-49e43bca2196",
+        "name": "Merge"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Берем ВСЁ оригинальное сообщение из Телеграма\nconst originalItem = $input.first().json;\nconst userText = originalItem.message?.caption || originalItem.message?.document?.file_name || 'Документ без описания';\n\nreturn {\n  json: {\n    ...originalItem, // Оставляем все ID, Chat ID и прочие важные данные\n    intent: 'TEST',  // ЖЕСТКО задаем маршрут для финального Switch\n    userText: userText\n  },\n  binary: $input.first().binary // Бережно проносим сам PDF/CSV дальше\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -688,
+          336
+        ],
+        "id": "8fa50a5a-4552-448b-9336-39e8ec118e63",
+        "name": "документ"
+      },
+      {
+        "parameters": {
+          "operation": "sendChatAction",
+          "chatId": "={{ $json.message.chat.id }}"
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -304,
+          608
+        ],
+        "id": "680fe594-9b6f-4044-a73e-3375b838bbe9",
+        "name": "typing…",
+        "webhookId": "426b6981-0840-42ca-9d19-33344f82a643",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Держим индикатор «печатает…» пока агент думает: Telegram гасит его через ~5 сек,\n// поэтому обновляем каждые 4.5 сек. ~9 циклов ≈ 40 сек (под лимитом задачи 60 сек).\nconst token = '8413234787:AAEUX3sgJcD13_N8QTJMJkbBHmwbAXW-bP4';\nlet chatId;\ntry { chatId = $('Telegram Trigger').first().json.message.chat.id; } catch (e) {}\nif (!chatId) return [{ json: { typing: 'no chat id' } }];\nfor (let i = 0; i < 9; i++) {\n  try {\n    await fetch('https://api.telegram.org/bot' + token + '/sendChatAction', {\n      method: 'POST',\n      headers: { 'content-type': 'application/json' },\n      body: JSON.stringify({ chat_id: chatId, action: 'typing' }),\n    });\n  } catch (e) {}\n  if (i < 8) await new Promise(r => setTimeout(r, 4500));\n}\nreturn [{ json: { typing: 'done', cycles: 9 } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -120,
+          720
+        ],
+        "id": "9bc24ebb-060b-4a11-9f8d-a6175d30497b",
+        "name": "typing loop",
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "Telegram Trigger": {
+        "main": [
+          [
+            {
+              "node": "type",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "MergeFinal",
+              "type": "main",
+              "index": 1
+            },
+            {
+              "node": "typing…",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch": {
+        "main": [
+          [
+            {
+              "node": "Call 'Sub-Agent: AI Doctor'",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Call 'Sub-Agent: Registrar'",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Call 'Sub-Agent: Calendar'",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Call 'Sub-Agent: AI Doctor'",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Фото",
+              "type": "ai_languageModel",
+              "index": 0
+            },
+            {
+              "node": "Текст",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "текст и фото": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "фото": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "текст": {
+        "main": [
+          [
+            {
+              "node": "Текст",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "type": {
+        "main": [
+          [
+            {
+              "node": "текст и фото",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "текст",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "фото",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "документ",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Текст": {
+        "main": [
+          [
+            {
+              "node": "MergeLLM",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Фото": {
+        "main": [
+          [
+            {
+              "node": "MergeLLM",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "MergeFinal": {
+        "main": [
+          [
+            {
+              "node": "Switch",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "MergeLLM": {
+        "main": [
+          [
+            {
+              "node": "MergeFinal",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "Фото",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "документ": {
+        "main": [
+          [
+            {
+              "node": "Switch",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "typing…": {
+        "main": [
+          [
+            {
+              "node": "typing loop",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: typing loop: use fetch)",
+    "name": "Patch 92020607 — typing loop: use fetch",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
