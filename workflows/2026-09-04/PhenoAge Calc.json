@@ -1,0 +1,677 @@
+{
+  "updatedAt": "2026-09-03T04:13:09.000Z",
+  "createdAt": "2026-09-03T04:13:03.100Z",
+  "id": "bc4e2c57-270d-4334-b2f3-9b9643d09089",
+  "name": "PhenoAge Calc",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -820,
+        0
+      ],
+      "id": "b834df1e-d436-469f-8a3e-07e64c77d100",
+      "name": "Weekly"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Results",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "ecc56a02-1b82-472f-9c53-599ebdbac88b",
+      "name": "Get Results",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Markers",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "65164a8c-fd3a-42c1-9d9a-b7754450161b",
+      "name": "Get Markers",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Visits",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "80b68bc8-6a54-451d-841d-4af5d7dac5ce",
+      "name": "Get Visits",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// PhenoAge Calc — читает Results + Markers + Visits из книги phenoage.\n// Формула: Levine et al. 2018 (Aging, Albany NY). CRP входит в мг/л (совпадает\n// с ранее показанным значением; каноничная реализация берёт мг/дл — см. FORMULA_VERSION).\n// Run Once for All Items.\n\nconst FORMULA_VERSION = 'Levine2018 / CRP=mg/L / 2026-09';\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  const n = parseFloat(String(v).replace(/\\s/g, '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);        // DD.MM.YYYY\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);            // YYYY-MM-DD\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\n\nconst results = safeAll('Get Results');   // Visit_ID, Marker_ID, Value, Original_Unit, Lab_Min, Lab_Max\nconst markers = safeAll('Get Markers');   // Marker_ID, Name, Category, Standard_Unit, ...\nconst visits  = safeAll('Get Visits');    // Visit_ID, Date, Age_at_Visit, Lab_Name, Notes\n\n// 9 маркеров PhenoAge -> ключ формулы. Сопоставляем по Marker_ID и по имени (на всякий).\nconst PHENO = {\n  alb:   { ids: ['M008'], rx: /альбумин/i },\n  creat: { ids: ['M004'], rx: /креатинин/i },\n  gluc:  { ids: ['M003'], rx: /глюкоза/i },\n  crp:   { ids: ['M024'], rx: /с-реактивн|срб|crp/i },\n  lymph: { ids: ['M062'], rx: /лимфоциты\\s*%/i },\n  mcv:   { ids: ['M043'], rx: /mcv|средний объ[её]м эритроцит/i },\n  rdw:   { ids: ['M049'], rx: /rdw|ширина распред.*эритроцит/i },\n  alp:   { ids: ['M017'], rx: /щелочн(ая)? фосфатаз|alp|щф/i },\n  wbc:   { ids: ['M039'], rx: /лейкоциты|wbc/i },\n};\nconst idToName = {}; markers.forEach(m => { idToName[m.Marker_ID] = m.Name || ''; });\nfunction keyForMarkerId(mid) {\n  for (const [k, def] of Object.entries(PHENO)) {\n    if (def.ids.includes(mid)) return k;\n    if (def.rx.test(idToName[mid] || '')) return k;\n  }\n  return null;\n}\n\n// visit -> {date, age, values:{key:value}}\nconst visitMap = {};\nvisits.forEach(v => {\n  visitMap[v.Visit_ID] = { visit_id: v.Visit_ID, date: d10(v.Date), age: num(v.Age_at_Visit), values: {} };\n});\nfor (const r of results) {\n  const vid = r.Visit_ID;\n  const k = keyForMarkerId(r.Marker_ID);\n  if (!k) continue;\n  let val = num(r.Value);\n  if (val == null) continue;\n  // WBC иногда в тыс/мкл — численно то же, что 10^9/л. Ничего не конвертируем.\n  if (!visitMap[vid]) visitMap[vid] = { visit_id: vid, date: d10(vid), age: null, values: {} };\n  visitMap[vid].values[k] = val;\n}\n\n// Якорь возраста: самый свежий визит с Age_at_Visit -> линейно от него.\nlet ageAnchor = null;\nObject.values(visitMap).filter(v => v.date && v.age != null)\n  .sort((a, b) => a.date.localeCompare(b.date))\n  .forEach(v => { ageAnchor = { date: v.date, age: v.age }; });\nfunction ageAtDate(dateStr) {\n  if (ageAnchor && dateStr) {\n    const dd = (new Date(dateStr) - new Date(ageAnchor.date)) / (365.25 * 86400000);\n    return Math.round((ageAnchor.age + dd) * 10) / 10;\n  }\n  const y = parseInt((dateStr || '').slice(0, 4), 10);\n  return isNaN(y) ? null : (y - 1982);\n}\nfunction ageFor(v) { return v.age != null ? v.age : ageAtDate(v.date); }\n\nfunction phenoAge(x) {\n  const lnCRP = Math.log(Math.max(x.crp, 1e-4)); // CRP в мг/л\n  const xb = -19.907\n    - 0.0336 * x.alb + 0.0095 * x.creat + 0.1953 * x.gluc + 0.0954 * lnCRP\n    - 0.0120 * x.lymph + 0.0268 * x.mcv + 0.3306 * x.rdw + 0.00188 * x.alp\n    + 0.0554 * x.wbc + 0.0804 * x.age;\n  const M = 1 - Math.exp(-1.51714 * Math.exp(xb) / 0.0076927);\n  const pheno = 141.50 + Math.log(-0.00553 * Math.log(1 - M)) / 0.09165;\n  return Math.round(pheno * 100) / 100;\n}\n\nconst KEYS = Object.keys(PHENO);\nconst rows = [];\nconst series = [];\n\n// (a) точки по каждому визиту с полным набором 9 + возраст\nconst sortedVisits = Object.values(visitMap).filter(v => v.date).sort((a, b) => a.date.localeCompare(b.date));\nfor (const v of sortedVisits) {\n  const age = ageFor(v);\n  const have = KEYS.filter(k => v.values[k] != null);\n  const missing = KEYS.filter(k => v.values[k] == null);\n  if (have.length === 9 && age != null) {\n    const pa = phenoAge({ ...v.values, age });\n    series.push({ date: v.date, chrono: age, pheno: pa, delta: Math.round((pa - age) * 100) / 100 });\n  }\n}\n\n// (b) «текущая оценка»: последнее доступное значение каждого маркера + возраст на сегодня\nconst today = new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10);\nconst latestVal = {}; const latestDate = {};\nfor (const v of sortedVisits) {\n  for (const k of KEYS) if (v.values[k] != null) { latestVal[k] = v.values[k]; latestDate[k] = v.date; }\n}\nconst haveLatest = KEYS.filter(k => latestVal[k] != null);\nconst missingLatest = KEYS.filter(k => latestVal[k] == null);\nconst curAge = ageAtDate(today);\nlet current = null;\nif (haveLatest.length === 9) {\n  const pa = phenoAge({ ...latestVal, age: curAge });\n  // вклад маркера: насколько сдвигается PhenoAge, если этот маркер заменить на «эталон здорового»\n  const REF = { alb: 47, creat: 75, gluc: 4.6, crp: 0.5, lymph: 33, mcv: 88, rdw: 12.5, alp: 60, wbc: 5 };\n  const contributions = {};\n  for (const k of KEYS) {\n    const swapped = { ...latestVal, age: curAge, [k]: REF[k] };\n    contributions[k] = Math.round((pa - phenoAge(swapped)) * 100) / 100; // >0 = маркер старит\n  }\n  current = {\n    date: today,\n    chrono_age: Math.round(curAge * 10) / 10,\n    phenoage: pa,\n    delta: Math.round((pa - curAge) * 100) / 100,\n    markers_used: haveLatest.map(k => k + ':' + latestVal[k] + '@' + latestDate[k]).join(', '),\n    marker_contributions: contributions,\n    marker_values: KEYS.reduce((o, k) => (o[k] = { value: latestVal[k], measured: latestDate[k] }, o), {}),\n    oldest_marker_date: haveLatest.map(k => latestDate[k]).sort()[0],\n    missing: '',\n    formula_version: FORMULA_VERSION,\n  };\n  rows.push({\n    date: today, chrono_age: current.chrono_age, phenoage: pa, delta: current.delta,\n    markers_used: current.markers_used, missing: '', formula_version: FORMULA_VERSION,\n  });\n} else {\n  current = { missing: missingLatest.join(', '), note: 'не хватает маркеров для расчёта' };\n}\n\n// (c) оценочная серия: для КАЖДОГО визита с полным CBC берём alb/crp по carry-forward\n// (последнее известное на дату визита). Помечаем estimated=true.\nconst RARE = ['alb', 'crp'];\nconst series_estimated = [];\nfor (const v of sortedVisits) {\n  const age = ageFor(v);\n  if (age == null) continue;\n  const vals = { ...v.values };\n  let carried = [];\n  for (const k of KEYS) {\n    if (vals[k] != null) continue;\n    if (!RARE.includes(k)) continue;\n    // последнее известное значение k на дату <= v.date\n    let best = null;\n    for (const w of sortedVisits) {\n      if (w.date <= v.date && w.values[k] != null) best = w.values[k];\n    }\n    if (best != null) { vals[k] = best; carried.push(k); }\n  }\n  const stillMissing = KEYS.filter(k => vals[k] == null);\n  if (stillMissing.length === 0) {\n    const pa = phenoAge({ ...vals, age });\n    series_estimated.push({\n      date: v.date, chrono: age, pheno: pa, delta: Math.round((pa - age) * 100) / 100,\n      estimated: carried.length > 0, carried_forward: carried,\n    });\n  }\n}\n\n// строки истории (по визитам) для листа\nfor (const s of series) {\n  rows.push({\n    date: s.date, chrono_age: s.chrono, phenoage: s.pheno, delta: s.delta,\n    markers_used: 'все 9 (визит)', missing: '', formula_version: FORMULA_VERSION,\n  });\n}\n\n// строки листа для estimated-серии (только те, которых нет в точной series)\nconst exactDates = new Set(series.map(s => s.date));\nfor (const s of series_estimated) {\n  if (exactDates.has(s.date)) continue;\n  rows.push({\n    date: s.date, chrono_age: s.chrono, phenoage: s.pheno, delta: s.delta,\n    markers_used: 'оценка: ' + (s.carried_forward.length ? 'carry-forward ' + s.carried_forward.join('/') : 'все 9'),\n    missing: '', formula_version: FORMULA_VERSION,\n  });\n}\nreturn [{ json: { current, series, series_estimated, rows, missing_for_current: missingLatest } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        0
+      ],
+      "id": "7044208c-04fd-43d8-9603-702f783cb884",
+      "name": "Compute PhenoAge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// плоские строки для листа PhenoAge_Log\nconst rows = $input.first().json.rows || [];\nreturn rows.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "a125d886-ad1b-48e1-8622-0f10bbd33b57",
+      "name": "To Rows"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PhenoAge_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "date",
+            "formula_version"
+          ],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "chrono_age",
+              "displayName": "chrono_age",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "phenoage",
+              "displayName": "phenoage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "delta",
+              "displayName": "delta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "markers_used",
+              "displayName": "markers_used",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "missing",
+              "displayName": "missing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "formula_version",
+              "displayName": "formula_version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        460,
+        0
+      ],
+      "id": "1700f151-7b40-436c-9994-c1dcc927c9c8",
+      "name": "Write PhenoAge_Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly": {
+      "main": [
+        [
+          {
+            "node": "Get Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Results": {
+      "main": [
+        [
+          {
+            "node": "Get Markers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Markers": {
+      "main": [
+        [
+          {
+            "node": "Get Visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Visits": {
+      "main": [
+        [
+          {
+            "node": "Compute PhenoAge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute PhenoAge": {
+      "main": [
+        [
+          {
+            "node": "To Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To Rows": {
+      "main": [
+        [
+          {
+            "node": "Write PhenoAge_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "f1cd0711-8c7a-4e5b-bb7e-660dff87bd92",
+  "activeVersionId": "f1cd0711-8c7a-4e5b-bb7e-660dff87bd92",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T04:13:03.115Z",
+      "createdAt": "2026-09-03T04:13:03.115Z",
+      "role": "workflow:owner",
+      "workflowId": "bc4e2c57-270d-4334-b2f3-9b9643d09089",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T04:13:03.531Z",
+    "createdAt": "2026-09-03T04:13:03.531Z",
+    "versionId": "f1cd0711-8c7a-4e5b-bb7e-660dff87bd92",
+    "workflowId": "bc4e2c57-270d-4334-b2f3-9b9643d09089",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "weeks",
+                "triggerAtHour": 9
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -820,
+          0
+        ],
+        "id": "b834df1e-d436-469f-8a3e-07e64c77d100",
+        "name": "Weekly"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Results",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -600,
+          0
+        ],
+        "id": "ecc56a02-1b82-472f-9c53-599ebdbac88b",
+        "name": "Get Results",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Markers",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -400,
+          0
+        ],
+        "id": "65164a8c-fd3a-42c1-9d9a-b7754450161b",
+        "name": "Get Markers",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Visits",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -200,
+          0
+        ],
+        "id": "80b68bc8-6a54-451d-841d-4af5d7dac5ce",
+        "name": "Get Visits",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// PhenoAge Calc — читает Results + Markers + Visits из книги phenoage.\n// Формула: Levine et al. 2018 (Aging, Albany NY). CRP входит в мг/л (совпадает\n// с ранее показанным значением; каноничная реализация берёт мг/дл — см. FORMULA_VERSION).\n// Run Once for All Items.\n\nconst FORMULA_VERSION = 'Levine2018 / CRP=mg/L / 2026-09';\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  const n = parseFloat(String(v).replace(/\\s/g, '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);        // DD.MM.YYYY\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);            // YYYY-MM-DD\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\n\nconst results = safeAll('Get Results');   // Visit_ID, Marker_ID, Value, Original_Unit, Lab_Min, Lab_Max\nconst markers = safeAll('Get Markers');   // Marker_ID, Name, Category, Standard_Unit, ...\nconst visits  = safeAll('Get Visits');    // Visit_ID, Date, Age_at_Visit, Lab_Name, Notes\n\n// 9 маркеров PhenoAge -> ключ формулы. Сопоставляем по Marker_ID и по имени (на всякий).\nconst PHENO = {\n  alb:   { ids: ['M008'], rx: /альбумин/i },\n  creat: { ids: ['M004'], rx: /креатинин/i },\n  gluc:  { ids: ['M003'], rx: /глюкоза/i },\n  crp:   { ids: ['M024'], rx: /с-реактивн|срб|crp/i },\n  lymph: { ids: ['M062'], rx: /лимфоциты\\s*%/i },\n  mcv:   { ids: ['M043'], rx: /mcv|средний объ[её]м эритроцит/i },\n  rdw:   { ids: ['M049'], rx: /rdw|ширина распред.*эритроцит/i },\n  alp:   { ids: ['M017'], rx: /щелочн(ая)? фосфатаз|alp|щф/i },\n  wbc:   { ids: ['M039'], rx: /лейкоциты|wbc/i },\n};\nconst idToName = {}; markers.forEach(m => { idToName[m.Marker_ID] = m.Name || ''; });\nfunction keyForMarkerId(mid) {\n  for (const [k, def] of Object.entries(PHENO)) {\n    if (def.ids.includes(mid)) return k;\n    if (def.rx.test(idToName[mid] || '')) return k;\n  }\n  return null;\n}\n\n// visit -> {date, age, values:{key:value}}\nconst visitMap = {};\nvisits.forEach(v => {\n  visitMap[v.Visit_ID] = { visit_id: v.Visit_ID, date: d10(v.Date), age: num(v.Age_at_Visit), values: {} };\n});\nfor (const r of results) {\n  const vid = r.Visit_ID;\n  const k = keyForMarkerId(r.Marker_ID);\n  if (!k) continue;\n  let val = num(r.Value);\n  if (val == null) continue;\n  // WBC иногда в тыс/мкл — численно то же, что 10^9/л. Ничего не конвертируем.\n  if (!visitMap[vid]) visitMap[vid] = { visit_id: vid, date: d10(vid), age: null, values: {} };\n  visitMap[vid].values[k] = val;\n}\n\n// Якорь возраста: самый свежий визит с Age_at_Visit -> линейно от него.\nlet ageAnchor = null;\nObject.values(visitMap).filter(v => v.date && v.age != null)\n  .sort((a, b) => a.date.localeCompare(b.date))\n  .forEach(v => { ageAnchor = { date: v.date, age: v.age }; });\nfunction ageAtDate(dateStr) {\n  if (ageAnchor && dateStr) {\n    const dd = (new Date(dateStr) - new Date(ageAnchor.date)) / (365.25 * 86400000);\n    return Math.round((ageAnchor.age + dd) * 10) / 10;\n  }\n  const y = parseInt((dateStr || '').slice(0, 4), 10);\n  return isNaN(y) ? null : (y - 1982);\n}\nfunction ageFor(v) { return v.age != null ? v.age : ageAtDate(v.date); }\n\nfunction phenoAge(x) {\n  const lnCRP = Math.log(Math.max(x.crp, 1e-4)); // CRP в мг/л\n  const xb = -19.907\n    - 0.0336 * x.alb + 0.0095 * x.creat + 0.1953 * x.gluc + 0.0954 * lnCRP\n    - 0.0120 * x.lymph + 0.0268 * x.mcv + 0.3306 * x.rdw + 0.00188 * x.alp\n    + 0.0554 * x.wbc + 0.0804 * x.age;\n  const M = 1 - Math.exp(-1.51714 * Math.exp(xb) / 0.0076927);\n  const pheno = 141.50 + Math.log(-0.00553 * Math.log(1 - M)) / 0.09165;\n  return Math.round(pheno * 100) / 100;\n}\n\nconst KEYS = Object.keys(PHENO);\nconst rows = [];\nconst series = [];\n\n// (a) точки по каждому визиту с полным набором 9 + возраст\nconst sortedVisits = Object.values(visitMap).filter(v => v.date).sort((a, b) => a.date.localeCompare(b.date));\nfor (const v of sortedVisits) {\n  const age = ageFor(v);\n  const have = KEYS.filter(k => v.values[k] != null);\n  const missing = KEYS.filter(k => v.values[k] == null);\n  if (have.length === 9 && age != null) {\n    const pa = phenoAge({ ...v.values, age });\n    series.push({ date: v.date, chrono: age, pheno: pa, delta: Math.round((pa - age) * 100) / 100 });\n  }\n}\n\n// (b) «текущая оценка»: последнее доступное значение каждого маркера + возраст на сегодня\nconst today = new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10);\nconst latestVal = {}; const latestDate = {};\nfor (const v of sortedVisits) {\n  for (const k of KEYS) if (v.values[k] != null) { latestVal[k] = v.values[k]; latestDate[k] = v.date; }\n}\nconst haveLatest = KEYS.filter(k => latestVal[k] != null);\nconst missingLatest = KEYS.filter(k => latestVal[k] == null);\nconst curAge = ageAtDate(today);\nlet current = null;\nif (haveLatest.length === 9) {\n  const pa = phenoAge({ ...latestVal, age: curAge });\n  // вклад маркера: насколько сдвигается PhenoAge, если этот маркер заменить на «эталон здорового»\n  const REF = { alb: 47, creat: 75, gluc: 4.6, crp: 0.5, lymph: 33, mcv: 88, rdw: 12.5, alp: 60, wbc: 5 };\n  const contributions = {};\n  for (const k of KEYS) {\n    const swapped = { ...latestVal, age: curAge, [k]: REF[k] };\n    contributions[k] = Math.round((pa - phenoAge(swapped)) * 100) / 100; // >0 = маркер старит\n  }\n  current = {\n    date: today,\n    chrono_age: Math.round(curAge * 10) / 10,\n    phenoage: pa,\n    delta: Math.round((pa - curAge) * 100) / 100,\n    markers_used: haveLatest.map(k => k + ':' + latestVal[k] + '@' + latestDate[k]).join(', '),\n    marker_contributions: contributions,\n    marker_values: KEYS.reduce((o, k) => (o[k] = { value: latestVal[k], measured: latestDate[k] }, o), {}),\n    oldest_marker_date: haveLatest.map(k => latestDate[k]).sort()[0],\n    missing: '',\n    formula_version: FORMULA_VERSION,\n  };\n  rows.push({\n    date: today, chrono_age: current.chrono_age, phenoage: pa, delta: current.delta,\n    markers_used: current.markers_used, missing: '', formula_version: FORMULA_VERSION,\n  });\n} else {\n  current = { missing: missingLatest.join(', '), note: 'не хватает маркеров для расчёта' };\n}\n\n// (c) оценочная серия: для КАЖДОГО визита с полным CBC берём alb/crp по carry-forward\n// (последнее известное на дату визита). Помечаем estimated=true.\nconst RARE = ['alb', 'crp'];\nconst series_estimated = [];\nfor (const v of sortedVisits) {\n  const age = ageFor(v);\n  if (age == null) continue;\n  const vals = { ...v.values };\n  let carried = [];\n  for (const k of KEYS) {\n    if (vals[k] != null) continue;\n    if (!RARE.includes(k)) continue;\n    // последнее известное значение k на дату <= v.date\n    let best = null;\n    for (const w of sortedVisits) {\n      if (w.date <= v.date && w.values[k] != null) best = w.values[k];\n    }\n    if (best != null) { vals[k] = best; carried.push(k); }\n  }\n  const stillMissing = KEYS.filter(k => vals[k] == null);\n  if (stillMissing.length === 0) {\n    const pa = phenoAge({ ...vals, age });\n    series_estimated.push({\n      date: v.date, chrono: age, pheno: pa, delta: Math.round((pa - age) * 100) / 100,\n      estimated: carried.length > 0, carried_forward: carried,\n    });\n  }\n}\n\n// строки истории (по визитам) для листа\nfor (const s of series) {\n  rows.push({\n    date: s.date, chrono_age: s.chrono, phenoage: s.pheno, delta: s.delta,\n    markers_used: 'все 9 (визит)', missing: '', formula_version: FORMULA_VERSION,\n  });\n}\n\n// строки листа для estimated-серии (только те, которых нет в точной series)\nconst exactDates = new Set(series.map(s => s.date));\nfor (const s of series_estimated) {\n  if (exactDates.has(s.date)) continue;\n  rows.push({\n    date: s.date, chrono_age: s.chrono, phenoage: s.pheno, delta: s.delta,\n    markers_used: 'оценка: ' + (s.carried_forward.length ? 'carry-forward ' + s.carried_forward.join('/') : 'все 9'),\n    missing: '', formula_version: FORMULA_VERSION,\n  });\n}\nreturn [{ json: { current, series, series_estimated, rows, missing_for_current: missingLatest } }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          20,
+          0
+        ],
+        "id": "7044208c-04fd-43d8-9603-702f783cb884",
+        "name": "Compute PhenoAge"
+      },
+      {
+        "parameters": {
+          "jsCode": "// плоские строки для листа PhenoAge_Log\nconst rows = $input.first().json.rows || [];\nreturn rows.map(r => ({ json: r }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          240,
+          0
+        ],
+        "id": "a125d886-ad1b-48e1-8622-0f10bbd33b57",
+        "name": "To Rows"
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "PhenoAge_Log",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [
+              "date",
+              "formula_version"
+            ],
+            "schema": [
+              {
+                "id": "date",
+                "displayName": "date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "chrono_age",
+                "displayName": "chrono_age",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "phenoage",
+                "displayName": "phenoage",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "delta",
+                "displayName": "delta",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "markers_used",
+                "displayName": "markers_used",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "missing",
+                "displayName": "missing",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "formula_version",
+                "displayName": "formula_version",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          460,
+          0
+        ],
+        "id": "1700f151-7b40-436c-9994-c1dcc927c9c8",
+        "name": "Write PhenoAge_Log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Weekly": {
+        "main": [
+          [
+            {
+              "node": "Get Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Results": {
+        "main": [
+          [
+            {
+              "node": "Get Markers",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Markers": {
+        "main": [
+          [
+            {
+              "node": "Get Visits",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Visits": {
+        "main": [
+          [
+            {
+              "node": "Compute PhenoAge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Compute PhenoAge": {
+        "main": [
+          [
+            {
+              "node": "To Rows",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "To Rows": {
+        "main": [
+          [
+            {
+              "node": "Write PhenoAge_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: PhenoAge Calc v1)",
+    "name": "Patch f1cd0711 — PhenoAge Calc v1",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
