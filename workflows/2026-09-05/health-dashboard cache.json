@@ -1,0 +1,714 @@
+{
+  "updatedAt": "2026-09-04T12:08:36.000Z",
+  "createdAt": "2026-09-04T12:08:23.273Z",
+  "id": "d4a1f8c3-2e57-4b90-8a16-9c3d7e0b6f21",
+  "name": "health-dashboard (cache)",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -900,
+        -40
+      ],
+      "id": "41cc4275-dc5d-49f0-ba08-86206656dcf6",
+      "name": "Every 15 min"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Daily_Trends",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -700,
+        -40
+      ],
+      "id": "b90a73ae-55e4-47f9-89a9-1843469547b4",
+      "name": "Get Daily_Trends",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Anomalies_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -520,
+        -40
+      ],
+      "id": "490f3480-368f-4eef-b076-bfd1dfd651bd",
+      "name": "Get Anomalies_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Correlations_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -340,
+        -40
+      ],
+      "id": "64658f85-2062-4f6d-afd4-7282cc287ee9",
+      "name": "Get Correlations_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Recommendations_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        -40
+      ],
+      "id": "6664c331-f813-4fb3-bda2-05acbd498384",
+      "name": "Get Recommendations_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Doctor_Notes",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        20,
+        -40
+      ],
+      "id": "bd983c63-061d-4016-8f72-1a4cde69d6aa",
+      "name": "Get Doctor_Notes",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// health-dashboard — сборка JSON для вкладки «Здоровье». Пишет в Static Data.\n// Источники (по имени ноды): Get Daily_Trends, Get Anomalies_Log, Get Correlations_Log,\n// Get Recommendations_Log, Get Doctor_Notes. Все — книга Health_DB. Run Once for All Items.\n// Контракт намеренно «сырой/семантический» (не форматированные строки) — вёрстка ещё меняется.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace('%', '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction dkey(v) { return String(v == null ? '' : v).slice(0, 10); }\nfunction avg(a) { const x = a.filter(v => v != null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; }\nfunction r1(x) { return x == null ? null : Math.round(x * 10) / 10; }\n\nconst daily = safeAll('Get Daily_Trends');\nconst anom = safeAll('Get Anomalies_Log');\nconst corr = safeAll('Get Correlations_Log');\nconst recs = safeAll('Get Recommendations_Log');\nconst notes = safeAll('Get Doctor_Notes');\n\n// колонки Daily_Trends -> ключи фронта\nconst COL = {\n  hrv: 'ВСР_ночная',\n  rhr: 'Пульс_ночной_средний',\n  body_battery: 'Восстановление_BodyBattery',\n  sleep_score: 'Оценка_сна_балл',\n  sleep_min: 'Чистый_сон_мин',\n  stress: 'Стресс_дневной_средний',\n  steps: 'Шаги_за_вчера',\n};\n\nconst rows = daily\n  .filter(r => r['Дата'])\n  .sort((a, b) => dkey(a['Дата']).localeCompare(dkey(b['Дата'])));\nconst lastRow = rows[rows.length - 1] || {};\nconst lastDate = dkey(lastRow['Дата']) || dkey(new Date().toISOString());\n\n// --- сегодня: сырая последняя строка + распарсенные ключевые метрики ---\nconst todayParsed = {};\nfor (const k of Object.keys(COL)) todayParsed[k] = num(lastRow[COL[k]]);\nconst rawToday = {};\nfor (const [key, val] of Object.entries(lastRow)) {\n  if (key === 'row_number') continue;\n  rawToday[key] = val;\n}\n\n// --- неделя (последние 14 точек) ---\nconst last14 = rows.slice(-14).map(r => {\n  const o = { date: dkey(r['Дата']) };\n  for (const k of Object.keys(COL)) o[k] = num(r[COL[k]]);\n  return o;\n});\n\n// --- тренды: эта неделя vs прошлая (7+7) ---\nconst wk = rows.slice(-7), pw = rows.slice(-14, -7);\nfunction trend(k) {\n  const a = avg(wk.map(r => num(r[COL[k]])));\n  const b = avg(pw.map(r => num(r[COL[k]])));\n  const delta_pct = (a != null && b != null && b !== 0) ? Math.round(((a - b) / b) * 100) : null;\n  return { this_week: r1(a), prev_week: r1(b), delta_pct };\n}\nconst trends = {};\nfor (const k of Object.keys(COL)) trends[k] = trend(k);\n\n// --- аномалии: самая свежая запись + история метрики за 14 дней ---\nconst anomSorted = [...anom].sort((a, b) => dkey(b.date).localeCompare(dkey(a.date)));\nconst latestAnom = anomSorted[0];\nlet anomalies = { report_date: null, count: 0, strong_count: 0, items: [] };\nif (latestAnom) {\n  let raw = [];\n  try { raw = JSON.parse(latestAnom.raw_anomalies || '[]'); } catch (e) {}\n  const hist14 = rows.slice(-14);\n  anomalies = {\n    report_date: dkey(latestAnom.date) || null,\n    count: Number(latestAnom.anomaly_count) || raw.length,\n    strong_count: Number(latestAnom.strong_count) || 0,\n    items: raw.map(a => ({\n      metric: a.metric || null,\n      label: a.label || a.metric || null,\n      direction: a.direction || null,\n      severity: a.severity || null,\n      interpretation: a.interpretation || null,\n      baseline_mean: num(a.baseline_mean),\n      history: hist14.map(r => num(r[a.metric])).filter(v => v != null),\n    })),\n  };\n}\n\n// --- корреляции: последний расчёт ---\nlet correlations = { computed: null, priority: [], discovery: [] };\nif (corr.length) {\n  const maxC = corr.map(r => dkey(r.date_computed)).sort().slice(-1)[0];\n  const latest = corr.filter(r => dkey(r.date_computed) === maxC);\n  correlations.computed = maxC;\n  for (const r of latest) {\n    const item = { a: r.metric_a, b: r.metric_b, lag: num(r.lag_days), r: num(r.r), n: num(r.n), p_adj: num(r.p_adj) };\n    if (String(r.type || '').includes('priority')) {\n      if (item.r != null && Math.abs(item.r) >= 0.2) correlations.priority.push(item);\n    } else {\n      correlations.discovery.push(item);\n    }\n  }\n  correlations.discovery = correlations.discovery\n    .sort((a, b) => Math.abs(b.r || 0) - Math.abs(a.r || 0)).slice(0, 12);\n}\n\n// --- последняя рекомендация советника ---\nconst recSorted = [...recs]\n  .filter(r => r.Recommendation_Text && dkey(r.Date) <= lastDate)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)));\nconst recommendation = recSorted[0] ? {\n  date: dkey(recSorted[0].Date),\n  period_type: recSorted[0].Period_Type || null,\n  text: recSorted[0].Recommendation_Text,\n} : null;\n\n// --- свежие записи медкарты (120 дней, до 15) ---\nconst since = new Date(new Date(lastDate).getTime() - 120 * 86400000).toISOString().slice(0, 10);\nconst medical_notes_recent = [...notes]\n  .filter(n => n.Date && dkey(n.Date) >= since && dkey(n.Date) <= lastDate && n.Note)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)))\n  .slice(0, 15)\n  .map(n => ({ date: dkey(n.Date), category: n.Category || null, note: n.Note }));\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  window: { from: last14[0] ? last14[0].date : null, to: lastDate },\n  today: { date: lastDate, parsed: todayParsed, raw: rawToday },\n  week: last14,\n  trends,\n  anomalies,\n  correlations,\n  recommendation,\n  medical_notes_recent,\n};\n\nconst sd = $getWorkflowStaticData('global');\nsd.healthDashboard = result;\nsd.healthComputedAt = result.updated_at;\n\nreturn [{ json: result }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -40
+      ],
+      "id": "e659cebe-c314-40ed-82d8-1df2cadee729",
+      "name": "Build Health JSON"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "health-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        200
+      ],
+      "id": "20a18edd-4664-4991-b5d4-8d10f8998411",
+      "name": "Webhook",
+      "webhookId": "9274afb4-90fc-4388-9f10-12e5ab75c217"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Отдаём кэш из Static Data. Проверяем токен.\nconst token = ($input.first().json.query || {}).token;\nif (token !== 'hd_7Kx92mQr4T') {\n  return [{ json: { error: 'forbidden' } }];\n}\nconst sd = $getWorkflowStaticData('global');\nconst cached = sd.healthDashboard;\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до 15 минут.' } }];\n}\nreturn [{ json: cached }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        200
+      ],
+      "id": "66a20031-cdeb-4a5f-afdb-d2096d4851e8",
+      "name": "Read Static Data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=60"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -460,
+        200
+      ],
+      "id": "1ca22d10-bb95-4596-baa6-906240eaac22",
+      "name": "Respond"
+    }
+  ],
+  "connections": {
+    "Every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Get Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Get Anomalies_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Anomalies_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Correlations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Correlations_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Doctor_Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Doctor_Notes": {
+      "main": [
+        [
+          {
+            "node": "Build Health JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Static Data": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "6ebd7157-6ab5-4694-a494-201d61fb5c5f",
+  "activeVersionId": "6ebd7157-6ab5-4694-a494-201d61fb5c5f",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-09-04T12:08:23.286Z",
+      "createdAt": "2026-09-04T12:08:23.286Z",
+      "role": "workflow:owner",
+      "workflowId": "d4a1f8c3-2e57-4b90-8a16-9c3d7e0b6f21",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-04T12:08:29.468Z",
+    "createdAt": "2026-09-04T12:08:29.468Z",
+    "versionId": "6ebd7157-6ab5-4694-a494-201d61fb5c5f",
+    "workflowId": "d4a1f8c3-2e57-4b90-8a16-9c3d7e0b6f21",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -900,
+          -40
+        ],
+        "id": "41cc4275-dc5d-49f0-ba08-86206656dcf6",
+        "name": "Every 15 min"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Daily_Trends",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -700,
+          -40
+        ],
+        "id": "b90a73ae-55e4-47f9-89a9-1843469547b4",
+        "name": "Get Daily_Trends",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Anomalies_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -520,
+          -40
+        ],
+        "id": "490f3480-368f-4eef-b076-bfd1dfd651bd",
+        "name": "Get Anomalies_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Correlations_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -340,
+          -40
+        ],
+        "id": "64658f85-2062-4f6d-afd4-7282cc287ee9",
+        "name": "Get Correlations_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Recommendations_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -160,
+          -40
+        ],
+        "id": "6664c331-f813-4fb3-bda2-05acbd498384",
+        "name": "Get Recommendations_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Doctor_Notes",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          20,
+          -40
+        ],
+        "id": "bd983c63-061d-4016-8f72-1a4cde69d6aa",
+        "name": "Get Doctor_Notes",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// health-dashboard — сборка JSON для вкладки «Здоровье». Пишет в Static Data.\n// Источники (по имени ноды): Get Daily_Trends, Get Anomalies_Log, Get Correlations_Log,\n// Get Recommendations_Log, Get Doctor_Notes. Все — книга Health_DB. Run Once for All Items.\n// Контракт намеренно «сырой/семантический» (не форматированные строки) — вёрстка ещё меняется.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace('%', '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction dkey(v) { return String(v == null ? '' : v).slice(0, 10); }\nfunction avg(a) { const x = a.filter(v => v != null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; }\nfunction r1(x) { return x == null ? null : Math.round(x * 10) / 10; }\n\nconst daily = safeAll('Get Daily_Trends');\nconst anom = safeAll('Get Anomalies_Log');\nconst corr = safeAll('Get Correlations_Log');\nconst recs = safeAll('Get Recommendations_Log');\nconst notes = safeAll('Get Doctor_Notes');\n\n// колонки Daily_Trends -> ключи фронта\nconst COL = {\n  hrv: 'ВСР_ночная',\n  rhr: 'Пульс_ночной_средний',\n  body_battery: 'Восстановление_BodyBattery',\n  sleep_score: 'Оценка_сна_балл',\n  sleep_min: 'Чистый_сон_мин',\n  stress: 'Стресс_дневной_средний',\n  steps: 'Шаги_за_вчера',\n};\n\nconst rows = daily\n  .filter(r => r['Дата'])\n  .sort((a, b) => dkey(a['Дата']).localeCompare(dkey(b['Дата'])));\nconst lastRow = rows[rows.length - 1] || {};\nconst lastDate = dkey(lastRow['Дата']) || dkey(new Date().toISOString());\n\n// --- сегодня: сырая последняя строка + распарсенные ключевые метрики ---\nconst todayParsed = {};\nfor (const k of Object.keys(COL)) todayParsed[k] = num(lastRow[COL[k]]);\nconst rawToday = {};\nfor (const [key, val] of Object.entries(lastRow)) {\n  if (key === 'row_number') continue;\n  rawToday[key] = val;\n}\n\n// --- неделя (последние 14 точек) ---\nconst last14 = rows.slice(-14).map(r => {\n  const o = { date: dkey(r['Дата']) };\n  for (const k of Object.keys(COL)) o[k] = num(r[COL[k]]);\n  return o;\n});\n\n// --- тренды: эта неделя vs прошлая (7+7) ---\nconst wk = rows.slice(-7), pw = rows.slice(-14, -7);\nfunction trend(k) {\n  const a = avg(wk.map(r => num(r[COL[k]])));\n  const b = avg(pw.map(r => num(r[COL[k]])));\n  const delta_pct = (a != null && b != null && b !== 0) ? Math.round(((a - b) / b) * 100) : null;\n  return { this_week: r1(a), prev_week: r1(b), delta_pct };\n}\nconst trends = {};\nfor (const k of Object.keys(COL)) trends[k] = trend(k);\n\n// --- аномалии: самая свежая запись + история метрики за 14 дней ---\nconst anomSorted = [...anom].sort((a, b) => dkey(b.date).localeCompare(dkey(a.date)));\nconst latestAnom = anomSorted[0];\nlet anomalies = { report_date: null, count: 0, strong_count: 0, items: [] };\nif (latestAnom) {\n  let raw = [];\n  try { raw = JSON.parse(latestAnom.raw_anomalies || '[]'); } catch (e) {}\n  const hist14 = rows.slice(-14);\n  anomalies = {\n    report_date: dkey(latestAnom.date) || null,\n    count: Number(latestAnom.anomaly_count) || raw.length,\n    strong_count: Number(latestAnom.strong_count) || 0,\n    items: raw.map(a => ({\n      metric: a.metric || null,\n      label: a.label || a.metric || null,\n      direction: a.direction || null,\n      severity: a.severity || null,\n      interpretation: a.interpretation || null,\n      baseline_mean: num(a.baseline_mean),\n      history: hist14.map(r => num(r[a.metric])).filter(v => v != null),\n    })),\n  };\n}\n\n// --- корреляции: последний расчёт ---\nlet correlations = { computed: null, priority: [], discovery: [] };\nif (corr.length) {\n  const maxC = corr.map(r => dkey(r.date_computed)).sort().slice(-1)[0];\n  const latest = corr.filter(r => dkey(r.date_computed) === maxC);\n  correlations.computed = maxC;\n  for (const r of latest) {\n    const item = { a: r.metric_a, b: r.metric_b, lag: num(r.lag_days), r: num(r.r), n: num(r.n), p_adj: num(r.p_adj) };\n    if (String(r.type || '').includes('priority')) {\n      if (item.r != null && Math.abs(item.r) >= 0.2) correlations.priority.push(item);\n    } else {\n      correlations.discovery.push(item);\n    }\n  }\n  correlations.discovery = correlations.discovery\n    .sort((a, b) => Math.abs(b.r || 0) - Math.abs(a.r || 0)).slice(0, 12);\n}\n\n// --- последняя рекомендация советника ---\nconst recSorted = [...recs]\n  .filter(r => r.Recommendation_Text && dkey(r.Date) <= lastDate)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)));\nconst recommendation = recSorted[0] ? {\n  date: dkey(recSorted[0].Date),\n  period_type: recSorted[0].Period_Type || null,\n  text: recSorted[0].Recommendation_Text,\n} : null;\n\n// --- свежие записи медкарты (120 дней, до 15) ---\nconst since = new Date(new Date(lastDate).getTime() - 120 * 86400000).toISOString().slice(0, 10);\nconst medical_notes_recent = [...notes]\n  .filter(n => n.Date && dkey(n.Date) >= since && dkey(n.Date) <= lastDate && n.Note)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)))\n  .slice(0, 15)\n  .map(n => ({ date: dkey(n.Date), category: n.Category || null, note: n.Note }));\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  window: { from: last14[0] ? last14[0].date : null, to: lastDate },\n  today: { date: lastDate, parsed: todayParsed, raw: rawToday },\n  week: last14,\n  trends,\n  anomalies,\n  correlations,\n  recommendation,\n  medical_notes_recent,\n};\n\nconst sd = $getWorkflowStaticData('global');\nsd.healthDashboard = result;\nsd.healthComputedAt = result.updated_at;\n\nreturn [{ json: result }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          -40
+        ],
+        "id": "e659cebe-c314-40ed-82d8-1df2cadee729",
+        "name": "Build Health JSON"
+      },
+      {
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "health-dashboard",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -900,
+          200
+        ],
+        "id": "20a18edd-4664-4991-b5d4-8d10f8998411",
+        "name": "Webhook",
+        "webhookId": "9274afb4-90fc-4388-9f10-12e5ab75c217"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Отдаём кэш из Static Data. Проверяем токен.\nconst token = ($input.first().json.query || {}).token;\nif (token !== 'hd_7Kx92mQr4T') {\n  return [{ json: { error: 'forbidden' } }];\n}\nconst sd = $getWorkflowStaticData('global');\nconst cached = sd.healthDashboard;\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до 15 минут.' } }];\n}\nreturn [{ json: cached }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -680,
+          200
+        ],
+        "id": "66a20031-cdeb-4a5f-afdb-d2096d4851e8",
+        "name": "Read Static Data"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, OPTIONS"
+                },
+                {
+                  "name": "Cache-Control",
+                  "value": "public, max-age=60"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -460,
+          200
+        ],
+        "id": "1ca22d10-bb95-4596-baa6-906240eaac22",
+        "name": "Respond"
+      }
+    ],
+    "connections": {
+      "Every 15 min": {
+        "main": [
+          [
+            {
+              "node": "Get Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Get Anomalies_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Anomalies_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Correlations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Correlations_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Doctor_Notes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Doctor_Notes": {
+        "main": [
+          [
+            {
+              "node": "Build Health JSON",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Read Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Static Data": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: health-dashboard cache v1)",
+    "name": "Patch 6ebd7157 — health-dashboard cache v1",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
