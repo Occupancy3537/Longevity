@@ -1,0 +1,1718 @@
+{
+  "updatedAt": "2026-09-05T12:49:11.000Z",
+  "createdAt": "2026-09-04T21:41:56.375Z",
+  "id": "WrMXhA3oQoqfoKbE",
+  "name": "health-dashboard (cache)",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -900,
+        -40
+      ],
+      "id": "63c0303d-f51a-4cae-ad60-73f939630f5c",
+      "name": "Every 15 min"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Daily_Trends",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -700,
+        -40
+      ],
+      "id": "26df2243-b786-44ed-ba29-f779e2c5dabb",
+      "name": "Get Daily_Trends",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Anomalies_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -520,
+        -40
+      ],
+      "id": "ad8087ce-e5e8-4e8d-b068-43318df3fbc1",
+      "name": "Get Anomalies_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Correlations_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -340,
+        -40
+      ],
+      "id": "5dd83971-43ff-4ca5-918b-9a449c3bc237",
+      "name": "Get Correlations_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Recommendations_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        -40
+      ],
+      "id": "13d20084-66eb-45b7-b6a4-df54f6ac6cb5",
+      "name": "Get Recommendations_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Doctor_Notes",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        20,
+        -40
+      ],
+      "id": "68048155-b3d3-4c96-845e-36a83c227e7e",
+      "name": "Get Doctor_Notes",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// health-dashboard — сборка JSON для вкладки «Здоровье». Пишет в Static Data.\n// Источники (по имени ноды): Get Daily_Trends, Get Anomalies_Log, Get Correlations_Log,\n// Get Recommendations_Log, Get Doctor_Notes. Все — книга Health_DB. Run Once for All Items.\n// Контракт намеренно «сырой/семантический» (не форматированные строки) — вёрстка ещё меняется.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace('%', '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction dkey(v) { return String(v == null ? '' : v).slice(0, 10); }\n// Doctor_Notes хранит дату как YYYY.MM.DD (точки) — dkey() тут даёт мусор при\n// сравнении с ISO-датами Daily_Trends. Нормализуем отдельно, как в advisor/phenoage.\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nfunction avg(a) { const x = a.filter(v => v != null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; }\nfunction r1(x) { return x == null ? null : Math.round(x * 10) / 10; }\n// Округление по величине: шаги/минуты не нужны с десятыми, ВСР/эффективность — нужны.\nfunction rSmart(x) {\n  if (x == null) return null;\n  return Math.abs(x) >= 100 ? Math.round(x) : Math.round(x * 10) / 10;\n}\n\nconst daily = safeAll('Get Daily_Trends');\nconst anom = safeAll('Get Anomalies_Log');\nconst corr = safeAll('Get Correlations_Log');\nconst recs = safeAll('Get Recommendations_Log');\nconst notes = safeAll('Get Doctor_Notes');\n\n// колонки Daily_Trends -> ключи фронта\nconst COL = {\n  hrv: 'ВСР_ночная',\n  rhr: 'Пульс_ночной_средний',\n  body_battery: 'Восстановление_BodyBattery',\n  sleep_score: 'Оценка_сна_балл',\n  sleep_min: 'Чистый_сон_мин',\n  stress: 'Стресс_дневной_средний',\n  steps: 'Шаги_за_вчера',\n  sleep_eff: 'Эффективность_сна_',\n  vo2max: 'VO2_Max',\n  respiration: 'Дыхание_ночь_среднее',\n  spo2: 'SpO2_ночь_среднее',\n};\n\n// Целевые зоны — популяционные ориентиры для графиков (не личная база).\n// null = зоны нет, ориентир только личная база.\nconst TARGET_ZONES = {\n  sleep_min:   { min: 420, max: 540, label: '7–9 ч' },\n  sleep_eff:   { min: 85,  max: 100, label: '85–100%' },\n  spo2:        { min: 95,  max: 100, label: '95–100%' },\n  respiration: { min: 12,  max: 20,  label: '12–20/мин' },\n};\n\n// ---------------------------------------------------------------------------\n// КОНФИГ МЕТРИК — зеркало конфига воркфлоу `Anomaly_Detector/Correlations`\n// (нода \"Anomaly Detection\"). direction и minAbsDelta ДОЛЖНЫ совпадать с ним:\n// это единственный источник правды «что считать хорошим» и «что считать шумом».\n// При правке там — поправить и здесь.\n// ---------------------------------------------------------------------------\nconst METRICS = [\n  { key: 'rhr',          col: 'Пульс_ночной_средний',       label: 'Пульс покоя',    unit: 'уд/мин', direction: 'lower_better',  minAbsDelta: 3 },\n  { key: 'hrv',          col: 'ВСР_ночная',                 label: 'ВСР ночью',      unit: 'мс',     direction: 'higher_better', minAbsDelta: 6 },\n  { key: 'body_battery', col: 'Восстановление_BodyBattery', label: 'Body Battery',   unit: '',       direction: 'higher_better', minAbsDelta: 12 },\n  { key: 'sleep_min',    col: 'Чистый_сон_мин',             label: 'Чистый сон',     unit: 'мин',    direction: 'higher_better', minAbsDelta: 30 },\n  { key: 'sleep_score',  col: 'Оценка_сна_балл',            label: 'Оценка сна',     unit: 'балл',   direction: 'higher_better', minAbsDelta: 7 },\n  { key: 'sleep_eff',    col: 'Эффективность_сна_',         label: 'Эффективность сна', unit: '%',   direction: 'higher_better', minAbsDelta: 4 },\n  { key: 'stress',       col: 'Стресс_дневной_средний',     label: 'Стресс дневной', unit: '',       direction: 'lower_better',  minAbsDelta: 6 },\n  { key: 'steps',        col: 'Шаги_за_вчера',              label: 'Шаги',           unit: '',       direction: 'neutral',       minAbsDelta: 3500 },\n  { key: 'vo2max',       col: 'VO2_Max',                    label: 'VO2 Max',        unit: '',       direction: 'higher_better', minAbsDelta: 2 },\n];\n\n// Метрики без личной базы — оцениваются по популяционному референсу, а не по «своей норме».\nconst REFERENCE_METRICS = [\n  { key: 'respiration', col: 'Дыхание_ночь_среднее', label: 'Дыхание ночью', unit: '/мин', ref_min: 12, ref_max: 20 },\n  { key: 'spo2',        col: 'SpO2_ночь_среднее',    label: 'SpO2 ночью',    unit: '%',    ref_min: 95, ref_max: 100 },\n];\n\nconst BASE_WINDOWS = [ { days: 30, minPoints: 10 }, { days: 7, minPoints: 4 } ];\n\n// Базовая линия = среднее по окну ДО текущего дня (как в детекторе аномалий).\nfunction baselineFor(sortedRows, col, uptoIdx, windowDays, minPoints) {\n  const cur = new Date(dkey(sortedRows[uptoIdx]['Дата']) + 'T00:00:00Z');\n  const from = new Date(cur); from.setUTCDate(from.getUTCDate() - windowDays);\n  const vals = [];\n  for (let i = 0; i < uptoIdx; i++) {\n    const d = new Date(dkey(sortedRows[i]['Дата']) + 'T00:00:00Z');\n    if (d >= from && d < cur) {\n      const v = num(sortedRows[i][col]);\n      if (v != null) vals.push(v);\n    }\n  }\n  if (vals.length < minPoints) return null;\n  const m = vals.reduce((s, v) => s + v, 0) / vals.length;\n  const sd = vals.length > 1\n    ? Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / (vals.length - 1))\n    : null;\n  return { mean: m, std: sd, n: vals.length, days: windowDays };\n}\n\n// judgment считает БЭКЕНД, фронтенд только отображает.\n// Отклонение меньше minAbsDelta = шум, а не сигнал.\nfunction judge(direction, deltaAbs, minAbsDelta) {\n  if (direction === 'neutral') return 'neutral';\n  if (deltaAbs == null || Math.abs(deltaAbs) < minAbsDelta) return 'neutral';\n  const better = direction === 'higher_better' ? deltaAbs > 0 : deltaAbs < 0;\n  return better ? 'good' : 'bad';\n}\n\nconst rows = daily\n  .filter(r => r['Дата'])\n  .sort((a, b) => dkey(a['Дата']).localeCompare(dkey(b['Дата'])));\nconst lastRow = rows[rows.length - 1] || {};\nconst lastDate = dkey(lastRow['Дата']) || dkey(new Date().toISOString());\n\n// --- сегодня: сырая последняя строка + распарсенные ключевые метрики ---\nconst todayParsed = {};\nfor (const k of Object.keys(COL)) todayParsed[k] = num(lastRow[COL[k]]);\nconst rawToday = {};\nfor (const [key, val] of Object.entries(lastRow)) {\n  if (key === 'row_number') continue;\n  rawToday[key] = val;\n}\n\n// --- метрики с личной базой (Фаза 1): value + baseline + delta + judgment ---\nconst lastIdx = rows.length - 1;\nconst metrics = [];\nfor (const m of METRICS) {\n  const value = num(lastRow[m.col]);\n  let base = null;\n  if (lastIdx > 0) {\n    for (const w of BASE_WINDOWS) {\n      base = baselineFor(rows, m.col, lastIdx, w.days, w.minPoints);\n      if (base) break;\n    }\n  }\n  const deltaAbs = (value != null && base) ? value - base.mean : null;\n  const deltaPct = (deltaAbs != null && base.mean) ? (deltaAbs / base.mean) * 100 : null;\n  metrics.push({\n    key: m.key, label: m.label, unit: m.unit,\n    value: value != null ? rSmart(value) : null,\n    baseline: base ? rSmart(base.mean) : null,\n    baseline_days: base ? base.days : null,\n    baseline_n: base ? base.n : null,\n    delta_abs: deltaAbs != null ? rSmart(deltaAbs) : null,\n    delta_pct: deltaPct != null ? Math.round(deltaPct) : null,\n    z: (value != null && base && base.std) ? Math.round(((value - base.mean) / base.std) * 100) / 100 : null,\n    direction: m.direction,\n    judgment: judge(m.direction, deltaAbs, m.minAbsDelta),\n    kind: 'baseline',\n  });\n}\n// метрики без личной базы — по популяционному референсу\nfor (const m of REFERENCE_METRICS) {\n  const value = num(lastRow[m.col]);\n  let judgment = 'neutral';\n  if (value != null) judgment = (value >= m.ref_min && value <= m.ref_max) ? 'good' : 'bad';\n  metrics.push({\n    key: m.key, label: m.label, unit: m.unit,\n    value: value != null ? r1(value) : null,\n    ref_min: m.ref_min, ref_max: m.ref_max,\n    baseline: null, delta_abs: null, delta_pct: null,\n    direction: 'reference', judgment, kind: 'reference',\n  });\n}\n\n// --- последние 14 дней (точки для графиков) ---\n// Каждый день получает и значение, и оценку <key>_j относительно текущей личной базы,\n// по тем же direction/minAbsDelta. Фронтенд не считает «хорошо/плохо» сам.\nconst metricByKey = {};\nmetrics.forEach(m => { metricByKey[m.key] = m; });\nconst cfgByKey = {};\nMETRICS.forEach(m => { cfgByKey[m.key] = m; });\n\nconst last14 = rows.slice(-14).map(r => {\n  const o = { date: dkey(r['Дата']) };\n  for (const k of Object.keys(COL)) {\n    const v = num(r[COL[k]]);\n    o[k] = v;\n    const cfg = cfgByKey[k];\n    const met = metricByKey[k];\n    if (cfg && met && met.baseline != null && v != null) {\n      o[k + '_j'] = judge(cfg.direction, v - met.baseline, cfg.minAbsDelta);\n    } else if (TARGET_ZONES[k] && v != null) {\n      const z = TARGET_ZONES[k];\n      o[k + '_j'] = (v >= z.min && v <= z.max) ? 'good' : 'bad';\n    } else {\n      o[k + '_j'] = 'neutral';\n    }\n  }\n  return o;\n});\n\n// --- тренды: эта неделя vs прошлая (7+7) ---\nconst wk = rows.slice(-7), pw = rows.slice(-14, -7);\nfunction trend(k) {\n  const a = avg(wk.map(r => num(r[COL[k]])));\n  const b = avg(pw.map(r => num(r[COL[k]])));\n  const delta_pct = (a != null && b != null && b !== 0) ? Math.round(((a - b) / b) * 100) : null;\n  const delta_abs = (a != null && b != null) ? a - b : null;\n  // направление и порог шума берём из того же конфига METRICS — второй логики «хорошо/плохо» нет\n  const cfg = METRICS.find(m => m.key === k);\n  const direction = cfg ? cfg.direction : 'neutral';\n  const judgment = cfg ? judge(direction, delta_abs, cfg.minAbsDelta) : 'neutral';\n  return { this_week: rSmart(a), prev_week: rSmart(b), delta_abs: rSmart(delta_abs), delta_pct, direction, judgment };\n}\nconst trends = {};\nfor (const k of Object.keys(COL)) trends[k] = trend(k);\n\n// --- аномалии: самая свежая запись + история метрики за 14 дней ---\nconst anomSorted = [...anom].sort((a, b) => dkey(b.date).localeCompare(dkey(a.date)));\nconst latestAnom = anomSorted[0];\nlet anomalies = { report_date: null, count: 0, strong_count: 0, items: [] };\nif (latestAnom) {\n  let raw = [];\n  try { raw = JSON.parse(latestAnom.raw_anomalies || '[]'); } catch (e) {}\n  const hist14 = rows.slice(-14);\n  anomalies = {\n    report_date: dkey(latestAnom.date) || null,\n    count: Number(latestAnom.anomaly_count) || raw.length,\n    strong_count: Number(latestAnom.strong_count) || 0,\n    items: raw.map(a => ({\n      metric: a.metric || null,\n      label: a.label || a.metric || null,\n      direction: a.direction || null,\n      severity: a.severity || null,\n      interpretation: a.interpretation || null,\n      baseline_mean: num(a.baseline_mean),\n      history: hist14.map(r => num(r[a.metric])).filter(v => v != null),\n    })),\n  };\n}\n\n// --- корреляции: последний расчёт ---\nlet correlations = { computed: null, priority: [], discovery: [] };\nif (corr.length) {\n  const maxC = corr.map(r => dkey(r.date_computed)).sort().slice(-1)[0];\n  const latest = corr.filter(r => dkey(r.date_computed) === maxC);\n  correlations.computed = maxC;\n  for (const r of latest) {\n    const item = { a: r.metric_a, b: r.metric_b, lag: num(r.lag_days), r: num(r.r), n: num(r.n), p_adj: num(r.p_adj) };\n    if (String(r.type || '').includes('priority')) {\n      if (item.r != null && Math.abs(item.r) >= 0.2) correlations.priority.push(item);\n    } else {\n      correlations.discovery.push(item);\n    }\n  }\n  correlations.discovery = correlations.discovery\n    .sort((a, b) => Math.abs(b.r || 0) - Math.abs(a.r || 0)).slice(0, 12);\n}\n\n// --- последняя рекомендация советника ---\nconst recSorted = [...recs]\n  .filter(r => r.Recommendation_Text && dkey(r.Date) <= lastDate)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)));\nconst recParsedLatest = recSorted[0] ? parseActions(recSorted[0].Recommendation_Text) : null;\nconst recommendation = recSorted[0] ? {\n  date: dkey(recSorted[0].Date),\n  period_type: recSorted[0].Period_Type || null,\n  text: stripActions(recSorted[0].Recommendation_Text),\n  actions: recParsedLatest ? recParsedLatest.actions : [],\n} : null;\n\n// --- Фаза 5: гипотезы-эксперименты из Correlations_Log ---\n// Человеческие подписи колонок Daily_Trends для читаемых формулировок.\nconst COL_LABEL = {\n  'Чистый_сон_мин':'чистый сон', 'Эффективность_сна_':'эффективность сна', 'Оценка_сна_балл':'оценка сна',\n  'Пульс_ночной_средний':'пульс покоя', 'ВСР_ночная':'ВСР', 'Восстановление_BodyBattery':'Body Battery',\n  'Стресс_дневной_средний':'дневной стресс', 'Шаги_за_вчера':'шаги', 'VO2_Max':'VO2 Max',\n  'Питание_Всего_Ккал':'калории', 'Питание_Всего_Белки_г':'белок', 'Питание_Всего_Жиры_г':'жиры',\n  'Питание_Всего_Углеводы_г':'углеводы', 'Алкоголь_гр':'алкоголь', 'Время_последнего_кофе':'время последнего кофе',\n  'Экранное_время_всего_ч':'экранное время', 'Экран_перед_сном_мин':'экран перед сном',\n  'Тренировка_Ккал':'нагрузка', 'Окно_голода_до_сна_ч':'окно голода до сна',\n  'Длительность_голода_ч':'длительность голода', 'Температура_avg_C':'температура',\n  'Атмосферное_давление_ночь_hPa':'атм. давление', 'Пробуждения_кол_во':'пробуждения',\n};\nfunction colLabel(c) {\n  if (!c) return '';\n  return COL_LABEL[c] || String(c).replace(/_/g, ' ').replace(/\\s+/g, ' ').trim().toLowerCase();\n}\n\n// Не всякая сильная корреляция — инсайт. Отсекаем два класса мусора:\n//  1) тавтологии внутри архитектуры сна (эффективность сна СЧИТАЕТСЯ из бодрствования);\n//  2) «нутриент ↔ нутриент» — это просто состав еды, а не поведение → результат.\n// Интересна только связка «то, чем я управляю» × «физиология/сон».\nconst FAM_SLEEP = new Set(['Чистый_сон_мин','REM_сон_мин','Легкий_сон_мин','Бодрствование_мин',\n  'Эффективность_сна_','Оценка_сна_балл','Время_в_кровати_мин','Пробуждения_кол_во','Глубокий_сон_мин']);\nconst FAM_INTAKE = new Set(['Кофеин','Добавленный сахар','Клетчатка','Железо','Калий','Магний','Цинк',\n  'Витамин B12','Витамин D','Витамин Е','Омега-3 (EPA/DHA)','Ужин_Жиры_г','Алкоголь_гр',\n  'Питание_Всего_Ккал','Питание_Всего_Белки_г','Питание_Всего_Жиры_г','Питание_Всего_Углеводы_г']);\nconst FAM_ACT = new Set(['Тренировка_Ккал','Шаги_за_вчера','Экранное_время_всего_ч','Экран_перед_сном_мин']);\nconst FAM_PHYS = new Set(['ВСР_ночная','Восстановление_BodyBattery','Пульс_ночной_средний',\n  'Стресс_дневной_средний','VO2_Max']);\nfunction famOf(c) {\n  if (FAM_SLEEP.has(c)) return 'sleep';\n  if (FAM_INTAKE.has(c)) return 'intake';\n  if (FAM_ACT.has(c)) return 'activity';\n  if (FAM_PHYS.has(c)) return 'physio';\n  return 'other';\n}\nfunction isActionablePair(a, b) {\n  const fa = famOf(a), fb = famOf(b);\n  if (fa === fb) return false;                       // одна семья — тавтология или состав еды\n  const lever = ['intake','activity'];\n  const outcome = ['sleep','physio'];\n  return (lever.includes(fa) && outcome.includes(fb)) || (lever.includes(fb) && outcome.includes(fa));\n}\n\nconst experiments = [];\nif (corr.length) {\n  const maxC2 = corr.map(r => dkey(r.date_computed)).sort().slice(-1)[0];\n  const seenPair = new Set();\n  corr.filter(r => dkey(r.date_computed) === maxC2)\n    .map(r => ({\n      a: r.metric_a, b: r.metric_b, r: num(r.r), n: num(r.n),\n      p: num(r.p_adj), lag: num(r.lag_days), type: String(r.type || ''),\n    }))\n    .filter(x => x.r != null && x.n != null && x.n >= 30 && Math.abs(x.r) >= 0.25)\n    .filter(x => isActionablePair(x.a, x.b))\n    .sort((x, y) => Math.abs(y.r) - Math.abs(x.r))\n    .forEach(x => {\n      const key = [x.a, x.b].sort().join('|');\n      if (seenPair.has(key)) return;\n      seenPair.add(key);\n      if (experiments.length >= 2) return;\n      // рычаг всегда ставим в начало формулировки: «больше X → Y выше/ниже»\n      const leverIsA = ['intake','activity'].includes(famOf(x.a));\n      const lever = leverIsA ? x.a : x.b;\n      const outcome = leverIsA ? x.b : x.a;\n      const solid = (x.p != null && x.p < 0.05) && x.n >= 21;\n      experiments.push({\n        hypothesis: 'больше «' + colLabel(lever) + '» → ' + colLabel(outcome) + (x.r > 0 ? ' выше' : ' ниже'),\n        lever: colLabel(lever), outcome: colLabel(outcome),\n        r: Math.round(x.r * 100) / 100, n: x.n,\n        p_adj: x.p != null ? Math.round(x.p * 1000) / 1000 : null,\n        lag_days: x.lag,\n        strength: Math.abs(x.r) >= 0.6 ? 'сильная' : Math.abs(x.r) >= 0.45 ? 'заметная' : 'слабая',\n        status: solid ? 'supported' : 'candidate',\n        confidence: solid\n          ? 'подтверждается статистикой (p<0.05)'\n          : 'НЕ подтверждено статистикой — пока только кандидат, нужно больше данных',\n        priority: x.type.includes('priority'),\n      });\n    });\n}\n\n// --- Фаза 3/4: структурные действия советника и замкнутые циклы ---\n// Блок <<<ACTIONS {...} ACTIONS>>> дописывается советником в конец Recommendation_Text.\nfunction parseActions(txt) {\n  const m = String(txt || '').match(/<<<ACTIONS\\s*([\\s\\S]*?)\\s*ACTIONS>>>/);\n  if (!m) return null;\n  try {\n    const o = JSON.parse(m[1].trim());\n    if (!o || !Array.isArray(o.actions)) return null;\n    return o;\n  } catch (e) { return null; }\n}\nfunction stripActions(txt) {\n  return String(txt || '').replace(/<<<ACTIONS[\\s\\S]*?ACTIONS>>>/, '').trim();\n}\n// среднее метрики за окно [from, to] включительно\nfunction meanBetween(col, fromISO, toISO) {\n  const vals = [];\n  for (const r of rows) {\n    const d = dkey(r['Дата']);\n    if (d >= fromISO && d <= toISO) {\n      const v = num(r[col]);\n      if (v != null) vals.push(v);\n    }\n  }\n  return vals.length ? { mean: vals.reduce((s, v) => s + v, 0) / vals.length, n: vals.length } : null;\n}\nfunction shiftDays(iso, n) {\n  const d = new Date(iso + 'T00:00:00Z');\n  d.setUTCDate(d.getUTCDate() + n);\n  return d.toISOString().slice(0, 10);\n}\n\nconst recsWithActions = [...recs]\n  .filter(r => r.Recommendation_Text && d10(r.Date))\n  .map(r => ({ date: d10(r.Date), parsed: parseActions(r.Recommendation_Text) }))\n  .filter(r => r.parsed && r.parsed.actions.length)\n  .sort((a, b) => b.date.localeCompare(a.date));\n\n// Замкнутые циклы: для советов, с момента которых прошло >= 7 дней,\n// сравниваем 7 дней ДО выдачи и 7 дней ПОСЛЕ по метрике действия.\nconst action_loops = [];\nfor (const rec of recsWithActions) {\n  if (shiftDays(rec.date, 7) > lastDate) continue;   // неделя ещё не прошла\n  for (const a of rec.parsed.actions) {\n    if (!a.metric) continue;\n    const cfg = METRICS.find(m => m.key === a.metric);\n    if (!cfg) continue;\n    const before = meanBetween(cfg.col, shiftDays(rec.date, -6), rec.date);\n    const after  = meanBetween(cfg.col, shiftDays(rec.date, 1), shiftDays(rec.date, 7));\n    if (!before || !after) continue;\n    const delta = after.mean - before.mean;\n    const j = judge(cfg.direction, delta, cfg.minAbsDelta);\n    action_loops.push({\n      issued: rec.date,\n      title: a.title,\n      metric: a.metric,\n      metric_label: cfg.label,\n      unit: cfg.unit,\n      before: rSmart(before.mean),\n      after: rSmart(after.mean),\n      delta_abs: rSmart(delta),\n      judgment: j,\n      status: j === 'good' ? 'сработало' : j === 'bad' ? 'стало хуже' : 'без изменений',\n      expect: a.expect || '',\n    });\n  }\n  if (action_loops.length >= 3) break;\n}\n\n// --- свежие записи медкарты (120 дней, до 15) ---\nconst since = new Date(new Date(lastDate).getTime() - 120 * 86400000).toISOString().slice(0, 10);\nconst medical_notes_recent = [...notes]\n  .filter(n => n.Date && d10(n.Date) >= since && d10(n.Date) <= lastDate && n.Note)\n  .sort((a, b) => d10(b.Date).localeCompare(d10(a.Date)))\n  .slice(0, 15)\n  .map(n => ({ date: d10(n.Date), category: n.Category || null, note: n.Note }));\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  window: { from: last14[0] ? last14[0].date : null, to: lastDate },\n  today: { date: lastDate, parsed: todayParsed, raw: rawToday },\n  metrics,          // Фаза 1: значение + личная база + judgment (считает бэкенд)\n  target_zones: TARGET_ZONES,   // Фаза 2: популяционные зоны для графиков\n  days_14: last14,  // бывш. `week` — тут 14 дней, а не 7\n  trends,\n  anomalies,\n  correlations,\n  recommendation,\n  action_loops,     // Фаза 4: советы, у которых уже можно измерить результат\n  experiments,      // Фаза 5: гипотезы «рычаг → результат» (мусорные пары отсеяны)\n  experiments_note: experiments.length ? null : 'Действенных связей «поведение → результат» пока не найдено: все сильные корреляции в данных — это либо состав еды (нутриент ↔ нутриент), либо внутренняя арифметика сна.',\n  medical_notes_recent,\n};\n\nconst sd = $getWorkflowStaticData('global');\nsd.healthDashboard = result;\nsd.healthComputedAt = result.updated_at;\n\nreturn [{ json: result }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -40
+      ],
+      "id": "c96788cf-5109-4a92-8326-0d83035dd915",
+      "name": "Build Health JSON"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "health-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        200
+      ],
+      "id": "3b5021f1-63fd-4bf6-84eb-c5e7245161d7",
+      "name": "Webhook",
+      "webhookId": "c45e3346-ebc9-40cd-8bcb-4b831b4a2b3d"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Отдаём кэш из Static Data. Проверяем токен.\nconst token = ($input.first().json.query || {}).token;\nif (token !== 'hd_7Kx92mQr4T') {\n  return [{ json: { error: 'forbidden' } }];\n}\nconst sd = $getWorkflowStaticData('global');\nconst cached = sd.healthDashboard;\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до 15 минут.' } }];\n}\nreturn [{ json: cached }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        200
+      ],
+      "id": "d75a75bc-4960-4ca0-b9c4-bdc75e19c4b4",
+      "name": "Read Static Data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=60"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -460,
+        200
+      ],
+      "id": "51f9a7bf-bd76-4ea7-b1b2-6a770fbdda08",
+      "name": "Respond"
+    }
+  ],
+  "connections": {
+    "Every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Get Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Get Anomalies_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Anomalies_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Correlations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Correlations_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Doctor_Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Doctor_Notes": {
+      "main": [
+        [
+          {
+            "node": "Build Health JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Static Data": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": {
+    "node:Every 15 min": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "healthDashboard": {
+        "updated_at": "2026-09-05T15:45:29.283Z",
+        "window": {
+          "from": "2026-08-23",
+          "to": "2026-09-05"
+        },
+        "today": {
+          "date": "2026-09-05",
+          "parsed": {
+            "hrv": 44,
+            "rhr": 49,
+            "body_battery": 68,
+            "sleep_score": 85,
+            "sleep_min": 489,
+            "stress": 26,
+            "steps": 18575,
+            "sleep_eff": 92.8,
+            "vo2max": 43,
+            "respiration": 14,
+            "spo2": 98
+          },
+          "raw": {
+            "Дата": "2026-09-05",
+            "Время_отбоя": "2026-09-04 22:34:36",
+            "Время_подъема": "2026-09-05 7:21:36",
+            "Время_в_кровати_мин": 527,
+            "Чистый_сон_мин": 489,
+            "Эффективность_сна_": "92.8%",
+            "Глубокий_сон_мин": 97,
+            "Глубокий_1_половина_мин": 97,
+            "Глубокий_2_половина_мин": 0,
+            "REM_сон_мин": 104,
+            "Легкий_сон_мин": 288,
+            "Пробуждения_кол_во": 2,
+            "Бодрствование_мин": 38,
+            "Пульс_ночной_средний": 49,
+            "Пульс_ночной_мин": 47,
+            "Пульс_ночной_макс": 70,
+            "Оценка_сна_балл": 85,
+            "Беспокойные_моменты": 43,
+            "Дыхание_ночь_среднее": 14,
+            "SpO2_ночь_среднее": 98,
+            "Температура_avg_C": 26.1,
+            "Влажность_avg_%": 61.3,
+            "PM25_avg": 1,
+            "Ужин_время": "2026-09-04T20:50:47.000+10:00",
+            "Завтрак_время": "2026-09-05T08:04:28.000+10:00",
+            "Окно_голода_до_сна_ч": 1.7,
+            "Длительность_голода_ч": 11.2,
+            "Ужин_Ккал": 1281,
+            "Ужин_Белки_г": 61.8,
+            "Ужин_Жиры_г": 48,
+            "Ужин_Углеводы_г": 159.8,
+            "Шаги_за_вчера": 18575,
+            "Тренировка_Ккал": 322,
+            "Тренировка_поздняя": "Нет",
+            "Атмосферное_давление_ночь_hPa": 1015.3,
+            "Лекарства_принимаемые": "",
+            "Время_последнего_кофе": "",
+            "Алкоголь_гр": 0,
+            "Жалобы_вчера": "",
+            "Пометки": "",
+            "Дефициты": "",
+            "Экранное_время_всего_ч": 3.5,
+            "Экран_Продуктивно_ч": 2.4,
+            "Экран_Отвлечения_ч": 0.1,
+            "Восстановление_BodyBattery": 68,
+            "Стресс_дневной_средний": 26,
+            "VO2_Max": 43,
+            "Дыхание_тип": "Нет",
+            "Дыхание_мин": 0,
+            "Экран_перед_сном_мин": 36.7,
+            "ВСР_ночная": 44,
+            "Питание_Всего_Ккал": 2901,
+            "Питание_Всего_Белки_г": 136.4,
+            "Питание_Всего_Жиры_г": 107.9,
+            "Питание_Всего_Углеводы_г": 357.5,
+            "Тренировка_1_Тип": "Находка Ходьба",
+            "Тренировка_1_Мин": 73,
+            "Тренировка_2_Тип": "",
+            "Тренировка_2_Мин": "",
+            "Тренировка_3_Тип": "",
+            "Тренировка_3_Мин": "",
+            "Темп_тренировки_avg_C": 29.7,
+            "Темп_тренировки_min_C": 27,
+            "Темп_тренировки_max_C": 34,
+            "Training_Status": "RECOVERY_1",
+            "Training_Acute_Load": 26,
+            "Training_Chronic_Load": 176,
+            "Точка_росы_avg_C": 18.1,
+            "Атм_давление_Дельта_12ч": -0.4,
+            "Атм_давление_Дельта_24ч": 1.7,
+            "Освещенность_ч_сутки": 12.4,
+            "Индекс_когнитивной_нагрузки": 1
+          }
+        },
+        "metrics": [
+          {
+            "key": "rhr",
+            "label": "Пульс покоя",
+            "unit": "уд/мин",
+            "value": 49,
+            "baseline": 48.9,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": 0.1,
+            "delta_pct": 0,
+            "z": 0.09,
+            "direction": "lower_better",
+            "judgment": "neutral",
+            "kind": "baseline"
+          },
+          {
+            "key": "hrv",
+            "label": "ВСР ночью",
+            "unit": "мс",
+            "value": 44,
+            "baseline": 46.8,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": -2.8,
+            "delta_pct": -6,
+            "z": -0.57,
+            "direction": "higher_better",
+            "judgment": "neutral",
+            "kind": "baseline"
+          },
+          {
+            "key": "body_battery",
+            "label": "Body Battery",
+            "unit": "",
+            "value": 68,
+            "baseline": 68.1,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": -0.1,
+            "delta_pct": 0,
+            "z": -0.01,
+            "direction": "higher_better",
+            "judgment": "neutral",
+            "kind": "baseline"
+          },
+          {
+            "key": "sleep_min",
+            "label": "Чистый сон",
+            "unit": "мин",
+            "value": 489,
+            "baseline": 428,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": 60.6,
+            "delta_pct": 14,
+            "z": 1.75,
+            "direction": "higher_better",
+            "judgment": "good",
+            "kind": "baseline"
+          },
+          {
+            "key": "sleep_score",
+            "label": "Оценка сна",
+            "unit": "балл",
+            "value": 85,
+            "baseline": 83.1,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": 1.9,
+            "delta_pct": 2,
+            "z": 0.31,
+            "direction": "higher_better",
+            "judgment": "neutral",
+            "kind": "baseline"
+          },
+          {
+            "key": "sleep_eff",
+            "label": "Эффективность сна",
+            "unit": "%",
+            "value": 92.8,
+            "baseline": 92.2,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": 0.6,
+            "delta_pct": 1,
+            "z": 0.03,
+            "direction": "higher_better",
+            "judgment": "neutral",
+            "kind": "baseline"
+          },
+          {
+            "key": "stress",
+            "label": "Стресс дневной",
+            "unit": "",
+            "value": 26,
+            "baseline": 33.2,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": -7.2,
+            "delta_pct": -22,
+            "z": -2.38,
+            "direction": "lower_better",
+            "judgment": "good",
+            "kind": "baseline"
+          },
+          {
+            "key": "steps",
+            "label": "Шаги",
+            "unit": "",
+            "value": 18575,
+            "baseline": 13640,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": 4935,
+            "delta_pct": 36,
+            "z": 1.42,
+            "direction": "neutral",
+            "judgment": "neutral",
+            "kind": "baseline"
+          },
+          {
+            "key": "vo2max",
+            "label": "VO2 Max",
+            "unit": "",
+            "value": 43,
+            "baseline": 42.3,
+            "baseline_days": 30,
+            "baseline_n": 30,
+            "delta_abs": 0.7,
+            "delta_pct": 2,
+            "z": 1.63,
+            "direction": "higher_better",
+            "judgment": "neutral",
+            "kind": "baseline"
+          },
+          {
+            "key": "respiration",
+            "label": "Дыхание ночью",
+            "unit": "/мин",
+            "value": 14,
+            "ref_min": 12,
+            "ref_max": 20,
+            "baseline": null,
+            "delta_abs": null,
+            "delta_pct": null,
+            "direction": "reference",
+            "judgment": "good",
+            "kind": "reference"
+          },
+          {
+            "key": "spo2",
+            "label": "SpO2 ночью",
+            "unit": "%",
+            "value": 98,
+            "ref_min": 95,
+            "ref_max": 100,
+            "baseline": null,
+            "delta_abs": null,
+            "delta_pct": null,
+            "direction": "reference",
+            "judgment": "good",
+            "kind": "reference"
+          }
+        ],
+        "target_zones": {
+          "sleep_min": {
+            "min": 420,
+            "max": 540,
+            "label": "7–9 ч"
+          },
+          "sleep_eff": {
+            "min": 85,
+            "max": 100,
+            "label": "85–100%"
+          },
+          "spo2": {
+            "min": 95,
+            "max": 100,
+            "label": "95–100%"
+          },
+          "respiration": {
+            "min": 12,
+            "max": 20,
+            "label": "12–20/мин"
+          }
+        },
+        "days_14": [
+          {
+            "date": "2026-08-23",
+            "hrv": 59,
+            "hrv_j": "good",
+            "rhr": 50,
+            "rhr_j": "neutral",
+            "body_battery": 79,
+            "body_battery_j": "neutral",
+            "sleep_score": 88,
+            "sleep_score_j": "neutral",
+            "sleep_min": 478,
+            "sleep_min_j": "good",
+            "stress": 32,
+            "stress_j": "neutral",
+            "steps": 20002,
+            "steps_j": "neutral",
+            "sleep_eff": 98.4,
+            "sleep_eff_j": "good",
+            "vo2max": 42,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-24",
+            "hrv": 53,
+            "hrv_j": "good",
+            "rhr": 48,
+            "rhr_j": "neutral",
+            "body_battery": 68,
+            "body_battery_j": "neutral",
+            "sleep_score": 83,
+            "sleep_score_j": "neutral",
+            "sleep_min": 428,
+            "sleep_min_j": "neutral",
+            "stress": 29,
+            "stress_j": "neutral",
+            "steps": 8993,
+            "steps_j": "neutral",
+            "sleep_eff": 91.5,
+            "sleep_eff_j": "neutral",
+            "vo2max": 42,
+            "vo2max_j": "neutral",
+            "respiration": 14,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-25",
+            "hrv": 44,
+            "hrv_j": "neutral",
+            "rhr": 48,
+            "rhr_j": "neutral",
+            "body_battery": 77,
+            "body_battery_j": "neutral",
+            "sleep_score": 95,
+            "sleep_score_j": "good",
+            "sleep_min": 499,
+            "sleep_min_j": "good",
+            "stress": 35,
+            "stress_j": "neutral",
+            "steps": 13415,
+            "steps_j": "neutral",
+            "sleep_eff": 98.8,
+            "sleep_eff_j": "good",
+            "vo2max": 42,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-26",
+            "hrv": 52,
+            "hrv_j": "neutral",
+            "rhr": 48,
+            "rhr_j": "neutral",
+            "body_battery": 63,
+            "body_battery_j": "neutral",
+            "sleep_score": 80,
+            "sleep_score_j": "neutral",
+            "sleep_min": 400,
+            "sleep_min_j": "neutral",
+            "stress": 32,
+            "stress_j": "neutral",
+            "steps": 12059,
+            "steps_j": "neutral",
+            "sleep_eff": 95.7,
+            "sleep_eff_j": "neutral",
+            "vo2max": 42,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-27",
+            "hrv": 57,
+            "hrv_j": "good",
+            "rhr": 48,
+            "rhr_j": "neutral",
+            "body_battery": 56,
+            "body_battery_j": "bad",
+            "sleep_score": 69,
+            "sleep_score_j": "bad",
+            "sleep_min": 370,
+            "sleep_min_j": "bad",
+            "stress": 33,
+            "stress_j": "neutral",
+            "steps": 11489,
+            "steps_j": "neutral",
+            "sleep_eff": 80.8,
+            "sleep_eff_j": "bad",
+            "vo2max": 42,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-28",
+            "hrv": 41,
+            "hrv_j": "neutral",
+            "rhr": 50,
+            "rhr_j": "neutral",
+            "body_battery": 71,
+            "body_battery_j": "neutral",
+            "sleep_score": 90,
+            "sleep_score_j": "neutral",
+            "sleep_min": 474,
+            "sleep_min_j": "good",
+            "stress": 35,
+            "stress_j": "neutral",
+            "steps": 13911,
+            "steps_j": "neutral",
+            "sleep_eff": 98.3,
+            "sleep_eff_j": "good",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 14,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-29",
+            "hrv": 49,
+            "hrv_j": "neutral",
+            "rhr": 49,
+            "rhr_j": "neutral",
+            "body_battery": 70,
+            "body_battery_j": "neutral",
+            "sleep_score": 84,
+            "sleep_score_j": "neutral",
+            "sleep_min": 428,
+            "sleep_min_j": "neutral",
+            "stress": 34,
+            "stress_j": "neutral",
+            "steps": 15949,
+            "steps_j": "neutral",
+            "sleep_eff": 98.4,
+            "sleep_eff_j": "good",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 14,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-30",
+            "hrv": 45,
+            "hrv_j": "neutral",
+            "rhr": 46,
+            "rhr_j": "neutral",
+            "body_battery": 72,
+            "body_battery_j": "neutral",
+            "sleep_score": 85,
+            "sleep_score_j": "neutral",
+            "sleep_min": 450,
+            "sleep_min_j": "neutral",
+            "stress": 30,
+            "stress_j": "neutral",
+            "steps": 8973,
+            "steps_j": "neutral",
+            "sleep_eff": 93.8,
+            "sleep_eff_j": "neutral",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 14,
+            "respiration_j": "good",
+            "spo2": 97,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-08-31",
+            "hrv": 46,
+            "hrv_j": "neutral",
+            "rhr": 48,
+            "rhr_j": "neutral",
+            "body_battery": 70,
+            "body_battery_j": "neutral",
+            "sleep_score": 84,
+            "sleep_score_j": "neutral",
+            "sleep_min": 426,
+            "sleep_min_j": "neutral",
+            "stress": 30,
+            "stress_j": "neutral",
+            "steps": 10634,
+            "steps_j": "neutral",
+            "sleep_eff": 95.7,
+            "sleep_eff_j": "neutral",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-09-01",
+            "hrv": 50,
+            "hrv_j": "neutral",
+            "rhr": 48,
+            "rhr_j": "neutral",
+            "body_battery": 72,
+            "body_battery_j": "neutral",
+            "sleep_score": 88,
+            "sleep_score_j": "neutral",
+            "sleep_min": 432,
+            "sleep_min_j": "neutral",
+            "stress": 36,
+            "stress_j": "neutral",
+            "steps": 9514,
+            "steps_j": "neutral",
+            "sleep_eff": 95.4,
+            "sleep_eff_j": "neutral",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-09-02",
+            "hrv": 44,
+            "hrv_j": "neutral",
+            "rhr": 50,
+            "rhr_j": "neutral",
+            "body_battery": 56,
+            "body_battery_j": "bad",
+            "sleep_score": 74,
+            "sleep_score_j": "bad",
+            "sleep_min": 372,
+            "sleep_min_j": "bad",
+            "stress": 38,
+            "stress_j": "neutral",
+            "steps": 8250,
+            "steps_j": "neutral",
+            "sleep_eff": 96.1,
+            "sleep_eff_j": "neutral",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-09-03",
+            "hrv": 40,
+            "hrv_j": "bad",
+            "rhr": 50,
+            "rhr_j": "neutral",
+            "body_battery": 63,
+            "body_battery_j": "neutral",
+            "sleep_score": 84,
+            "sleep_score_j": "neutral",
+            "sleep_min": 425,
+            "sleep_min_j": "neutral",
+            "stress": 31,
+            "stress_j": "neutral",
+            "steps": 14082,
+            "steps_j": "neutral",
+            "sleep_eff": 97.5,
+            "sleep_eff_j": "good",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 13,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-09-04",
+            "hrv": 44,
+            "hrv_j": "neutral",
+            "rhr": 48,
+            "rhr_j": "neutral",
+            "body_battery": 79,
+            "body_battery_j": "neutral",
+            "sleep_score": 79,
+            "sleep_score_j": "neutral",
+            "sleep_min": 468,
+            "sleep_min_j": "good",
+            "stress": 37,
+            "stress_j": "neutral",
+            "steps": 11200,
+            "steps_j": "neutral",
+            "sleep_eff": 94.2,
+            "sleep_eff_j": "neutral",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 14,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          },
+          {
+            "date": "2026-09-05",
+            "hrv": 44,
+            "hrv_j": "neutral",
+            "rhr": 49,
+            "rhr_j": "neutral",
+            "body_battery": 68,
+            "body_battery_j": "neutral",
+            "sleep_score": 85,
+            "sleep_score_j": "neutral",
+            "sleep_min": 489,
+            "sleep_min_j": "good",
+            "stress": 26,
+            "stress_j": "good",
+            "steps": 18575,
+            "steps_j": "neutral",
+            "sleep_eff": 92.8,
+            "sleep_eff_j": "neutral",
+            "vo2max": 43,
+            "vo2max_j": "neutral",
+            "respiration": 14,
+            "respiration_j": "good",
+            "spo2": 98,
+            "spo2_j": "good"
+          }
+        ],
+        "trends": {
+          "hrv": {
+            "this_week": 44.7,
+            "prev_week": 50.7,
+            "delta_abs": -6,
+            "delta_pct": -12,
+            "direction": "higher_better",
+            "judgment": "bad"
+          },
+          "rhr": {
+            "this_week": 48.4,
+            "prev_week": 48.7,
+            "delta_abs": -0.3,
+            "delta_pct": -1,
+            "direction": "lower_better",
+            "judgment": "neutral"
+          },
+          "body_battery": {
+            "this_week": 68.6,
+            "prev_week": 69.1,
+            "delta_abs": -0.6,
+            "delta_pct": -1,
+            "direction": "higher_better",
+            "judgment": "neutral"
+          },
+          "sleep_score": {
+            "this_week": 82.7,
+            "prev_week": 84.1,
+            "delta_abs": -1.4,
+            "delta_pct": -2,
+            "direction": "higher_better",
+            "judgment": "neutral"
+          },
+          "sleep_min": {
+            "this_week": 437,
+            "prev_week": 440,
+            "delta_abs": -2.1,
+            "delta_pct": 0,
+            "direction": "higher_better",
+            "judgment": "neutral"
+          },
+          "stress": {
+            "this_week": 32.6,
+            "prev_week": 32.9,
+            "delta_abs": -0.3,
+            "delta_pct": -1,
+            "direction": "lower_better",
+            "judgment": "neutral"
+          },
+          "steps": {
+            "this_week": 11604,
+            "prev_week": 13688,
+            "delta_abs": -2084,
+            "delta_pct": -15,
+            "direction": "neutral",
+            "judgment": "neutral"
+          },
+          "sleep_eff": {
+            "this_week": 95.1,
+            "prev_week": 94.6,
+            "delta_abs": 0.5,
+            "delta_pct": 1,
+            "direction": "higher_better",
+            "judgment": "neutral"
+          },
+          "vo2max": {
+            "this_week": 43,
+            "prev_week": 42.3,
+            "delta_abs": 0.7,
+            "delta_pct": 2,
+            "direction": "higher_better",
+            "judgment": "neutral"
+          },
+          "respiration": {
+            "this_week": 13.4,
+            "prev_week": 13.4,
+            "delta_abs": 0,
+            "delta_pct": 0,
+            "direction": "neutral",
+            "judgment": "neutral"
+          },
+          "spo2": {
+            "this_week": 97.9,
+            "prev_week": 98,
+            "delta_abs": -0.1,
+            "delta_pct": 0,
+            "direction": "neutral",
+            "judgment": "neutral"
+          }
+        },
+        "anomalies": {
+          "report_date": "2026-09-05",
+          "count": 3,
+          "strong_count": 3,
+          "items": [
+            {
+              "metric": "Чистый_сон_мин",
+              "label": "Сон (чистый, мин)",
+              "direction": "higher_better",
+              "severity": "strong",
+              "interpretation": "улучшение",
+              "baseline_mean": 428.71,
+              "history": [
+                478,
+                428,
+                499,
+                400,
+                370,
+                474,
+                428,
+                450,
+                426,
+                432,
+                372,
+                425,
+                468,
+                489
+              ]
+            },
+            {
+              "metric": "Стресс_дневной_средний",
+              "label": "Стресс дневной",
+              "direction": "lower_better",
+              "severity": "strong",
+              "interpretation": "улучшение",
+              "baseline_mean": 33.71,
+              "history": [
+                32,
+                29,
+                35,
+                32,
+                33,
+                35,
+                34,
+                30,
+                30,
+                36,
+                38,
+                31,
+                37,
+                26
+              ]
+            },
+            {
+              "metric": "Шаги_за_вчера",
+              "label": "Шаги",
+              "direction": "neutral",
+              "severity": "strong",
+              "interpretation": "отклонение",
+              "baseline_mean": 11228.86,
+              "history": [
+                20002,
+                8993,
+                13415,
+                12059,
+                11489,
+                13911,
+                15949,
+                8973,
+                10634,
+                9514,
+                8250,
+                14082,
+                11200,
+                18575
+              ]
+            }
+          ]
+        },
+        "correlations": {
+          "computed": "2026-08-30",
+          "priority": [
+            {
+              "a": "Омега-3 (EPA/DHA)",
+              "b": "ВСР_ночная",
+              "lag": 0,
+              "r": -0.251,
+              "n": 67,
+              "p_adj": null
+            },
+            {
+              "a": "Омега-3 (EPA/DHA)",
+              "b": "Восстановление_BodyBattery",
+              "lag": 1,
+              "r": -0.289,
+              "n": 66,
+              "p_adj": null
+            }
+          ],
+          "discovery": [
+            {
+              "a": "Калий",
+              "b": "Клетчатка",
+              "lag": 0,
+              "r": 0.776,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "Железо",
+              "b": "Цинк",
+              "lag": 0,
+              "r": 0.769,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "Магний",
+              "b": "Железо",
+              "lag": 0,
+              "r": 0.754,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "Эффективность_сна_",
+              "b": "Бодрствование_мин",
+              "lag": 0,
+              "r": -0.698,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "Чистый_сон_мин",
+              "b": "Оценка_сна_балл",
+              "lag": 0,
+              "r": 0.694,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "Магний",
+              "b": "Цинк",
+              "lag": 0,
+              "r": 0.693,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "REM_сон_мин",
+              "b": "Оценка_сна_балл",
+              "lag": 0,
+              "r": 0.653,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "Питание_Всего_Углеводы_г",
+              "b": "Калий",
+              "lag": 0,
+              "r": 0.618,
+              "n": 67,
+              "p_adj": 0
+            },
+            {
+              "a": "Шаги_за_вчера",
+              "b": "Тренировка_Ккал",
+              "lag": 0,
+              "r": 0.612,
+              "n": 39,
+              "p_adj": 0.0096
+            },
+            {
+              "a": "Ужин_Жиры_г",
+              "b": "Питание_Всего_Жиры_г",
+              "lag": 0,
+              "r": 0.609,
+              "n": 67,
+              "p_adj": 0.0001
+            },
+            {
+              "a": "Питание_Всего_Углеводы_г",
+              "b": "Клетчатка",
+              "lag": 0,
+              "r": 0.604,
+              "n": 67,
+              "p_adj": 0.0001
+            },
+            {
+              "a": "Чистый_сон_мин",
+              "b": "Восстановление_BodyBattery",
+              "lag": 0,
+              "r": 0.571,
+              "n": 67,
+              "p_adj": 0.0004
+            }
+          ]
+        },
+        "recommendation": {
+          "date": "2026-09-03",
+          "period_type": "weekly",
+          "text": "Завершение двухмесячного курса Декомбина и Тиогаммы 31 августа стало главным триггером изменений последних дней. Твоя нервная система закономерно перестраивается на автономную регуляцию: средняя ночная вариабельность пульса (HRV) за неделю снизилась до 45 мс против 51 мс неделей ранее, а в ночь на 3 сентября зафиксирован спад до 40 мс. Одновременно чистый сон просел до 6,2 часов (372 минуты), а среднее число шагов уменьшилось с 13,7 до 11,6 тысяч в сутки. Учитывая изменения Modic-1 в сегменте L5/S1, нервные структуры временно лишились внешней метаболической поддержки, поэтому сейчас критически важно компенсировать это механической разгрузкой и гигиеной восстановления.\n\nВот три ключевых действия на ближайшую неделю:\n\n1. Дробный двигательный режим и защита поясницы без фармподдержки\nДействие: Верни привычный суточный объем шагов (12-14 тысяч), распределяя его равномерно в течение дня порциями по 20-30 минут. Категорически держи таймер на сидение: не более 25-30 минут непрерывно, затем подъем и 2-3 минуты ходьбы или мягкой разгрузки. Скручивания Макгилла и статические удержания пока оставляем на паузе.\nПочему сейчас: Препараты улучшали микроциркуляцию и снижали нейропатическую чувствительность. Сейчас этой страховки нет, поэтому любая непрерывная сидячая нагрузка свыше получаса создает компрессионный риск для корешков L5/S1. Ходьба — твой главный естественный насос для питания диска.\n\n2. Стабилизация окна сна и нейрореставрация\nДействие: Зафиксируй время отхода ко сну до 23:00 с целью вернуть чистый сон к уровню 7,2-7,5 часов. Исключи плотные жирные приемы пищи за 3 часа до сна и отключи яркие экраны за 45-60 минут до отдыха. \nПочему сейчас: Падение сна до 6,2 часов и оценки сна до 74 баллов сразу отразилось на утреннем Body Battery (просадка до 56) и уронило HRV. При твоем астеническом типе и высокой чувствительности к нагрузкам качественный сон — основной инструмент поддержания парасимпатического тонуса в период адаптации.\n\n3. Коррекция насыщенных жиров и восполнение дефицитов\nДействие: Снизь долю насыщенных жиров в рационе (сейчас 31,8 г при норме до 27 г) в пользу ненасыщенных растительных масел, контролируя реакцию ЖКТ. Обрати внимание на продукты, богатые йодом и витамином D (их потребление составляет лишь 39% и 19% от целевого).\nПочему сейчас: Общий холестерин находится на верхней границе нормы (5,2 ммоль/л), а ЛПНП держится на уровне 3,6 ммоль/л. Сдерживание насыщенных жиров поможет оптимизировать липидный обмен без медикаментов, не перегружая при этом желчевыводящие пути.\n\nРазбор лабораторных показателей:\nТвой расчетный биологический возраст PhenoAge составляет 36 лет при хронологическом 44,1 года. Отличная разница в минус 8,1 года подтверждает высокий базовый запас прочности тканей и низкий уровень системного воспаления. Что касается показателей вне лабораторных норм: лейкоциты (3,28 при референсе 4-10) и абсолютные нейтрофилы (1,85) — это не свежий патологический сдвиг, а твоя многолетняя индивидуальная особенность, которая прослеживается с 2012 года (3,4 в 2019 г., 3,54 в 2024 г.). Повода для беспокойства или стимуляции иммунитета здесь нет. Прямой билирубин (6,9 мкмоль/л при верхней норме 6,8) имеет минимальное отклонение, что абсолютно характерно для твоих врожденных особенностей желчевыводящих путей при спокойных ферментах печени (АлАТ 31,1 и АсАТ 18,9). Липидный профиль в целом сбалансирован: триглицериды идеальны (0,5 ммоль/л), а защитный ЛПВП высок (1,9 ммоль/л).\n\nНа что смотрим на следующей неделе:\nОтслеживаем стабилизацию ночной HRV на второй неделе без Декомбина и Тиогаммы (цель — возврат к уровню 48-52 мс) и контролируем отсутствие отраженных ощущений в правой ноге и левой икре при соблюдении 30-минутного лимита на сидение.",
+          "actions": []
+        },
+        "action_loops": [],
+        "experiments": [
+          {
+            "hypothesis": "больше «омега-3 (epa/dha)» → Body Battery ниже",
+            "lever": "омега-3 (epa/dha)",
+            "outcome": "Body Battery",
+            "r": -0.29,
+            "n": 66,
+            "p_adj": null,
+            "lag_days": 1,
+            "strength": "слабая",
+            "status": "candidate",
+            "confidence": "НЕ подтверждено статистикой — пока только кандидат, нужно больше данных",
+            "priority": true
+          },
+          {
+            "hypothesis": "больше «омега-3 (epa/dha)» → ВСР ниже",
+            "lever": "омега-3 (epa/dha)",
+            "outcome": "ВСР",
+            "r": -0.25,
+            "n": 67,
+            "p_adj": null,
+            "lag_days": 0,
+            "strength": "слабая",
+            "status": "candidate",
+            "confidence": "НЕ подтверждено статистикой — пока только кандидат, нужно больше данных",
+            "priority": true
+          }
+        ],
+        "experiments_note": null,
+        "medical_notes_recent": [
+          {
+            "date": "2026-08-06",
+            "category": "УЗИ органов брюшной полости",
+            "note": "В норме. Эхопризнаков патологии не выявлено."
+          },
+          {
+            "date": "2026-08-06",
+            "category": "Лабораторные исследования",
+            "note": "Глюкоза в норме. Холестерин не в норме (5,5 ммоль/л при референсе 0-5,2)."
+          },
+          {
+            "date": "2026-08-06",
+            "category": "Лабораторные исследования",
+            "note": "Определение суммарных антител к вирусу гепатита С: «Не обнаружен» (В норме)."
+          },
+          {
+            "date": "2026-08-05",
+            "category": "Офтальмология",
+            "note": "Диспансеризация. Внутриглазное давление: OD=20 мм рт.ст., OS=24 мм рт.ст. Уже имеющаяся деструкция стекловидного тела. Возраст 40+. 24 мм рт.ст. — пограничное значение (офтальмогипертензия), требует дообследования для исключения глаукомы и псевдогипертензии из-за толстой роговицы."
+          },
+          {
+            "date": "2026-06-26",
+            "category": "МРТ пояснично-крестцового отдела позвоночника",
+            "note": "Не в норме. МР-картина остеохондроза, дорзальной экструзии L5/S1 (с каудальной миграцией), спондилоартроза Th12-S1. Изменения Модик-1 в L5, S1. Отмечена положительная динамика (уменьшение экструзии) по сравнению с МРТ от 02.03.2026. Люмбализация S1."
+          },
+          {
+            "date": "2026-05-22",
+            "category": "Симптом",
+            "note": "Жалобы на скопление слизи в носоглотке (прозрачная, позже сменилась на желтоватую). Упоминание возможного носительства золотистого стафилококка. Употребленные продукты: «Акваминерале Спорт Лимон», банан, сушки (100г)."
+          },
+          {
+            "date": "2026-05-08",
+            "category": "Симптом",
+            "note": "Боли под левой коленкой (3-4 балла по шкале), возникают в сидячем положении и при ходьбе, проходят после того, как «расходится». Началось вчера во второй половине дня."
+          }
+        ]
+      },
+      "healthComputedAt": "2026-09-05T15:45:29.283Z"
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "4cf215e9-b25d-45f5-b64e-d9972752c5b0",
+  "activeVersionId": "4cf215e9-b25d-45f5-b64e-d9972752c5b0",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-09-04T21:41:56.388Z",
+      "createdAt": "2026-09-04T21:41:56.388Z",
+      "role": "workflow:owner",
+      "workflowId": "WrMXhA3oQoqfoKbE",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-05T12:49:04.596Z",
+    "createdAt": "2026-09-05T12:49:04.596Z",
+    "versionId": "4cf215e9-b25d-45f5-b64e-d9972752c5b0",
+    "workflowId": "WrMXhA3oQoqfoKbE",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -900,
+          -40
+        ],
+        "id": "63c0303d-f51a-4cae-ad60-73f939630f5c",
+        "name": "Every 15 min"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Daily_Trends",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -700,
+          -40
+        ],
+        "id": "26df2243-b786-44ed-ba29-f779e2c5dabb",
+        "name": "Get Daily_Trends",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Anomalies_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -520,
+          -40
+        ],
+        "id": "ad8087ce-e5e8-4e8d-b068-43318df3fbc1",
+        "name": "Get Anomalies_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Correlations_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -340,
+          -40
+        ],
+        "id": "5dd83971-43ff-4ca5-918b-9a449c3bc237",
+        "name": "Get Correlations_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Recommendations_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -160,
+          -40
+        ],
+        "id": "13d20084-66eb-45b7-b6a4-df54f6ac6cb5",
+        "name": "Get Recommendations_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Doctor_Notes",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          20,
+          -40
+        ],
+        "id": "68048155-b3d3-4c96-845e-36a83c227e7e",
+        "name": "Get Doctor_Notes",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// health-dashboard — сборка JSON для вкладки «Здоровье». Пишет в Static Data.\n// Источники (по имени ноды): Get Daily_Trends, Get Anomalies_Log, Get Correlations_Log,\n// Get Recommendations_Log, Get Doctor_Notes. Все — книга Health_DB. Run Once for All Items.\n// Контракт намеренно «сырой/семантический» (не форматированные строки) — вёрстка ещё меняется.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace('%', '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction dkey(v) { return String(v == null ? '' : v).slice(0, 10); }\n// Doctor_Notes хранит дату как YYYY.MM.DD (точки) — dkey() тут даёт мусор при\n// сравнении с ISO-датами Daily_Trends. Нормализуем отдельно, как в advisor/phenoage.\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nfunction avg(a) { const x = a.filter(v => v != null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; }\nfunction r1(x) { return x == null ? null : Math.round(x * 10) / 10; }\n// Округление по величине: шаги/минуты не нужны с десятыми, ВСР/эффективность — нужны.\nfunction rSmart(x) {\n  if (x == null) return null;\n  return Math.abs(x) >= 100 ? Math.round(x) : Math.round(x * 10) / 10;\n}\n\nconst daily = safeAll('Get Daily_Trends');\nconst anom = safeAll('Get Anomalies_Log');\nconst corr = safeAll('Get Correlations_Log');\nconst recs = safeAll('Get Recommendations_Log');\nconst notes = safeAll('Get Doctor_Notes');\n\n// колонки Daily_Trends -> ключи фронта\nconst COL = {\n  hrv: 'ВСР_ночная',\n  rhr: 'Пульс_ночной_средний',\n  body_battery: 'Восстановление_BodyBattery',\n  sleep_score: 'Оценка_сна_балл',\n  sleep_min: 'Чистый_сон_мин',\n  stress: 'Стресс_дневной_средний',\n  steps: 'Шаги_за_вчера',\n  sleep_eff: 'Эффективность_сна_',\n  vo2max: 'VO2_Max',\n  respiration: 'Дыхание_ночь_среднее',\n  spo2: 'SpO2_ночь_среднее',\n};\n\n// Целевые зоны — популяционные ориентиры для графиков (не личная база).\n// null = зоны нет, ориентир только личная база.\nconst TARGET_ZONES = {\n  sleep_min:   { min: 420, max: 540, label: '7–9 ч' },\n  sleep_eff:   { min: 85,  max: 100, label: '85–100%' },\n  spo2:        { min: 95,  max: 100, label: '95–100%' },\n  respiration: { min: 12,  max: 20,  label: '12–20/мин' },\n};\n\n// ---------------------------------------------------------------------------\n// КОНФИГ МЕТРИК — зеркало конфига воркфлоу `Anomaly_Detector/Correlations`\n// (нода \"Anomaly Detection\"). direction и minAbsDelta ДОЛЖНЫ совпадать с ним:\n// это единственный источник правды «что считать хорошим» и «что считать шумом».\n// При правке там — поправить и здесь.\n// ---------------------------------------------------------------------------\nconst METRICS = [\n  { key: 'rhr',          col: 'Пульс_ночной_средний',       label: 'Пульс покоя',    unit: 'уд/мин', direction: 'lower_better',  minAbsDelta: 3 },\n  { key: 'hrv',          col: 'ВСР_ночная',                 label: 'ВСР ночью',      unit: 'мс',     direction: 'higher_better', minAbsDelta: 6 },\n  { key: 'body_battery', col: 'Восстановление_BodyBattery', label: 'Body Battery',   unit: '',       direction: 'higher_better', minAbsDelta: 12 },\n  { key: 'sleep_min',    col: 'Чистый_сон_мин',             label: 'Чистый сон',     unit: 'мин',    direction: 'higher_better', minAbsDelta: 30 },\n  { key: 'sleep_score',  col: 'Оценка_сна_балл',            label: 'Оценка сна',     unit: 'балл',   direction: 'higher_better', minAbsDelta: 7 },\n  { key: 'sleep_eff',    col: 'Эффективность_сна_',         label: 'Эффективность сна', unit: '%',   direction: 'higher_better', minAbsDelta: 4 },\n  { key: 'stress',       col: 'Стресс_дневной_средний',     label: 'Стресс дневной', unit: '',       direction: 'lower_better',  minAbsDelta: 6 },\n  { key: 'steps',        col: 'Шаги_за_вчера',              label: 'Шаги',           unit: '',       direction: 'neutral',       minAbsDelta: 3500 },\n  { key: 'vo2max',       col: 'VO2_Max',                    label: 'VO2 Max',        unit: '',       direction: 'higher_better', minAbsDelta: 2 },\n];\n\n// Метрики без личной базы — оцениваются по популяционному референсу, а не по «своей норме».\nconst REFERENCE_METRICS = [\n  { key: 'respiration', col: 'Дыхание_ночь_среднее', label: 'Дыхание ночью', unit: '/мин', ref_min: 12, ref_max: 20 },\n  { key: 'spo2',        col: 'SpO2_ночь_среднее',    label: 'SpO2 ночью',    unit: '%',    ref_min: 95, ref_max: 100 },\n];\n\nconst BASE_WINDOWS = [ { days: 30, minPoints: 10 }, { days: 7, minPoints: 4 } ];\n\n// Базовая линия = среднее по окну ДО текущего дня (как в детекторе аномалий).\nfunction baselineFor(sortedRows, col, uptoIdx, windowDays, minPoints) {\n  const cur = new Date(dkey(sortedRows[uptoIdx]['Дата']) + 'T00:00:00Z');\n  const from = new Date(cur); from.setUTCDate(from.getUTCDate() - windowDays);\n  const vals = [];\n  for (let i = 0; i < uptoIdx; i++) {\n    const d = new Date(dkey(sortedRows[i]['Дата']) + 'T00:00:00Z');\n    if (d >= from && d < cur) {\n      const v = num(sortedRows[i][col]);\n      if (v != null) vals.push(v);\n    }\n  }\n  if (vals.length < minPoints) return null;\n  const m = vals.reduce((s, v) => s + v, 0) / vals.length;\n  const sd = vals.length > 1\n    ? Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / (vals.length - 1))\n    : null;\n  return { mean: m, std: sd, n: vals.length, days: windowDays };\n}\n\n// judgment считает БЭКЕНД, фронтенд только отображает.\n// Отклонение меньше minAbsDelta = шум, а не сигнал.\nfunction judge(direction, deltaAbs, minAbsDelta) {\n  if (direction === 'neutral') return 'neutral';\n  if (deltaAbs == null || Math.abs(deltaAbs) < minAbsDelta) return 'neutral';\n  const better = direction === 'higher_better' ? deltaAbs > 0 : deltaAbs < 0;\n  return better ? 'good' : 'bad';\n}\n\nconst rows = daily\n  .filter(r => r['Дата'])\n  .sort((a, b) => dkey(a['Дата']).localeCompare(dkey(b['Дата'])));\nconst lastRow = rows[rows.length - 1] || {};\nconst lastDate = dkey(lastRow['Дата']) || dkey(new Date().toISOString());\n\n// --- сегодня: сырая последняя строка + распарсенные ключевые метрики ---\nconst todayParsed = {};\nfor (const k of Object.keys(COL)) todayParsed[k] = num(lastRow[COL[k]]);\nconst rawToday = {};\nfor (const [key, val] of Object.entries(lastRow)) {\n  if (key === 'row_number') continue;\n  rawToday[key] = val;\n}\n\n// --- метрики с личной базой (Фаза 1): value + baseline + delta + judgment ---\nconst lastIdx = rows.length - 1;\nconst metrics = [];\nfor (const m of METRICS) {\n  const value = num(lastRow[m.col]);\n  let base = null;\n  if (lastIdx > 0) {\n    for (const w of BASE_WINDOWS) {\n      base = baselineFor(rows, m.col, lastIdx, w.days, w.minPoints);\n      if (base) break;\n    }\n  }\n  const deltaAbs = (value != null && base) ? value - base.mean : null;\n  const deltaPct = (deltaAbs != null && base.mean) ? (deltaAbs / base.mean) * 100 : null;\n  metrics.push({\n    key: m.key, label: m.label, unit: m.unit,\n    value: value != null ? rSmart(value) : null,\n    baseline: base ? rSmart(base.mean) : null,\n    baseline_days: base ? base.days : null,\n    baseline_n: base ? base.n : null,\n    delta_abs: deltaAbs != null ? rSmart(deltaAbs) : null,\n    delta_pct: deltaPct != null ? Math.round(deltaPct) : null,\n    z: (value != null && base && base.std) ? Math.round(((value - base.mean) / base.std) * 100) / 100 : null,\n    direction: m.direction,\n    judgment: judge(m.direction, deltaAbs, m.minAbsDelta),\n    kind: 'baseline',\n  });\n}\n// метрики без личной базы — по популяционному референсу\nfor (const m of REFERENCE_METRICS) {\n  const value = num(lastRow[m.col]);\n  let judgment = 'neutral';\n  if (value != null) judgment = (value >= m.ref_min && value <= m.ref_max) ? 'good' : 'bad';\n  metrics.push({\n    key: m.key, label: m.label, unit: m.unit,\n    value: value != null ? r1(value) : null,\n    ref_min: m.ref_min, ref_max: m.ref_max,\n    baseline: null, delta_abs: null, delta_pct: null,\n    direction: 'reference', judgment, kind: 'reference',\n  });\n}\n\n// --- последние 14 дней (точки для графиков) ---\n// Каждый день получает и значение, и оценку <key>_j относительно текущей личной базы,\n// по тем же direction/minAbsDelta. Фронтенд не считает «хорошо/плохо» сам.\nconst metricByKey = {};\nmetrics.forEach(m => { metricByKey[m.key] = m; });\nconst cfgByKey = {};\nMETRICS.forEach(m => { cfgByKey[m.key] = m; });\n\nconst last14 = rows.slice(-14).map(r => {\n  const o = { date: dkey(r['Дата']) };\n  for (const k of Object.keys(COL)) {\n    const v = num(r[COL[k]]);\n    o[k] = v;\n    const cfg = cfgByKey[k];\n    const met = metricByKey[k];\n    if (cfg && met && met.baseline != null && v != null) {\n      o[k + '_j'] = judge(cfg.direction, v - met.baseline, cfg.minAbsDelta);\n    } else if (TARGET_ZONES[k] && v != null) {\n      const z = TARGET_ZONES[k];\n      o[k + '_j'] = (v >= z.min && v <= z.max) ? 'good' : 'bad';\n    } else {\n      o[k + '_j'] = 'neutral';\n    }\n  }\n  return o;\n});\n\n// --- тренды: эта неделя vs прошлая (7+7) ---\nconst wk = rows.slice(-7), pw = rows.slice(-14, -7);\nfunction trend(k) {\n  const a = avg(wk.map(r => num(r[COL[k]])));\n  const b = avg(pw.map(r => num(r[COL[k]])));\n  const delta_pct = (a != null && b != null && b !== 0) ? Math.round(((a - b) / b) * 100) : null;\n  const delta_abs = (a != null && b != null) ? a - b : null;\n  // направление и порог шума берём из того же конфига METRICS — второй логики «хорошо/плохо» нет\n  const cfg = METRICS.find(m => m.key === k);\n  const direction = cfg ? cfg.direction : 'neutral';\n  const judgment = cfg ? judge(direction, delta_abs, cfg.minAbsDelta) : 'neutral';\n  return { this_week: rSmart(a), prev_week: rSmart(b), delta_abs: rSmart(delta_abs), delta_pct, direction, judgment };\n}\nconst trends = {};\nfor (const k of Object.keys(COL)) trends[k] = trend(k);\n\n// --- аномалии: самая свежая запись + история метрики за 14 дней ---\nconst anomSorted = [...anom].sort((a, b) => dkey(b.date).localeCompare(dkey(a.date)));\nconst latestAnom = anomSorted[0];\nlet anomalies = { report_date: null, count: 0, strong_count: 0, items: [] };\nif (latestAnom) {\n  let raw = [];\n  try { raw = JSON.parse(latestAnom.raw_anomalies || '[]'); } catch (e) {}\n  const hist14 = rows.slice(-14);\n  anomalies = {\n    report_date: dkey(latestAnom.date) || null,\n    count: Number(latestAnom.anomaly_count) || raw.length,\n    strong_count: Number(latestAnom.strong_count) || 0,\n    items: raw.map(a => ({\n      metric: a.metric || null,\n      label: a.label || a.metric || null,\n      direction: a.direction || null,\n      severity: a.severity || null,\n      interpretation: a.interpretation || null,\n      baseline_mean: num(a.baseline_mean),\n      history: hist14.map(r => num(r[a.metric])).filter(v => v != null),\n    })),\n  };\n}\n\n// --- корреляции: последний расчёт ---\nlet correlations = { computed: null, priority: [], discovery: [] };\nif (corr.length) {\n  const maxC = corr.map(r => dkey(r.date_computed)).sort().slice(-1)[0];\n  const latest = corr.filter(r => dkey(r.date_computed) === maxC);\n  correlations.computed = maxC;\n  for (const r of latest) {\n    const item = { a: r.metric_a, b: r.metric_b, lag: num(r.lag_days), r: num(r.r), n: num(r.n), p_adj: num(r.p_adj) };\n    if (String(r.type || '').includes('priority')) {\n      if (item.r != null && Math.abs(item.r) >= 0.2) correlations.priority.push(item);\n    } else {\n      correlations.discovery.push(item);\n    }\n  }\n  correlations.discovery = correlations.discovery\n    .sort((a, b) => Math.abs(b.r || 0) - Math.abs(a.r || 0)).slice(0, 12);\n}\n\n// --- последняя рекомендация советника ---\nconst recSorted = [...recs]\n  .filter(r => r.Recommendation_Text && dkey(r.Date) <= lastDate)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)));\nconst recParsedLatest = recSorted[0] ? parseActions(recSorted[0].Recommendation_Text) : null;\nconst recommendation = recSorted[0] ? {\n  date: dkey(recSorted[0].Date),\n  period_type: recSorted[0].Period_Type || null,\n  text: stripActions(recSorted[0].Recommendation_Text),\n  actions: recParsedLatest ? recParsedLatest.actions : [],\n} : null;\n\n// --- Фаза 5: гипотезы-эксперименты из Correlations_Log ---\n// Человеческие подписи колонок Daily_Trends для читаемых формулировок.\nconst COL_LABEL = {\n  'Чистый_сон_мин':'чистый сон', 'Эффективность_сна_':'эффективность сна', 'Оценка_сна_балл':'оценка сна',\n  'Пульс_ночной_средний':'пульс покоя', 'ВСР_ночная':'ВСР', 'Восстановление_BodyBattery':'Body Battery',\n  'Стресс_дневной_средний':'дневной стресс', 'Шаги_за_вчера':'шаги', 'VO2_Max':'VO2 Max',\n  'Питание_Всего_Ккал':'калории', 'Питание_Всего_Белки_г':'белок', 'Питание_Всего_Жиры_г':'жиры',\n  'Питание_Всего_Углеводы_г':'углеводы', 'Алкоголь_гр':'алкоголь', 'Время_последнего_кофе':'время последнего кофе',\n  'Экранное_время_всего_ч':'экранное время', 'Экран_перед_сном_мин':'экран перед сном',\n  'Тренировка_Ккал':'нагрузка', 'Окно_голода_до_сна_ч':'окно голода до сна',\n  'Длительность_голода_ч':'длительность голода', 'Температура_avg_C':'температура',\n  'Атмосферное_давление_ночь_hPa':'атм. давление', 'Пробуждения_кол_во':'пробуждения',\n};\nfunction colLabel(c) {\n  if (!c) return '';\n  return COL_LABEL[c] || String(c).replace(/_/g, ' ').replace(/\\s+/g, ' ').trim().toLowerCase();\n}\n\n// Не всякая сильная корреляция — инсайт. Отсекаем два класса мусора:\n//  1) тавтологии внутри архитектуры сна (эффективность сна СЧИТАЕТСЯ из бодрствования);\n//  2) «нутриент ↔ нутриент» — это просто состав еды, а не поведение → результат.\n// Интересна только связка «то, чем я управляю» × «физиология/сон».\nconst FAM_SLEEP = new Set(['Чистый_сон_мин','REM_сон_мин','Легкий_сон_мин','Бодрствование_мин',\n  'Эффективность_сна_','Оценка_сна_балл','Время_в_кровати_мин','Пробуждения_кол_во','Глубокий_сон_мин']);\nconst FAM_INTAKE = new Set(['Кофеин','Добавленный сахар','Клетчатка','Железо','Калий','Магний','Цинк',\n  'Витамин B12','Витамин D','Витамин Е','Омега-3 (EPA/DHA)','Ужин_Жиры_г','Алкоголь_гр',\n  'Питание_Всего_Ккал','Питание_Всего_Белки_г','Питание_Всего_Жиры_г','Питание_Всего_Углеводы_г']);\nconst FAM_ACT = new Set(['Тренировка_Ккал','Шаги_за_вчера','Экранное_время_всего_ч','Экран_перед_сном_мин']);\nconst FAM_PHYS = new Set(['ВСР_ночная','Восстановление_BodyBattery','Пульс_ночной_средний',\n  'Стресс_дневной_средний','VO2_Max']);\nfunction famOf(c) {\n  if (FAM_SLEEP.has(c)) return 'sleep';\n  if (FAM_INTAKE.has(c)) return 'intake';\n  if (FAM_ACT.has(c)) return 'activity';\n  if (FAM_PHYS.has(c)) return 'physio';\n  return 'other';\n}\nfunction isActionablePair(a, b) {\n  const fa = famOf(a), fb = famOf(b);\n  if (fa === fb) return false;                       // одна семья — тавтология или состав еды\n  const lever = ['intake','activity'];\n  const outcome = ['sleep','physio'];\n  return (lever.includes(fa) && outcome.includes(fb)) || (lever.includes(fb) && outcome.includes(fa));\n}\n\nconst experiments = [];\nif (corr.length) {\n  const maxC2 = corr.map(r => dkey(r.date_computed)).sort().slice(-1)[0];\n  const seenPair = new Set();\n  corr.filter(r => dkey(r.date_computed) === maxC2)\n    .map(r => ({\n      a: r.metric_a, b: r.metric_b, r: num(r.r), n: num(r.n),\n      p: num(r.p_adj), lag: num(r.lag_days), type: String(r.type || ''),\n    }))\n    .filter(x => x.r != null && x.n != null && x.n >= 30 && Math.abs(x.r) >= 0.25)\n    .filter(x => isActionablePair(x.a, x.b))\n    .sort((x, y) => Math.abs(y.r) - Math.abs(x.r))\n    .forEach(x => {\n      const key = [x.a, x.b].sort().join('|');\n      if (seenPair.has(key)) return;\n      seenPair.add(key);\n      if (experiments.length >= 2) return;\n      // рычаг всегда ставим в начало формулировки: «больше X → Y выше/ниже»\n      const leverIsA = ['intake','activity'].includes(famOf(x.a));\n      const lever = leverIsA ? x.a : x.b;\n      const outcome = leverIsA ? x.b : x.a;\n      const solid = (x.p != null && x.p < 0.05) && x.n >= 21;\n      experiments.push({\n        hypothesis: 'больше «' + colLabel(lever) + '» → ' + colLabel(outcome) + (x.r > 0 ? ' выше' : ' ниже'),\n        lever: colLabel(lever), outcome: colLabel(outcome),\n        r: Math.round(x.r * 100) / 100, n: x.n,\n        p_adj: x.p != null ? Math.round(x.p * 1000) / 1000 : null,\n        lag_days: x.lag,\n        strength: Math.abs(x.r) >= 0.6 ? 'сильная' : Math.abs(x.r) >= 0.45 ? 'заметная' : 'слабая',\n        status: solid ? 'supported' : 'candidate',\n        confidence: solid\n          ? 'подтверждается статистикой (p<0.05)'\n          : 'НЕ подтверждено статистикой — пока только кандидат, нужно больше данных',\n        priority: x.type.includes('priority'),\n      });\n    });\n}\n\n// --- Фаза 3/4: структурные действия советника и замкнутые циклы ---\n// Блок <<<ACTIONS {...} ACTIONS>>> дописывается советником в конец Recommendation_Text.\nfunction parseActions(txt) {\n  const m = String(txt || '').match(/<<<ACTIONS\\s*([\\s\\S]*?)\\s*ACTIONS>>>/);\n  if (!m) return null;\n  try {\n    const o = JSON.parse(m[1].trim());\n    if (!o || !Array.isArray(o.actions)) return null;\n    return o;\n  } catch (e) { return null; }\n}\nfunction stripActions(txt) {\n  return String(txt || '').replace(/<<<ACTIONS[\\s\\S]*?ACTIONS>>>/, '').trim();\n}\n// среднее метрики за окно [from, to] включительно\nfunction meanBetween(col, fromISO, toISO) {\n  const vals = [];\n  for (const r of rows) {\n    const d = dkey(r['Дата']);\n    if (d >= fromISO && d <= toISO) {\n      const v = num(r[col]);\n      if (v != null) vals.push(v);\n    }\n  }\n  return vals.length ? { mean: vals.reduce((s, v) => s + v, 0) / vals.length, n: vals.length } : null;\n}\nfunction shiftDays(iso, n) {\n  const d = new Date(iso + 'T00:00:00Z');\n  d.setUTCDate(d.getUTCDate() + n);\n  return d.toISOString().slice(0, 10);\n}\n\nconst recsWithActions = [...recs]\n  .filter(r => r.Recommendation_Text && d10(r.Date))\n  .map(r => ({ date: d10(r.Date), parsed: parseActions(r.Recommendation_Text) }))\n  .filter(r => r.parsed && r.parsed.actions.length)\n  .sort((a, b) => b.date.localeCompare(a.date));\n\n// Замкнутые циклы: для советов, с момента которых прошло >= 7 дней,\n// сравниваем 7 дней ДО выдачи и 7 дней ПОСЛЕ по метрике действия.\nconst action_loops = [];\nfor (const rec of recsWithActions) {\n  if (shiftDays(rec.date, 7) > lastDate) continue;   // неделя ещё не прошла\n  for (const a of rec.parsed.actions) {\n    if (!a.metric) continue;\n    const cfg = METRICS.find(m => m.key === a.metric);\n    if (!cfg) continue;\n    const before = meanBetween(cfg.col, shiftDays(rec.date, -6), rec.date);\n    const after  = meanBetween(cfg.col, shiftDays(rec.date, 1), shiftDays(rec.date, 7));\n    if (!before || !after) continue;\n    const delta = after.mean - before.mean;\n    const j = judge(cfg.direction, delta, cfg.minAbsDelta);\n    action_loops.push({\n      issued: rec.date,\n      title: a.title,\n      metric: a.metric,\n      metric_label: cfg.label,\n      unit: cfg.unit,\n      before: rSmart(before.mean),\n      after: rSmart(after.mean),\n      delta_abs: rSmart(delta),\n      judgment: j,\n      status: j === 'good' ? 'сработало' : j === 'bad' ? 'стало хуже' : 'без изменений',\n      expect: a.expect || '',\n    });\n  }\n  if (action_loops.length >= 3) break;\n}\n\n// --- свежие записи медкарты (120 дней, до 15) ---\nconst since = new Date(new Date(lastDate).getTime() - 120 * 86400000).toISOString().slice(0, 10);\nconst medical_notes_recent = [...notes]\n  .filter(n => n.Date && d10(n.Date) >= since && d10(n.Date) <= lastDate && n.Note)\n  .sort((a, b) => d10(b.Date).localeCompare(d10(a.Date)))\n  .slice(0, 15)\n  .map(n => ({ date: d10(n.Date), category: n.Category || null, note: n.Note }));\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  window: { from: last14[0] ? last14[0].date : null, to: lastDate },\n  today: { date: lastDate, parsed: todayParsed, raw: rawToday },\n  metrics,          // Фаза 1: значение + личная база + judgment (считает бэкенд)\n  target_zones: TARGET_ZONES,   // Фаза 2: популяционные зоны для графиков\n  days_14: last14,  // бывш. `week` — тут 14 дней, а не 7\n  trends,\n  anomalies,\n  correlations,\n  recommendation,\n  action_loops,     // Фаза 4: советы, у которых уже можно измерить результат\n  experiments,      // Фаза 5: гипотезы «рычаг → результат» (мусорные пары отсеяны)\n  experiments_note: experiments.length ? null : 'Действенных связей «поведение → результат» пока не найдено: все сильные корреляции в данных — это либо состав еды (нутриент ↔ нутриент), либо внутренняя арифметика сна.',\n  medical_notes_recent,\n};\n\nconst sd = $getWorkflowStaticData('global');\nsd.healthDashboard = result;\nsd.healthComputedAt = result.updated_at;\n\nreturn [{ json: result }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          -40
+        ],
+        "id": "c96788cf-5109-4a92-8326-0d83035dd915",
+        "name": "Build Health JSON"
+      },
+      {
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "health-dashboard",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -900,
+          200
+        ],
+        "id": "3b5021f1-63fd-4bf6-84eb-c5e7245161d7",
+        "name": "Webhook",
+        "webhookId": "c45e3346-ebc9-40cd-8bcb-4b831b4a2b3d"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Отдаём кэш из Static Data. Проверяем токен.\nconst token = ($input.first().json.query || {}).token;\nif (token !== 'hd_7Kx92mQr4T') {\n  return [{ json: { error: 'forbidden' } }];\n}\nconst sd = $getWorkflowStaticData('global');\nconst cached = sd.healthDashboard;\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до 15 минут.' } }];\n}\nreturn [{ json: cached }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -680,
+          200
+        ],
+        "id": "d75a75bc-4960-4ca0-b9c4-bdc75e19c4b4",
+        "name": "Read Static Data"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, OPTIONS"
+                },
+                {
+                  "name": "Cache-Control",
+                  "value": "public, max-age=60"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -460,
+          200
+        ],
+        "id": "51f9a7bf-bd76-4ea7-b1b2-6a770fbdda08",
+        "name": "Respond"
+      }
+    ],
+    "connections": {
+      "Every 15 min": {
+        "main": [
+          [
+            {
+              "node": "Get Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Get Anomalies_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Anomalies_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Correlations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Correlations_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Doctor_Notes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Doctor_Notes": {
+        "main": [
+          [
+            {
+              "node": "Build Health JSON",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Read Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Static Data": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: Фазы 3-5: действия, циклы, эксперименты)",
+    "name": "Patch 4cf215e9 — Фазы 3-5: действия, циклы, эксперименты",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
