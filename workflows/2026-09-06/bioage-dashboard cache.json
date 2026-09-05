@@ -1,0 +1,1670 @@
+{
+  "updatedAt": "2026-09-04T21:42:26.000Z",
+  "createdAt": "2026-09-04T21:42:04.061Z",
+  "id": "JHVUXZ371ZW0Xilh",
+  "name": "bioage-dashboard (cache)",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -900,
+        -40
+      ],
+      "id": "c20d52e7-426b-4ada-97ac-630fd87c0e73",
+      "name": "Every 15 min"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Results",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -700,
+        -40
+      ],
+      "id": "37538326-00d6-4b83-8fe7-0d7567a67849",
+      "name": "Get Results",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Markers",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -520,
+        -40
+      ],
+      "id": "c75a8259-4de8-414a-b019-fcaba0e61c92",
+      "name": "Get Markers",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Visits",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -340,
+        -40
+      ],
+      "id": "65688068-628d-427d-a3a8-634dad339af3",
+      "name": "Get Visits",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PhenoAge_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        -40
+      ],
+      "id": "c9f05d67-f18a-44e8-b4c6-2190f3ed4227",
+      "name": "Get PhenoAge_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// bioage-dashboard — сборка JSON для вкладки «Биологический возраст». Пишет в Static Data.\n// Источники (по имени ноды): Get Results, Get Markers, Get Visits (книга phenoage) + Get PhenoAge_Log (Health_DB).\n// Формула: Levine 2018, CRP в мг/л (как в PhenoAge Calc). Run Once for All Items.\n\nconst FORMULA_VERSION = 'Levine2018 / CRP=mg/L / 2026-09';\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  const n = parseFloat(String(v).replace(/\\s/g, '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nfunction decYear(iso) {\n  if (!iso || iso.length < 10) return null;\n  const y = +iso.slice(0, 4), mo = +iso.slice(5, 7), d = +iso.slice(8, 10);\n  return Math.round((y + ((mo - 1) * 30 + d) / 365) * 100) / 100;\n}\n\nconst results = safeAll('Get Results');\nconst markers = safeAll('Get Markers');\nconst visits  = safeAll('Get Visits');\nconst phenoLog = safeAll('Get PhenoAge_Log');\n\n// 9 маркеров PhenoAge\nconst PHENO = {\n  alb:   { id: 'M008', rx: /альбумин/i, label: 'Альбумин' },\n  creat: { id: 'M004', rx: /креатинин/i, label: 'Креатинин' },\n  gluc:  { id: 'M003', rx: /глюкоза/i, label: 'Глюкоза' },\n  crp:   { id: 'M024', rx: /с-реактивн|срб|crp/i, label: 'CRP (С-реактивный белок)' },\n  lymph: { id: 'M062', rx: /лимфоциты\\s*%/i, label: 'Лимфоциты %' },\n  mcv:   { id: 'M043', rx: /mcv|средний объ[её]м эритроцит/i, label: 'MCV' },\n  rdw:   { id: 'M049', rx: /rdw|ширина распред.*эритроцит/i, label: 'RDW' },\n  alp:   { id: 'M017', rx: /щелочн(ая)? фосфатаз|alp|щф/i, label: 'Щелочная фосфатаза' },\n  wbc:   { id: 'M039', rx: /лейкоциты|wbc/i, label: 'Лейкоциты (WBC)' },\n};\nconst REF = { alb: 47, creat: 75, gluc: 4.6, crp: 0.5, lymph: 33, mcv: 88, rdw: 12.5, alp: 60, wbc: 5 };\nconst KEYS = Object.keys(PHENO);\n\nconst markById = {};\nmarkers.forEach(m => { if (m.Marker_ID) markById[m.Marker_ID] = m; });\nfunction keyForId(mid) {\n  for (const [k, def] of Object.entries(PHENO)) {\n    if (def.id === mid) return k;\n    if (def.rx.test((markById[mid] || {}).Name || '')) return k;\n  }\n  return null;\n}\n\n// visit -> {date, age, values:{key:val}}\nconst visitMap = {};\nvisits.forEach(v => { visitMap[v.Visit_ID] = { vid: v.Visit_ID, date: d10(v.Date), age: num(v.Age_at_Visit), values: {} }; });\nconst visitDate = {}; visits.forEach(v => { if (v.Visit_ID) visitDate[v.Visit_ID] = d10(v.Date); });\nfor (const r of results) {\n  const k = keyForId(r.Marker_ID);\n  const val = num(r.Value);\n  if (val == null) continue;\n  if (!visitMap[r.Visit_ID]) visitMap[r.Visit_ID] = { vid: r.Visit_ID, date: visitDate[r.Visit_ID] || d10(r.Visit_ID), age: null, values: {} };\n  if (k) visitMap[r.Visit_ID].values[k] = val;\n}\n\nlet ageAnchor = null;\nObject.values(visitMap).filter(v => v.date && v.age != null)\n  .sort((a, b) => a.date.localeCompare(b.date))\n  .forEach(v => { ageAnchor = { date: v.date, age: v.age }; });\nfunction ageAtDate(dateStr) {\n  if (ageAnchor && dateStr) {\n    const dd = (new Date(dateStr) - new Date(ageAnchor.date)) / (365.25 * 86400000);\n    return Math.round((ageAnchor.age + dd) * 10) / 10;\n  }\n  const y = parseInt((dateStr || '').slice(0, 4), 10);\n  return isNaN(y) ? null : (y - 1982);\n}\n\nfunction phenoAge(x) {\n  const lnCRP = Math.log(Math.max(x.crp, 1e-4));\n  const xb = -19.907\n    - 0.0336 * x.alb + 0.0095 * x.creat + 0.1953 * x.gluc + 0.0954 * lnCRP\n    - 0.0120 * x.lymph + 0.0268 * x.mcv + 0.3306 * x.rdw + 0.00188 * x.alp\n    + 0.0554 * x.wbc + 0.0804 * x.age;\n  const M = 1 - Math.exp(-1.51714 * Math.exp(xb) / 0.0076927);\n  return Math.round((141.50 + Math.log(-0.00553 * Math.log(1 - M)) / 0.09165) * 100) / 100;\n}\n\nconst sortedVisits = Object.values(visitMap).filter(v => v.date).sort((a, b) => a.date.localeCompare(b.date));\n\n// «текущая оценка»: последнее доступное значение каждого маркера\nconst latestVal = {}, latestDate = {};\nfor (const v of sortedVisits) for (const k of KEYS) if (v.values[k] != null) { latestVal[k] = v.values[k]; latestDate[k] = v.date; }\nconst have = KEYS.filter(k => latestVal[k] != null);\nconst missing = KEYS.filter(k => latestVal[k] == null);\nconst today = new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10);\nconst curAge = ageAtDate(today);\n\nlet phenoage = null, drivers = [];\nif (have.length === 9) {\n  const pa = phenoAge({ ...latestVal, age: curAge });\n  phenoage = {\n    date: today,\n    value: pa,\n    chrono_age: Math.round(curAge * 10) / 10,\n    delta: Math.round((pa - curAge) * 100) / 100,\n    formula_version: FORMULA_VERSION,\n    missing: [],\n    oldest_marker_date: have.map(k => latestDate[k]).sort()[0],\n  };\n  // водопад: Хроно -> вклад каждого маркера -> PhenoAge. year<0 = маркер молодит.\n  drivers.push({ label: 'Хроно', marker: null, years: phenoage.chrono_age, type: 'total' });\n  for (const k of KEYS) {\n    const swapped = { ...latestVal, age: curAge, [k]: REF[k] };\n    const yearsIfHealthy = phenoAge(swapped);\n    const contribution = Math.round((yearsIfHealthy - pa) * 100) / 100; // <0 = маркер молодит (замена на эталон состарила бы)\n    drivers.push({\n      label: PHENO[k].label, marker: k, years: contribution,\n      type: contribution < 0 ? 'neg' : contribution > 0 ? 'pos' : 'flat',\n      value: latestVal[k], measured_date: latestDate[k],\n    });\n  }\n  drivers.push({ label: 'PhenoAge', marker: null, years: pa, type: 'total' });\n} else {\n  phenoage = { value: null, chrono_age: Math.round(curAge * 10) / 10, delta: null, missing, note: 'не хватает маркеров для расчёта' };\n}\n\n// история: из PhenoAge_Log (уже посчитано воркфлоу PhenoAge Calc)\nconst history = phenoLog\n  .filter(r => num(r.phenoage) != null && d10(r.date))\n  .map(r => ({\n    date: d10(r.date), x: decYear(d10(r.date)),\n    chrono_age: num(r.chrono_age), phenoage: num(r.phenoage), delta: num(r.delta),\n    kind: /визит/.test(r.markers_used || '') ? 'visit' : /оценка/.test(r.markers_used || '') ? 'estimated' : 'current',\n  }))\n  .sort((a, b) => a.date.localeCompare(b.date));\n\n// таблица биомаркеров: PhenoAge-9 всегда + прочие с последним значением и диапазоном\nfunction stripPref(s) { return String(s || '').replace(/^PhenoAge\\s*\\/\\s*/, '').trim(); }\nconst latestAny = {}, latestAnyDate = {}, latestAnyRange = {};\nconst visByDate = [...sortedVisits];\nfor (const v of visByDate) {\n  for (const r of results.filter(x => x.Visit_ID === v.vid)) {\n    const val = num(r.Value);\n    if (val == null) continue;\n    latestAny[r.Marker_ID] = val;\n    latestAnyDate[r.Marker_ID] = v.date;\n    latestAnyRange[r.Marker_ID] = { lab_min: num(r.Lab_Min), lab_max: num(r.Lab_Max) };\n  }\n}\nconst phenoIds = new Set(KEYS.map(k => PHENO[k].id));\nconst biomarkers = [];\nfor (const m of markers) {\n  const id = m.Marker_ID;\n  if (!id) continue;\n  const val = latestAny[id];\n  const optMin = num(m.Optimal_Min), optMax = num(m.Optimal_Max);\n  const isPheno = phenoIds.has(id);\n  if (val == null) continue;\n  if (!isPheno && optMin == null && optMax == null) continue; // прочие — только если есть оптимум\n  const rng = latestAnyRange[id] || {};\n  biomarkers.push({\n    marker_id: id,\n    label: m.Name,\n    group: stripPref(m.Category),\n    pheno: isPheno,\n    value: val,\n    unit: m.Standard_Unit || null,\n    measured_date: latestAnyDate[id] || null,\n    lab_min: rng.lab_min, lab_max: rng.lab_max,\n    opt_min: optMin, opt_max: optMax,\n    in_lab_range: (rng.lab_min != null && rng.lab_max != null) ? (val >= rng.lab_min && val <= rng.lab_max) : null,\n    in_opt_range: (optMin != null && optMax != null) ? (val >= optMin && val <= optMax) : null,\n  });\n}\nbiomarkers.sort((a, b) => (b.pheno - a.pheno) || String(a.group).localeCompare(String(b.group)) || String(a.label).localeCompare(String(b.label)));\n\n// вне лабораторной нормы (последнее измерение каждого маркера)\nconst out_of_range = [];\nfor (const [id, val] of Object.entries(latestAny)) {\n  const rng = latestAnyRange[id] || {};\n  if (rng.lab_min == null && rng.lab_max == null) continue;\n  const low = rng.lab_min != null && val < rng.lab_min;\n  const high = rng.lab_max != null && val > rng.lab_max;\n  if (!low && !high) continue;\n  const m = markById[id] || {};\n  out_of_range.push({\n    label: m.Name || id, value: val, unit: m.Standard_Unit || null,\n    ref: (rng.lab_min ?? '') + '–' + (rng.lab_max ?? ''), date: latestAnyDate[id] || null,\n    flag: low ? 'ниже нормы' : 'выше нормы',\n  });\n}\nout_of_range.sort((a, b) => String(b.date).localeCompare(String(a.date)));\n\n// тренды ключевых маркеров по визитам\nfunction series(rx) {\n  return results\n    .filter(r => rx.test((markById[r.Marker_ID] || {}).Name || ''))\n    .map(r => ({ date: visitDate[r.Visit_ID] || d10(r.Visit_ID), value: num(r.Value) }))\n    .filter(r => r.date && r.value != null)\n    .sort((a, b) => a.date.localeCompare(b.date))\n    .slice(-12);\n}\nconst trends = { wbc: series(/лейкоциты|wbc/i), glucose: series(/глюкоза/i), crp: series(/с-реактивн|срб|crp/i), rdw: series(/rdw|ширина распред.*эритроцит/i) };\n\nconst rareOnce = KEYS.filter(k => {\n  const cnt = sortedVisits.filter(v => v.values[k] != null).length;\n  return cnt <= 1;\n}).map(k => PHENO[k].label);\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  phenoage,\n  drivers,\n  history,\n  biomarkers,\n  out_of_range,\n  trends,\n  data_note: rareOnce.length\n    ? 'Маркеры с единственным измерением за всю историю (нет динамики): ' + rareOnce.join(', ') + '. Для тренда нужна полная панель в одной сдаче.'\n    : null,\n};\n\nconst sd = $getWorkflowStaticData('global');\nsd.bioageDashboard = result;\nsd.bioageComputedAt = result.updated_at;\n\nreturn [{ json: result }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        -40
+      ],
+      "id": "d41e3de6-ca45-40cf-86a7-a05c4579e4da",
+      "name": "Build Bioage JSON"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bioage-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        200
+      ],
+      "id": "7d4a2423-a25b-4c67-977e-926a4bbd30f3",
+      "name": "Webhook",
+      "webhookId": "22c34c27-ac4f-49ff-9c35-3dc5d38abb30"
+    },
+    {
+      "parameters": {
+        "jsCode": "const token = ($input.first().json.query || {}).token;\nif (token !== 'ba_9Fw3nZp7Kd') { return [{ json: { error: 'forbidden' } }]; }\nconst sd = $getWorkflowStaticData('global');\nconst cached = sd.bioageDashboard;\nif (!cached) { return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до часа.' } }]; }\nreturn [{ json: cached }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        200
+      ],
+      "id": "7f77632f-ecae-4696-8f13-ade36abee082",
+      "name": "Read Static Data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=120"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -460,
+        200
+      ],
+      "id": "4cc0e5db-52f5-412c-a998-a1b81db6390e",
+      "name": "Respond"
+    }
+  ],
+  "connections": {
+    "Every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Get Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Results": {
+      "main": [
+        [
+          {
+            "node": "Get Markers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Markers": {
+      "main": [
+        [
+          {
+            "node": "Get Visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Visits": {
+      "main": [
+        [
+          {
+            "node": "Get PhenoAge_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PhenoAge_Log": {
+      "main": [
+        [
+          {
+            "node": "Build Bioage JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Static Data": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": {
+    "node:Every 15 min": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "bioageDashboard": {
+        "updated_at": "2026-09-05T15:45:43.953Z",
+        "phenoage": {
+          "date": "2026-09-06",
+          "value": 36,
+          "chrono_age": 44.1,
+          "delta": -8.1,
+          "formula_version": "Levine2018 / CRP=mg/L / 2026-09",
+          "missing": [],
+          "oldest_marker_date": "2024-05-18"
+        },
+        "drivers": [
+          {
+            "label": "Хроно",
+            "marker": null,
+            "years": 44.1,
+            "type": "total"
+          },
+          {
+            "label": "Альбумин",
+            "marker": "alb",
+            "years": 0.07,
+            "type": "pos",
+            "value": 47.2,
+            "measured_date": "2024-10-07"
+          },
+          {
+            "label": "Креатинин",
+            "marker": "creat",
+            "years": -0.14,
+            "type": "neg",
+            "value": 76.3,
+            "measured_date": "2025-11-28"
+          },
+          {
+            "label": "Глюкоза",
+            "marker": "gluc",
+            "years": -0.85,
+            "type": "neg",
+            "value": 5,
+            "measured_date": "2026-08-06"
+          },
+          {
+            "label": "CRP (С-реактивный белок)",
+            "marker": "crp",
+            "years": 0.02,
+            "type": "pos",
+            "value": 0.49,
+            "measured_date": "2024-05-18"
+          },
+          {
+            "label": "Лимфоциты %",
+            "marker": "lymph",
+            "years": -0.03,
+            "type": "neg",
+            "value": 32.8,
+            "measured_date": "2026-08-06"
+          },
+          {
+            "label": "MCV",
+            "marker": "mcv",
+            "years": -0.53,
+            "type": "neg",
+            "value": 89.8,
+            "measured_date": "2026-08-06"
+          },
+          {
+            "label": "RDW",
+            "marker": "rdw",
+            "years": -0.72,
+            "type": "neg",
+            "value": 12.7,
+            "measured_date": "2026-08-06"
+          },
+          {
+            "label": "Щелочная фосфатаза",
+            "marker": "alp",
+            "years": -0.57,
+            "type": "neg",
+            "value": 87.6,
+            "measured_date": "2025-11-28"
+          },
+          {
+            "label": "Лейкоциты (WBC)",
+            "marker": "wbc",
+            "years": 1.04,
+            "type": "pos",
+            "value": 3.28,
+            "measured_date": "2026-08-06"
+          },
+          {
+            "label": "PhenoAge",
+            "marker": null,
+            "years": 36,
+            "type": "total"
+          }
+        ],
+        "history": [
+          {
+            "date": "2026-09-03",
+            "x": 2026.67,
+            "chrono_age": 44.1,
+            "phenoage": 36,
+            "delta": -8.1,
+            "kind": "current"
+          }
+        ],
+        "biomarkers": [
+          {
+            "marker_id": "M008",
+            "label": "Альбумин",
+            "group": "Белковый обмен",
+            "pheno": true,
+            "value": 47.2,
+            "unit": "г/л",
+            "measured_date": "2024-10-07",
+            "lab_min": 35,
+            "lab_max": 53,
+            "opt_min": 45,
+            "opt_max": 50,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M024",
+            "label": "С-реактивный белок (СРБ)",
+            "group": "Воспаление",
+            "pheno": true,
+            "value": 0.49,
+            "unit": "мг/л",
+            "measured_date": "2024-05-18",
+            "lab_min": null,
+            "lab_max": 5,
+            "opt_min": 0,
+            "opt_max": 1,
+            "in_lab_range": null,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M039",
+            "label": "Лейкоциты (WBC)",
+            "group": "ОАК",
+            "pheno": true,
+            "value": 3.28,
+            "unit": "10^9/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 4,
+            "lab_max": 10,
+            "opt_min": 3.5,
+            "opt_max": 7,
+            "in_lab_range": false,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M062",
+            "label": "Лимфоциты %",
+            "group": "ОАК",
+            "pheno": true,
+            "value": 32.8,
+            "unit": "%",
+            "measured_date": "2026-08-06",
+            "lab_min": 20,
+            "lab_max": 40,
+            "opt_min": 28,
+            "opt_max": 40,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M043",
+            "label": "Средний объем эритроцита (MCV)",
+            "group": "ОАК",
+            "pheno": true,
+            "value": 89.8,
+            "unit": "фл",
+            "measured_date": "2026-08-06",
+            "lab_min": 80,
+            "lab_max": 100,
+            "opt_min": 82,
+            "opt_max": 90,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M049",
+            "label": "Ширина распред. эритроцитов (RDW/RDW-CV)",
+            "group": "ОАК",
+            "pheno": true,
+            "value": 12.7,
+            "unit": "%",
+            "measured_date": "2026-08-06",
+            "lab_min": 11,
+            "lab_max": 16,
+            "opt_min": 11.5,
+            "opt_max": 13,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M017",
+            "label": "Щелочная фосфатаза",
+            "group": "Печень",
+            "pheno": true,
+            "value": 87.6,
+            "unit": "МЕ/л",
+            "measured_date": "2025-11-28",
+            "lab_min": 30,
+            "lab_max": 120,
+            "opt_min": 40,
+            "opt_max": 90,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M004",
+            "label": "Креатинин",
+            "group": "Почки",
+            "pheno": true,
+            "value": 76.3,
+            "unit": "мкмоль/л",
+            "measured_date": "2025-11-28",
+            "lab_min": 70,
+            "lab_max": 115,
+            "opt_min": 65,
+            "opt_max": 100,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M003",
+            "label": "Глюкоза",
+            "group": "Углеводный обмен",
+            "pheno": true,
+            "value": 5,
+            "unit": "ммоль/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 3.9,
+            "lab_max": 6,
+            "opt_min": 4.2,
+            "opt_max": 5,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M025",
+            "label": "Ревматоидный фактор",
+            "group": "Аутоиммунные",
+            "pheno": false,
+            "value": 7.3,
+            "unit": "МЕ/мл",
+            "measured_date": "2024-05-18",
+            "lab_min": null,
+            "lab_max": 14,
+            "opt_min": 0,
+            "opt_max": 14,
+            "in_lab_range": null,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M007",
+            "label": "Общий белок",
+            "group": "Белковый обмен",
+            "pheno": false,
+            "value": 69.8,
+            "unit": "г/л",
+            "measured_date": "2025-11-28",
+            "lab_min": 66,
+            "lab_max": 83,
+            "opt_min": 65,
+            "opt_max": 80,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M034",
+            "label": "Витамин B12",
+            "group": "Витамины",
+            "pheno": false,
+            "value": 293.1,
+            "unit": "пмоль/л",
+            "measured_date": "2019-06-18",
+            "lab_min": 177.1,
+            "lab_max": 664.2,
+            "opt_min": 300,
+            "opt_max": 650,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M035",
+            "label": "Витамин D (25-OH)",
+            "group": "Витамины",
+            "pheno": false,
+            "value": 33.22,
+            "unit": "нг/мл",
+            "measured_date": "2019-06-18",
+            "lab_min": 30,
+            "lab_max": 100,
+            "opt_min": 40,
+            "opt_max": 60,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M033",
+            "label": "Фолиевая кислота",
+            "group": "Витамины",
+            "pheno": false,
+            "value": 31.62,
+            "unit": "нмоль/л",
+            "measured_date": "2019-06-18",
+            "lab_min": 9.53,
+            "lab_max": 45.17,
+            "opt_min": 15,
+            "opt_max": 40,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M020",
+            "label": "Тестостерон общий",
+            "group": "Гормоны",
+            "pheno": false,
+            "value": 14.7,
+            "unit": "нмоль/л",
+            "measured_date": "2023-11-25",
+            "lab_min": 8.9,
+            "lab_max": 42,
+            "opt_min": 15,
+            "opt_max": 30,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M028",
+            "label": "Железо (Fe)",
+            "group": "Железо",
+            "pheno": false,
+            "value": 14.6,
+            "unit": "мкмоль/л",
+            "measured_date": "2025-11-28",
+            "lab_min": 8.1,
+            "lab_max": 28.3,
+            "opt_min": 12,
+            "opt_max": 28,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M027",
+            "label": "Ферритин",
+            "group": "Железо",
+            "pheno": false,
+            "value": 93.5,
+            "unit": "нг/мл",
+            "measured_date": "2025-11-28",
+            "lab_min": 30,
+            "lab_max": 400,
+            "opt_min": 50,
+            "opt_max": 150,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M036",
+            "label": "IgE общий",
+            "group": "Иммунитет",
+            "pheno": false,
+            "value": 2.12,
+            "unit": "МЕ/мл",
+            "measured_date": "2019-06-18",
+            "lab_min": null,
+            "lab_max": 100,
+            "opt_min": 0,
+            "opt_max": 100,
+            "in_lab_range": null,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M073",
+            "label": "МНО",
+            "group": "Коагулограмма",
+            "pheno": false,
+            "value": 1.1,
+            "unit": "-",
+            "measured_date": "2012-09-25",
+            "lab_min": null,
+            "lab_max": 1.3,
+            "opt_min": 0.8,
+            "opt_max": 1.2,
+            "in_lab_range": null,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M077",
+            "label": "ПТИ",
+            "group": "Коагулограмма",
+            "pheno": false,
+            "value": 93,
+            "unit": "%",
+            "measured_date": "2012-09-25",
+            "lab_min": 90,
+            "lab_max": 105,
+            "opt_min": 85,
+            "opt_max": 110,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M071",
+            "label": "Фибриноген",
+            "group": "Коагулограмма",
+            "pheno": false,
+            "value": 2,
+            "unit": "г/л",
+            "measured_date": "2012-09-25",
+            "lab_min": 2,
+            "lab_max": 4,
+            "opt_min": 2,
+            "opt_max": 4,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M009",
+            "label": "Триглицериды",
+            "group": "Липидный профиль",
+            "pheno": false,
+            "value": 0.5,
+            "unit": "ммоль/л",
+            "measured_date": "2026-08-14",
+            "lab_min": 0,
+            "lab_max": 2.3,
+            "opt_min": 0.5,
+            "opt_max": 1.1,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M014",
+            "label": "Холестерин не-ЛПВП",
+            "group": "Липидный профиль",
+            "pheno": false,
+            "value": 3.88,
+            "unit": "ммоль/л",
+            "measured_date": "2023-11-25",
+            "lab_min": null,
+            "lab_max": 3.8,
+            "opt_min": 0,
+            "opt_max": 3.4,
+            "in_lab_range": null,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M010",
+            "label": "Холестерин общий",
+            "group": "Липидный профиль",
+            "pheno": false,
+            "value": 5.2,
+            "unit": "ммоль/л",
+            "measured_date": "2026-08-14",
+            "lab_min": 0,
+            "lab_max": 5.2,
+            "opt_min": 3.6,
+            "opt_max": 5.2,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M011",
+            "label": "Холестерин-ЛПВП",
+            "group": "Липидный профиль",
+            "pheno": false,
+            "value": 1.9,
+            "unit": "ммоль/л",
+            "measured_date": "2026-08-14",
+            "lab_min": 0.9,
+            "lab_max": 99,
+            "opt_min": 1.3,
+            "opt_max": 2.5,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M012",
+            "label": "Холестерин-ЛПНП",
+            "group": "Липидный профиль",
+            "pheno": false,
+            "value": 3.6,
+            "unit": "ммоль/л",
+            "measured_date": "2026-08-14",
+            "lab_min": 0.1,
+            "lab_max": 4.1,
+            "opt_min": 0,
+            "opt_max": 2.6,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M042",
+            "label": "Гематокрит (HCT)",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 41.3,
+            "unit": "%",
+            "measured_date": "2026-08-06",
+            "lab_min": 37,
+            "lab_max": 54,
+            "opt_min": 40,
+            "opt_max": 48,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M041",
+            "label": "Гемоглобин (HGB)",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 144,
+            "unit": "г/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 110,
+            "lab_max": 160,
+            "opt_min": 140,
+            "opt_max": 160,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M061",
+            "label": "Лимфоциты абс.",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 1.08,
+            "unit": "10^9/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 0.8,
+            "lab_max": 4,
+            "opt_min": 1.5,
+            "opt_max": 3,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M064",
+            "label": "Моноциты %",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 9.2,
+            "unit": "%",
+            "measured_date": "2026-08-06",
+            "lab_min": 3,
+            "lab_max": 12,
+            "opt_min": 3,
+            "opt_max": 8,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M063",
+            "label": "Моноциты абс.",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 0.3,
+            "unit": "10^9/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 0.12,
+            "lab_max": 1.2,
+            "opt_min": 0.2,
+            "opt_max": 0.6,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M059",
+            "label": "Нейтрофилы %",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 56.6,
+            "unit": "%",
+            "measured_date": "2026-08-06",
+            "lab_min": 50,
+            "lab_max": 70,
+            "opt_min": 40,
+            "opt_max": 60,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M058",
+            "label": "Нейтрофилы абс.",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 1.85,
+            "unit": "10^9/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 2,
+            "lab_max": 7,
+            "opt_min": 2,
+            "opt_max": 5,
+            "in_lab_range": false,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M048",
+            "label": "СОЭ",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 6,
+            "unit": "мм/ч",
+            "measured_date": "2024-05-18",
+            "lab_min": 0,
+            "lab_max": 15,
+            "opt_min": 0,
+            "opt_max": 10,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M044",
+            "label": "Среднее содержание Hb (MCH)",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 31.3,
+            "unit": "пг",
+            "measured_date": "2026-08-06",
+            "lab_min": 27,
+            "lab_max": 34,
+            "opt_min": 28,
+            "opt_max": 33,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M052",
+            "label": "Средний объем тромбоцитов (MPV)",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 10,
+            "unit": "фл",
+            "measured_date": "2026-08-06",
+            "lab_min": 6.5,
+            "lab_max": 12,
+            "opt_min": 7.5,
+            "opt_max": 11,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M045",
+            "label": "Средняя концентрация Hb (MCHC)",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 349,
+            "unit": "г/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 320,
+            "lab_max": 360,
+            "opt_min": 330,
+            "opt_max": 355,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M046",
+            "label": "Тромбоциты (PLT)",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 238,
+            "unit": "10^9/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 100,
+            "lab_max": 300,
+            "opt_min": 180,
+            "opt_max": 320,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M066",
+            "label": "Эозинофилы %",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 1.2,
+            "unit": "%",
+            "measured_date": "2026-08-06",
+            "lab_min": 0.5,
+            "lab_max": 5,
+            "opt_min": 0,
+            "opt_max": 4,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M065",
+            "label": "Эозинофилы абс.",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 0.04,
+            "unit": "10^9/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 0.02,
+            "lab_max": 0.5,
+            "opt_min": 0,
+            "opt_max": 0.3,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M040",
+            "label": "Эритроциты (RBC)",
+            "group": "ОАК",
+            "pheno": false,
+            "value": 4.6,
+            "unit": "10^12/л",
+            "measured_date": "2026-08-06",
+            "lab_min": 3.5,
+            "lab_max": 5.5,
+            "opt_min": 4.3,
+            "opt_max": 5.5,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M021",
+            "label": "ПСА общий",
+            "group": "Онкомаркеры",
+            "pheno": false,
+            "value": 0.634,
+            "unit": "нг/мл",
+            "measured_date": "2023-11-25",
+            "lab_min": null,
+            "lab_max": 4,
+            "opt_min": 0,
+            "opt_max": 2.5,
+            "in_lab_range": null,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M015",
+            "label": "Аланинаминотрансфераза (АлАТ)",
+            "group": "Печень",
+            "pheno": false,
+            "value": 31.1,
+            "unit": "МЕ/л",
+            "measured_date": "2026-08-14",
+            "lab_min": 0,
+            "lab_max": 45,
+            "opt_min": 10,
+            "opt_max": 30,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M016",
+            "label": "Аспартатаминотрансфераза (АсАТ)",
+            "group": "Печень",
+            "pheno": false,
+            "value": 18.9,
+            "unit": "МЕ/л",
+            "measured_date": "2026-08-14",
+            "lab_min": 0,
+            "lab_max": 35,
+            "opt_min": 10,
+            "opt_max": 30,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M001",
+            "label": "Билирубин общий",
+            "group": "Печень",
+            "pheno": false,
+            "value": 18.64,
+            "unit": "мкмоль/л",
+            "measured_date": "2025-11-28",
+            "lab_min": 5.1,
+            "lab_max": 19,
+            "opt_min": 5,
+            "opt_max": 21,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M002",
+            "label": "Билирубин прямой",
+            "group": "Печень",
+            "pheno": false,
+            "value": 6.9,
+            "unit": "мкмоль/л",
+            "measured_date": "2026-08-14",
+            "lab_min": 1.7,
+            "lab_max": 6.8,
+            "opt_min": 0,
+            "opt_max": 5,
+            "in_lab_range": false,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M005",
+            "label": "Мочевая кислота",
+            "group": "Почки",
+            "pheno": false,
+            "value": 354.1,
+            "unit": "мкмоль/л",
+            "measured_date": "2025-11-28",
+            "lab_min": 214,
+            "lab_max": 488,
+            "opt_min": 200,
+            "opt_max": 350,
+            "in_lab_range": true,
+            "in_opt_range": false
+          },
+          {
+            "marker_id": "M006",
+            "label": "Мочевина",
+            "group": "Почки",
+            "pheno": false,
+            "value": 5.8,
+            "unit": "ммоль/л",
+            "measured_date": "2025-11-28",
+            "lab_min": 2.8,
+            "lab_max": 7.2,
+            "opt_min": 3.5,
+            "opt_max": 7,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M031",
+            "label": "Гликированный гемоглобин (HbA1c)",
+            "group": "Углеводный обмен",
+            "pheno": false,
+            "value": 5.1,
+            "unit": "%",
+            "measured_date": "2024-09-23",
+            "lab_min": 4,
+            "lab_max": 6,
+            "opt_min": 4.8,
+            "opt_max": 5.4,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M032",
+            "label": "Инсулин",
+            "group": "Углеводный обмен",
+            "pheno": false,
+            "value": 5.6,
+            "unit": "мкЕ/мл",
+            "measured_date": "2019-06-18",
+            "lab_min": 2.6,
+            "lab_max": 24.9,
+            "opt_min": 2,
+            "opt_max": 6,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M018",
+            "label": "Т4 свободный",
+            "group": "Щитовидная железа",
+            "pheno": false,
+            "value": 12.51,
+            "unit": "пмоль/л",
+            "measured_date": "2023-11-25",
+            "lab_min": 9,
+            "lab_max": 19.05,
+            "opt_min": 12,
+            "opt_max": 19,
+            "in_lab_range": true,
+            "in_opt_range": true
+          },
+          {
+            "marker_id": "M019",
+            "label": "ТТГ",
+            "group": "Щитовидная железа",
+            "pheno": false,
+            "value": 1.76,
+            "unit": "мЕд/л",
+            "measured_date": "2023-11-25",
+            "lab_min": 0.4,
+            "lab_max": 4,
+            "opt_min": 1,
+            "opt_max": 2.5,
+            "in_lab_range": true,
+            "in_opt_range": true
+          }
+        ],
+        "out_of_range": [
+          {
+            "label": "Билирубин прямой",
+            "value": 6.9,
+            "unit": "мкмоль/л",
+            "ref": "1.7–6.8",
+            "date": "2026-08-14",
+            "flag": "выше нормы"
+          },
+          {
+            "label": "Лейкоциты (WBC)",
+            "value": 3.28,
+            "unit": "10^9/л",
+            "ref": "4–10",
+            "date": "2026-08-06",
+            "flag": "ниже нормы"
+          },
+          {
+            "label": "Нейтрофилы абс.",
+            "value": 1.85,
+            "unit": "10^9/л",
+            "ref": "2–7",
+            "date": "2026-08-06",
+            "flag": "ниже нормы"
+          },
+          {
+            "label": "Холестерин не-ЛПВП",
+            "value": 3.88,
+            "unit": "ммоль/л",
+            "ref": "–3.8",
+            "date": "2023-11-25",
+            "flag": "выше нормы"
+          }
+        ],
+        "trends": {
+          "wbc": [
+            {
+              "date": "2012-09-25",
+              "value": 4
+            },
+            {
+              "date": "2013-06-21",
+              "value": 4.02
+            },
+            {
+              "date": "2019-06-18",
+              "value": 3.4
+            },
+            {
+              "date": "2023-11-25",
+              "value": 6.59
+            },
+            {
+              "date": "2024-05-18",
+              "value": 4.4
+            },
+            {
+              "date": "2024-10-07",
+              "value": 3.54
+            },
+            {
+              "date": "2025-11-27",
+              "value": 5.48
+            },
+            {
+              "date": "2026-08-06",
+              "value": 3.28
+            }
+          ],
+          "glucose": [
+            {
+              "date": "2012-09-25",
+              "value": 5.6
+            },
+            {
+              "date": "2023-11-25",
+              "value": 5.2
+            },
+            {
+              "date": "2024-09-23",
+              "value": 5.1
+            },
+            {
+              "date": "2024-10-07",
+              "value": 5.1
+            },
+            {
+              "date": "2025-11-28",
+              "value": 5.1
+            },
+            {
+              "date": "2026-08-06",
+              "value": 5
+            }
+          ],
+          "crp": [
+            {
+              "date": "2024-05-18",
+              "value": 0.49
+            }
+          ],
+          "rdw": [
+            {
+              "date": "2012-09-25",
+              "value": 11.8
+            },
+            {
+              "date": "2019-06-18",
+              "value": 13.2
+            },
+            {
+              "date": "2023-11-25",
+              "value": 12.9
+            },
+            {
+              "date": "2024-10-07",
+              "value": 46.5
+            },
+            {
+              "date": "2024-10-07",
+              "value": 13.1
+            },
+            {
+              "date": "2025-11-27",
+              "value": 44.9
+            },
+            {
+              "date": "2025-11-27",
+              "value": 13.1
+            },
+            {
+              "date": "2026-08-06",
+              "value": 42.6
+            },
+            {
+              "date": "2026-08-06",
+              "value": 12.7
+            }
+          ]
+        },
+        "data_note": "Маркеры с единственным измерением за всю историю (нет динамики): Альбумин, CRP (С-реактивный белок). Для тренда нужна полная панель в одной сдаче."
+      },
+      "bioageComputedAt": "2026-09-05T15:45:43.953Z"
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "2f8cf610-2ad7-4113-8eee-b335d9082844",
+  "activeVersionId": "2f8cf610-2ad7-4113-8eee-b335d9082844",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-09-04T21:42:04.070Z",
+      "createdAt": "2026-09-04T21:42:04.070Z",
+      "role": "workflow:owner",
+      "workflowId": "JHVUXZ371ZW0Xilh",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-04T21:42:20.249Z",
+    "createdAt": "2026-09-04T21:42:20.249Z",
+    "versionId": "2f8cf610-2ad7-4113-8eee-b335d9082844",
+    "workflowId": "JHVUXZ371ZW0Xilh",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -900,
+          -40
+        ],
+        "id": "c20d52e7-426b-4ada-97ac-630fd87c0e73",
+        "name": "Every 15 min"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Results",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -700,
+          -40
+        ],
+        "id": "37538326-00d6-4b83-8fe7-0d7567a67849",
+        "name": "Get Results",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Markers",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -520,
+          -40
+        ],
+        "id": "c75a8259-4de8-414a-b019-fcaba0e61c92",
+        "name": "Get Markers",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Visits",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -340,
+          -40
+        ],
+        "id": "65688068-628d-427d-a3a8-634dad339af3",
+        "name": "Get Visits",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "PhenoAge_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -160,
+          -40
+        ],
+        "id": "c9f05d67-f18a-44e8-b4c6-2190f3ed4227",
+        "name": "Get PhenoAge_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// bioage-dashboard — сборка JSON для вкладки «Биологический возраст». Пишет в Static Data.\n// Источники (по имени ноды): Get Results, Get Markers, Get Visits (книга phenoage) + Get PhenoAge_Log (Health_DB).\n// Формула: Levine 2018, CRP в мг/л (как в PhenoAge Calc). Run Once for All Items.\n\nconst FORMULA_VERSION = 'Levine2018 / CRP=mg/L / 2026-09';\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  const n = parseFloat(String(v).replace(/\\s/g, '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nfunction decYear(iso) {\n  if (!iso || iso.length < 10) return null;\n  const y = +iso.slice(0, 4), mo = +iso.slice(5, 7), d = +iso.slice(8, 10);\n  return Math.round((y + ((mo - 1) * 30 + d) / 365) * 100) / 100;\n}\n\nconst results = safeAll('Get Results');\nconst markers = safeAll('Get Markers');\nconst visits  = safeAll('Get Visits');\nconst phenoLog = safeAll('Get PhenoAge_Log');\n\n// 9 маркеров PhenoAge\nconst PHENO = {\n  alb:   { id: 'M008', rx: /альбумин/i, label: 'Альбумин' },\n  creat: { id: 'M004', rx: /креатинин/i, label: 'Креатинин' },\n  gluc:  { id: 'M003', rx: /глюкоза/i, label: 'Глюкоза' },\n  crp:   { id: 'M024', rx: /с-реактивн|срб|crp/i, label: 'CRP (С-реактивный белок)' },\n  lymph: { id: 'M062', rx: /лимфоциты\\s*%/i, label: 'Лимфоциты %' },\n  mcv:   { id: 'M043', rx: /mcv|средний объ[её]м эритроцит/i, label: 'MCV' },\n  rdw:   { id: 'M049', rx: /rdw|ширина распред.*эритроцит/i, label: 'RDW' },\n  alp:   { id: 'M017', rx: /щелочн(ая)? фосфатаз|alp|щф/i, label: 'Щелочная фосфатаза' },\n  wbc:   { id: 'M039', rx: /лейкоциты|wbc/i, label: 'Лейкоциты (WBC)' },\n};\nconst REF = { alb: 47, creat: 75, gluc: 4.6, crp: 0.5, lymph: 33, mcv: 88, rdw: 12.5, alp: 60, wbc: 5 };\nconst KEYS = Object.keys(PHENO);\n\nconst markById = {};\nmarkers.forEach(m => { if (m.Marker_ID) markById[m.Marker_ID] = m; });\nfunction keyForId(mid) {\n  for (const [k, def] of Object.entries(PHENO)) {\n    if (def.id === mid) return k;\n    if (def.rx.test((markById[mid] || {}).Name || '')) return k;\n  }\n  return null;\n}\n\n// visit -> {date, age, values:{key:val}}\nconst visitMap = {};\nvisits.forEach(v => { visitMap[v.Visit_ID] = { vid: v.Visit_ID, date: d10(v.Date), age: num(v.Age_at_Visit), values: {} }; });\nconst visitDate = {}; visits.forEach(v => { if (v.Visit_ID) visitDate[v.Visit_ID] = d10(v.Date); });\nfor (const r of results) {\n  const k = keyForId(r.Marker_ID);\n  const val = num(r.Value);\n  if (val == null) continue;\n  if (!visitMap[r.Visit_ID]) visitMap[r.Visit_ID] = { vid: r.Visit_ID, date: visitDate[r.Visit_ID] || d10(r.Visit_ID), age: null, values: {} };\n  if (k) visitMap[r.Visit_ID].values[k] = val;\n}\n\nlet ageAnchor = null;\nObject.values(visitMap).filter(v => v.date && v.age != null)\n  .sort((a, b) => a.date.localeCompare(b.date))\n  .forEach(v => { ageAnchor = { date: v.date, age: v.age }; });\nfunction ageAtDate(dateStr) {\n  if (ageAnchor && dateStr) {\n    const dd = (new Date(dateStr) - new Date(ageAnchor.date)) / (365.25 * 86400000);\n    return Math.round((ageAnchor.age + dd) * 10) / 10;\n  }\n  const y = parseInt((dateStr || '').slice(0, 4), 10);\n  return isNaN(y) ? null : (y - 1982);\n}\n\nfunction phenoAge(x) {\n  const lnCRP = Math.log(Math.max(x.crp, 1e-4));\n  const xb = -19.907\n    - 0.0336 * x.alb + 0.0095 * x.creat + 0.1953 * x.gluc + 0.0954 * lnCRP\n    - 0.0120 * x.lymph + 0.0268 * x.mcv + 0.3306 * x.rdw + 0.00188 * x.alp\n    + 0.0554 * x.wbc + 0.0804 * x.age;\n  const M = 1 - Math.exp(-1.51714 * Math.exp(xb) / 0.0076927);\n  return Math.round((141.50 + Math.log(-0.00553 * Math.log(1 - M)) / 0.09165) * 100) / 100;\n}\n\nconst sortedVisits = Object.values(visitMap).filter(v => v.date).sort((a, b) => a.date.localeCompare(b.date));\n\n// «текущая оценка»: последнее доступное значение каждого маркера\nconst latestVal = {}, latestDate = {};\nfor (const v of sortedVisits) for (const k of KEYS) if (v.values[k] != null) { latestVal[k] = v.values[k]; latestDate[k] = v.date; }\nconst have = KEYS.filter(k => latestVal[k] != null);\nconst missing = KEYS.filter(k => latestVal[k] == null);\nconst today = new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10);\nconst curAge = ageAtDate(today);\n\nlet phenoage = null, drivers = [];\nif (have.length === 9) {\n  const pa = phenoAge({ ...latestVal, age: curAge });\n  phenoage = {\n    date: today,\n    value: pa,\n    chrono_age: Math.round(curAge * 10) / 10,\n    delta: Math.round((pa - curAge) * 100) / 100,\n    formula_version: FORMULA_VERSION,\n    missing: [],\n    oldest_marker_date: have.map(k => latestDate[k]).sort()[0],\n  };\n  // водопад: Хроно -> вклад каждого маркера -> PhenoAge. year<0 = маркер молодит.\n  drivers.push({ label: 'Хроно', marker: null, years: phenoage.chrono_age, type: 'total' });\n  for (const k of KEYS) {\n    const swapped = { ...latestVal, age: curAge, [k]: REF[k] };\n    const yearsIfHealthy = phenoAge(swapped);\n    const contribution = Math.round((yearsIfHealthy - pa) * 100) / 100; // <0 = маркер молодит (замена на эталон состарила бы)\n    drivers.push({\n      label: PHENO[k].label, marker: k, years: contribution,\n      type: contribution < 0 ? 'neg' : contribution > 0 ? 'pos' : 'flat',\n      value: latestVal[k], measured_date: latestDate[k],\n    });\n  }\n  drivers.push({ label: 'PhenoAge', marker: null, years: pa, type: 'total' });\n} else {\n  phenoage = { value: null, chrono_age: Math.round(curAge * 10) / 10, delta: null, missing, note: 'не хватает маркеров для расчёта' };\n}\n\n// история: из PhenoAge_Log (уже посчитано воркфлоу PhenoAge Calc)\nconst history = phenoLog\n  .filter(r => num(r.phenoage) != null && d10(r.date))\n  .map(r => ({\n    date: d10(r.date), x: decYear(d10(r.date)),\n    chrono_age: num(r.chrono_age), phenoage: num(r.phenoage), delta: num(r.delta),\n    kind: /визит/.test(r.markers_used || '') ? 'visit' : /оценка/.test(r.markers_used || '') ? 'estimated' : 'current',\n  }))\n  .sort((a, b) => a.date.localeCompare(b.date));\n\n// таблица биомаркеров: PhenoAge-9 всегда + прочие с последним значением и диапазоном\nfunction stripPref(s) { return String(s || '').replace(/^PhenoAge\\s*\\/\\s*/, '').trim(); }\nconst latestAny = {}, latestAnyDate = {}, latestAnyRange = {};\nconst visByDate = [...sortedVisits];\nfor (const v of visByDate) {\n  for (const r of results.filter(x => x.Visit_ID === v.vid)) {\n    const val = num(r.Value);\n    if (val == null) continue;\n    latestAny[r.Marker_ID] = val;\n    latestAnyDate[r.Marker_ID] = v.date;\n    latestAnyRange[r.Marker_ID] = { lab_min: num(r.Lab_Min), lab_max: num(r.Lab_Max) };\n  }\n}\nconst phenoIds = new Set(KEYS.map(k => PHENO[k].id));\nconst biomarkers = [];\nfor (const m of markers) {\n  const id = m.Marker_ID;\n  if (!id) continue;\n  const val = latestAny[id];\n  const optMin = num(m.Optimal_Min), optMax = num(m.Optimal_Max);\n  const isPheno = phenoIds.has(id);\n  if (val == null) continue;\n  if (!isPheno && optMin == null && optMax == null) continue; // прочие — только если есть оптимум\n  const rng = latestAnyRange[id] || {};\n  biomarkers.push({\n    marker_id: id,\n    label: m.Name,\n    group: stripPref(m.Category),\n    pheno: isPheno,\n    value: val,\n    unit: m.Standard_Unit || null,\n    measured_date: latestAnyDate[id] || null,\n    lab_min: rng.lab_min, lab_max: rng.lab_max,\n    opt_min: optMin, opt_max: optMax,\n    in_lab_range: (rng.lab_min != null && rng.lab_max != null) ? (val >= rng.lab_min && val <= rng.lab_max) : null,\n    in_opt_range: (optMin != null && optMax != null) ? (val >= optMin && val <= optMax) : null,\n  });\n}\nbiomarkers.sort((a, b) => (b.pheno - a.pheno) || String(a.group).localeCompare(String(b.group)) || String(a.label).localeCompare(String(b.label)));\n\n// вне лабораторной нормы (последнее измерение каждого маркера)\nconst out_of_range = [];\nfor (const [id, val] of Object.entries(latestAny)) {\n  const rng = latestAnyRange[id] || {};\n  if (rng.lab_min == null && rng.lab_max == null) continue;\n  const low = rng.lab_min != null && val < rng.lab_min;\n  const high = rng.lab_max != null && val > rng.lab_max;\n  if (!low && !high) continue;\n  const m = markById[id] || {};\n  out_of_range.push({\n    label: m.Name || id, value: val, unit: m.Standard_Unit || null,\n    ref: (rng.lab_min ?? '') + '–' + (rng.lab_max ?? ''), date: latestAnyDate[id] || null,\n    flag: low ? 'ниже нормы' : 'выше нормы',\n  });\n}\nout_of_range.sort((a, b) => String(b.date).localeCompare(String(a.date)));\n\n// тренды ключевых маркеров по визитам\nfunction series(rx) {\n  return results\n    .filter(r => rx.test((markById[r.Marker_ID] || {}).Name || ''))\n    .map(r => ({ date: visitDate[r.Visit_ID] || d10(r.Visit_ID), value: num(r.Value) }))\n    .filter(r => r.date && r.value != null)\n    .sort((a, b) => a.date.localeCompare(b.date))\n    .slice(-12);\n}\nconst trends = { wbc: series(/лейкоциты|wbc/i), glucose: series(/глюкоза/i), crp: series(/с-реактивн|срб|crp/i), rdw: series(/rdw|ширина распред.*эритроцит/i) };\n\nconst rareOnce = KEYS.filter(k => {\n  const cnt = sortedVisits.filter(v => v.values[k] != null).length;\n  return cnt <= 1;\n}).map(k => PHENO[k].label);\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  phenoage,\n  drivers,\n  history,\n  biomarkers,\n  out_of_range,\n  trends,\n  data_note: rareOnce.length\n    ? 'Маркеры с единственным измерением за всю историю (нет динамики): ' + rareOnce.join(', ') + '. Для тренда нужна полная панель в одной сдаче.'\n    : null,\n};\n\nconst sd = $getWorkflowStaticData('global');\nsd.bioageDashboard = result;\nsd.bioageComputedAt = result.updated_at;\n\nreturn [{ json: result }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          60,
+          -40
+        ],
+        "id": "d41e3de6-ca45-40cf-86a7-a05c4579e4da",
+        "name": "Build Bioage JSON"
+      },
+      {
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "bioage-dashboard",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -900,
+          200
+        ],
+        "id": "7d4a2423-a25b-4c67-977e-926a4bbd30f3",
+        "name": "Webhook",
+        "webhookId": "22c34c27-ac4f-49ff-9c35-3dc5d38abb30"
+      },
+      {
+        "parameters": {
+          "jsCode": "const token = ($input.first().json.query || {}).token;\nif (token !== 'ba_9Fw3nZp7Kd') { return [{ json: { error: 'forbidden' } }]; }\nconst sd = $getWorkflowStaticData('global');\nconst cached = sd.bioageDashboard;\nif (!cached) { return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до часа.' } }]; }\nreturn [{ json: cached }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -680,
+          200
+        ],
+        "id": "7f77632f-ecae-4696-8f13-ade36abee082",
+        "name": "Read Static Data"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, OPTIONS"
+                },
+                {
+                  "name": "Cache-Control",
+                  "value": "public, max-age=120"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -460,
+          200
+        ],
+        "id": "4cc0e5db-52f5-412c-a998-a1b81db6390e",
+        "name": "Respond"
+      }
+    ],
+    "connections": {
+      "Every 15 min": {
+        "main": [
+          [
+            {
+              "node": "Get Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Results": {
+        "main": [
+          [
+            {
+              "node": "Get Markers",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Markers": {
+        "main": [
+          [
+            {
+              "node": "Get Visits",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Visits": {
+        "main": [
+          [
+            {
+              "node": "Get PhenoAge_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get PhenoAge_Log": {
+        "main": [
+          [
+            {
+              "node": "Build Bioage JSON",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Read Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Static Data": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: bioage-dashboard v2 (short id fix))",
+    "name": "Patch 2f8cf610 — bioage-dashboard v2 (short id fix)",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
