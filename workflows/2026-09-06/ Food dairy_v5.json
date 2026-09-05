@@ -1,0 +1,2612 @@
+{
+  "updatedAt": "2026-08-20T04:32:09.248Z",
+  "createdAt": "2026-06-05T04:42:37.145Z",
+  "id": "d58d41a9-4c2e-46aa-83cc-8f44841188a5",
+  "name": "🍽️ Food dairy_v5",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "model": "google/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        784,
+        752
+      ],
+      "id": "36bf1da3-189a-4076-b274-0c4f7f594743",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet jsonString = null; // Ищем текст во всех возможных местах\nconst possiblePaths = [ 'text', 'result.text', 'message.text', 'output.text', 'response.text'\n]; for (const path of possiblePaths) { const keys = path.split('.'); let value = input; for (const key of keys) { value = value?.[key]; } if (value && typeof value === 'string') { jsonString = value; break; }\n} if (!jsonString) { console.log('Доступные поля:', JSON.stringify(Object.keys(input), null, 2)); throw new Error('Текст не найден. Проверьте консоль для списка полей');\n} try { const startIdx = jsonString.indexOf('{'); const endIdx = jsonString.lastIndexOf('}'); if (startIdx === -1 || endIdx === -1) { throw new Error('JSON не найден'); } const parsed = JSON.parse(jsonString.substring(startIdx, endIdx + 1)); return { json: { ...input, ...parsed } };\n} catch (error) { throw new Error(`Parse error: ${error.message}`);\n}"
+      },
+      "id": "a0696621-b93b-4f16-b6d7-a4de6d7a699f",
+      "name": "Parse JSON from AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        496
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1136,
+        496
+      ],
+      "id": "6eb8dc73-8292-44e6-ac0b-f42304c4c2f7",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Ты — профессиональный ИИ-нутрициолог и аналитик данных. Твоя задача — анализировать изображения или описания еды, определять состав блюда и выдавать данные в строгом формате JSON для импорта в Google Таблицы.\n\n### ИНСТРУКЦИИ ПО АНАЛИЗУ:\n1. **Распознавание:** Определи основные ингредиенты блюда.\n2. **Оценка веса:** Визуально оцени вес порции (в граммах), основываясь на стандартной посуде (тарелка ~25см, столовая ложка и т.д.). Учитывай способ приготовления (жарка добавляет калории за счет масла, варка может уменьшать вес).\n3. **Расчет нутриентов:** Используй усредненные данные из авторитетных баз (USDA, FoodData Central) для рассчитанных ингредиентов и веса.\n4. **Микроэлементы:** Дай оценку содержания микроэлементов. Если продукт не является источником нутриента, ставь 0.\n   - Единицы измерения: Калории (ккал), БЖУ и Клетчатка (граммы), Минералы, Холестерин, Натрий, Кофеин и Омега-3 (мг), Витамины (мкг), Алкоголь (г).\n   - **Жиры:** Из состава общих жиров (\"Fats\") вытаскивай и записывай отдельно подкатегории: \"Насыщенные жиры\" (г) и \"Трансжиры\" (г). Сумма этих двух колонок не обязана равняться общим жирам, так как остаток — это ненасыщенные жиры.\n   - **Добавленный сахар:** Считай только добавленный сахар (г) (сиропы, сахар, мед, добавки). Естественный сахар из фруктов/овощей/молочки сюда не включай.\n   - **Омега-3 (EPA/DHA):** Строго разделяй морские и растительные источники. Для рыбы и морепродуктов указывай 100% от расчетного значения ЭПК/ДГК. Для растительных источников (грецкие орехи, льняное семя, чиа, растительные масла) рассчитай общее количество АЛК (ALA), умножь его на коэффициент конверсии 0.05 (5%) и запиши в JSON только эту итоговую цифру.\n\n### ТРЕБОВАНИЯ К ВЫВОДУ (JSON):\n1. Выведи ТОЛЬКО код JSON, обернутый в стандартный тег markdown: ```json [твой код] ```. Никаких приветствий, финальных фраз или пояснений вне этого блока быть не должно.\n2. Ключи должны точно соответствовать названиям колонок в таблице (соблюдай регистр и язык, как в шаблоне ниже).\n3. Все числовые значения должны быть типом `number` (без кавычек, без единиц измерения в тексте).\n4. Если значение неизвестно или ничтожно мало, используй `0`.\n5. В поле `Meal_description` кратко опиши блюдо и укажи предполагаемый вес (например: \"Овсяная каша на молоке, 250г\").\n\n### СТРУКТУРА JSON:\n```json\n{\n  \"Meal_description\": \"Строка с описанием и весом\",\n  \"Calories\": 0,\n  \"Proteins\": 0,\n  \"Carbs\": 0,\n  \"Fats\": 0,\n  \"Магний\": 0,\n  \"Витамин D\": 0,\n  \"Омега-3 (EPA/DHA)\": 0,\n  \"Селен\": 0,\n  \"Йод\": 0,\n  \"Калий\": 0,\n  \"Железо\": 0,\n  \"Кальций\": 0,\n  \"Витамин B12\": 0,\n  \"Витамин К\": 0,\n  \"Витамин Е\": 0,\n  \"Цинк\": 0,\n  \"Клетчатка\": 0,\n  \"Холестерин\": 0,\n  \"Добавленный сахар\": 0,\n  \"Натрий\": 0,\n  \"Кофеин\": 0,\n  \"Алкоголь\": 0,\n  \"Насыщенные жиры\": 0,\n  \"Трансжиры\": 0\n}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "={{ $json.prompt}}"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        784,
+        560
+      ],
+      "id": "45a6e5bd-c765-4341-bf68-2a25add0ac64",
+      "name": "AI Диетолог текст"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Ты — профессиональный ИИ-нутрициолог и аналитик данных. Твоя задача — анализировать изображения или описания еды, определять состав блюда и выдавать данные в строгом формате JSON для импорта в Google Таблицы.\n\n### ИНСТРУКЦИИ ПО АНАЛИЗУ:\n1. **Распознавание:** Определи основные ингредиенты блюда.\n2. **Оценка веса:** Визуально оцени вес порции (в граммах), основываясь на стандартной посуде (тарелка ~25см, столовая ложка и т.д.). Учитывай способ приготовления (жарка добавляет калории за счет масла, варка может уменьшать вес).\n3. **Расчет нутриентов:** Используй усредненные данные из авторитетных баз (USDA, FoodData Central) для рассчитанных ингредиентов и веса.\n4. **Микроэлементы:** Дай оценку содержания микроэлементов. Если продукт не является источником нутриента, ставь 0.\n   - Единицы измерения: Калории (ккал), БЖУ и Клетчатка (граммы), Минералы, Холестерин, Натрий, Кофеин и Омега-3 (мг), Витамины (мкг), Алкоголь (г).\n   - **Жиры:** Из состава общих жиров (\"Fats\") вытаскивай и записывай отдельно подкатегории: \"Насыщенные жиры\" (г) и \"Трансжиры\" (г). Сумма этих двух колонок не обязана равняться общим жирам, так как остаток — это ненасыщенные жиры.\n   - **Добавленный сахар:** Считай только добавленный сахар (г) (сиропы, сахар, мед, добавки). Естественный сахар из фруктов/овощей/молочки сюда не включай.\n   - **Омега-3 (EPA/DHA):** Строго разделяй морские и растительные источники. Для рыбы и морепродуктов указывай 100% от расчетного значения ЭПК/ДГК. Для растительных источников (грецкие орехи, льняное семя, чиа, растительные масла) рассчитай общее количество АЛК (ALA), умножь его на коэффициент конверсии 0.05 (5%) и запиши в JSON только эту итоговую цифру.\n\n### ТРЕБОВАНИЯ К ВЫВОДУ (JSON):\n1. Выведи ТОЛЬКО код JSON, обернутый в стандартный тег markdown: ```json [твой код] ```. Никаких приветствий, финальных фраз или пояснений вне этого блока быть не должно.\n2. Ключи должны точно соответствовать названиям колонок в таблице (соблюдай регистр и язык, как в шаблоне ниже).\n3. Все числовые значения должны быть типом `number` (без кавычек, без единиц измерения в тексте).\n4. Если значение неизвестно или ничтожно мало, используй `0`.\n5. В поле `Meal_description` кратко опиши блюдо и укажи предполагаемый вес (например: \"Овсяная каша на молоке, 250г\").\n\n### СТРУКТУРА JSON:\n```json\n{\n  \"Meal_description\": \"Строка с описанием и весом\",\n  \"Calories\": 0,\n  \"Proteins\": 0,\n  \"Carbs\": 0,\n  \"Fats\": 0,\n  \"Магний\": 0,\n  \"Витамин D\": 0,\n  \"Омега-3 (EPA/DHA)\": 0,\n  \"Селен\": 0,\n  \"Йод\": 0,\n  \"Калий\": 0,\n  \"Железо\": 0,\n  \"Кальций\": 0,\n  \"Витамин B12\": 0,\n  \"Витамин К\": 0,\n  \"Витамин Е\": 0,\n  \"Цинк\": 0,\n  \"Клетчатка\": 0,\n  \"Холестерин\": 0,\n  \"Добавленный сахар\": 0,\n  \"Натрий\": 0,\n  \"Кофеин\": 0,\n  \"Алкоголь\": 0,\n  \"Насыщенные жиры\": 0,\n  \"Трансжиры\": 0\n}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "={{ $json.prompt}}"
+            },
+            {
+              "type": "HumanMessagePromptTemplate",
+              "messageType": "imageBinary"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        784,
+        432
+      ],
+      "id": "50da7759-6fe7-4bcb-8943-a0569e6d4f7e",
+      "name": "AI Диетолог фото",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        608,
+        432
+      ],
+      "id": "8563960b-099a-4313-b420-8c156d0c4e27",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.caption || input.message?.text || ''; // Получаем binary данные\nconst binaryData = $input.first().binary; return { json: { prompt: `Ты нутрициолог. Пользователь прислал фото еды с комментарием: \"${userText}\". Используй комментарий для уточнения состава (вес, ингредиенты, способ приготовления). Оцени вес, БЖУ и микроэлементы. Верни ТОЛЬКО JSON в формате: {\"Meal_description\": \"описание, вес\", \"Calories\": 0, \"Proteins\": 0, \"Carbs\": 0, \"Fats\": 0, \"Магний\": 0, \"Витамин D\": 0, \"Омега-3 (EPA/DHA)\": 0, \"Селен\": 0, \"Йод\": 0, \"Калий\": 0, \"Железо\": 0, \"Кальций\": 0, \"Витамин B12\": 0, \"Витамин К\": 0, \"Витамин Е\": 0, \"Цинк\": 0, \"Клетчатка\": 0, \"\"\"\"Добавленный сахар\": 0, \"Натрий\": 0, \"Кофеин\": 0, \"Алкоголь\": 0, \"Вода\": 0, \"Насыщенные жиры\": 0, \"Трансжиры\": 0}`, hasImage: true, userText: userText }, binary: binaryData\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        400
+      ],
+      "id": "69e6c607-9f40-463b-b211-0e53822e0539",
+      "name": "текст и фото1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем binary данные\nconst binaryData = $input.first().binary; return { json: { prompt: `Ты нутрициолог. Пользователь прислал фото еды. Оцени вес, способ приготовления, рассчитай БЖУ и микроэлементы. Верни ТОЛЬКО JSON в формате: {\"Meal_description\": \"описание, вес\", \"Calories\": 0, \"Proteins\": 0, \"Carbs\": 0, \"Fats\": 0, \"Магний\": 0, \"Витамин D\": 0, \"Омега-3 (EPA/DHA)\": 0, \"Селен\": 0, \"Йод\": 0, \"Калий\": 0, \"Железо\": 0, \"Кальций\": 0, \"Витамин B12\": 0, \"Витамин К\": 0, \"Витамин Е\": 0, \"Цинк\": 0, \"Клетчатка\": 0, \"\"\"\"Добавленный сахар\": 0, \"Натрий\": 0, \"Кофеин\": 0, \"Алкоголь\": 0, \"Вода\": 0, \"Насыщенные жиры\": 0, \"Трансжиры\": 0}`, hasImage: true, userText: '' }, binary: binaryData\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        800
+      ],
+      "id": "dfd2bbe7-4fc9-4f7c-b20a-124039c50dad",
+      "name": "фото1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.text || ''; return { json: { prompt: `Ты нутрициолог. Пользователь описал еду текстом: \"${userText}\". Оцени вес, способ приготовления, рассчитай БЖУ и микроэлементы. Верни ТОЛЬКО JSON в формате: {\"Meal_description\": \"описание, вес\", \"Calories\": 0, \"Proteins\": 0, \"Carbs\": 0, \"Fats\": 0, \"Магний\": 0, \"Витамин D\": 0, \"Омега-3 (EPA/DHA)\": 0, \"Селен\": 0, \"Йод\": 0, \"Калий\": 0, \"Железо\": 0, \"Кальций\": 0, \"Витамин B12\": 0, \"Витамин К\": 0, \"Витамин Е\": 0, \"Цинк\": 0, \"Клетчатка\": 0, \"\"\"\"Добавленный сахар\": 0, \"Натрий\": 0, \"Кофеин\": 0, \"Алкоголь\": 0, \"Вода\": 0, \"Насыщенные жиры\": 0, \"Трансжиры\": 0}`, hasImage: false, userText: userText }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        672
+      ],
+      "id": "4f389df1-acaf-4aa1-8f40-bc1fc5f67183",
+      "name": "текст1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- НАСТРОЙКИ НОРМ (Дневные) ---\nconst NORMS = { cal: 2400, prot: 160, carb: 270, fat: 90\n}; const items = $input.all();\nconst triggerData = $('Food diary').first().json; const user = triggerData.callback_query ? triggerData.callback_query.from : triggerData.message.from;\nconst currentUserId = `${user.first_name} ${user.last_name || ''}`.trim(); const command = triggerData.callback_query?.data || triggerData.message?.text || '/today';\nconst isWeek = command.includes('week'); let stats = { cal: 0, prot: 0, carb: 0, fat: 0 };\nlet count = 0; const vlaTime = new Date(new Date().getTime() + (10 * 60 * 60 * 1000));\nconst todayStr = vlaTime.toISOString().split('T')[0]; const weekAgoTime = new Date(vlaTime.getTime() - (6 * 24 * 60 * 60 * 1000));\nconst weekAgoStr = weekAgoTime.toISOString().split('T')[0]; for (const item of items) { const row = item.json; if (row.User_ID !== currentUserId || !row.Date) continue; const rowDate = row.Date.split('T')[0]; const isMatch = isWeek ? (rowDate >= weekAgoStr && rowDate <= todayStr) : (rowDate === todayStr); if (isMatch) { stats.cal += Number(row.Calories) || 0; stats.prot += Number(row.Proteins) || 0; stats.carb += Number(row.Carbs) || 0; stats.fat += Number(row.Fats) || 0; count++; }\n} function generateBar(current, target) { const segments = 10; const progress = Math.min(Math.round((current / target) * segments), segments); const percentage = Math.round((current / target) * 100); return '🟩'.repeat(progress) + '⬜'.repeat(segments - progress) + ` ${percentage}%`;\n} const multiplier = isWeek ? 7 : 1;\nconst periodText = isWeek ? `за 7 дней (${weekAgoStr} — ${todayStr})` : `за сегодня (${todayStr})`; const message = count > 0 ?[ `📊 *Статистика ${periodText}:*`, ``, `🔥 *Калории:* ${Math.round(stats.cal)} / ${NORMS.cal * multiplier}`, generateBar(stats.cal, NORMS.cal * multiplier), ``, `🥩 *Белки:* ${Math.round(stats.prot)}г / ${NORMS.prot * multiplier}г`, generateBar(stats.prot, NORMS.prot * multiplier), ``, `🍚 *Углеводы:* ${Math.round(stats.carb)}г / ${NORMS.carb * multiplier}г`, generateBar(stats.carb, NORMS.carb * multiplier), ``, `🥑 *Жиры:* ${Math.round(stats.fat)}г / ${NORMS.fat * multiplier}г`, generateBar(stats.fat, NORMS.fat * multiplier) ].join('\\n') : `📊 ${isWeek ? 'За последние 7 дней' : 'За сегодня'} записей не найдено.`; return[{ json: { text: message, reply_markup: { inline_keyboard: [[ { text: '☀️ Сегодня', callback_data: '/today' }, { text: '📅 Неделя', callback_data: '/week' } ] ] } }\n}];"
+      },
+      "id": "0ff706ea-0089-44ad-8215-2e1b19da4bcc",
+      "name": "Агрегация /day_week",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "reply_cond",
+                    "leftValue": "={{ !!$json.message?.reply_to_message }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "правка"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cmd_cond",
+                    "leftValue": "={{ $json.message?.text?.startsWith('/') }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Статистика"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "text_photo_cond",
+                    "leftValue": "={{ $json.message?.photo != null && ($json.message?.caption != null || $json.message?.text != null) }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "текст и фото"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "text_only_cond",
+                    "leftValue": "={{ $json.message?.text != null && $json.message?.photo == null && !($json.message?.text || '').startsWith('/') }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "текст"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "photo_only_cond",
+                    "leftValue": "={{ $json.message?.photo != null && $json.message?.caption == null }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "фото"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        480
+      ],
+      "id": "1b741a1b-cf73-4384-baf1-3f76311d2d0d",
+      "name": "Switch Message Types"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -976,
+        336
+      ],
+      "id": "05acb8a0-0e83-49ad-ae41-a14fb9be2ce6",
+      "name": "Food diary",
+      "webhookId": "eaf95ddc-da54-42c5-8dd7-493c0e308da6",
+      "credentials": {
+        "telegramApi": {
+          "id": "8CKBKo8CXTaLD3YI",
+          "name": "vlad_health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $json.callbackQueryId }}",
+        "additionalFields": {
+          "text": "={{ $json.answerText }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -400,
+        144
+      ],
+      "id": "5fa5c0bc-7ce0-4437-826f-87aa59e2c990",
+      "name": "Answer Query a callback",
+      "webhookId": "2ceaa888-a5ec-41d2-b4a6-771ed50ed6d8",
+      "credentials": {
+        "telegramApi": {
+          "id": "8CKBKo8CXTaLD3YI",
+          "name": "vlad_health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $node[\"Code\"].json.action }}",
+                    "rightValue": "confirm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8225fa28-a11d-478f-8a06-8b74f5708294"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "confirm"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "54dd7646-6af8-4fd2-968d-b2b1276528e6",
+                    "leftValue": "={{ $node[\"Code\"].json.action }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e8e6b512-e03d-44df-b7a8-fe8ae2d006af",
+                    "leftValue": "={{ $node[\"Code\"].json.action }}",
+                    "rightValue": "edit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "edit"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        128
+      ],
+      "id": "2f4a19cf-b959-43a3-9ab0-643a1d52bf21",
+      "name": "Switch callback"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "startIndex": "={{ $json.row_number }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        288,
+        144
+      ],
+      "id": "4e3705d4-3213-4d15-9f5c-5f40028f5866",
+      "name": "del",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "4e731604-c409-409e-a437-f742f76c70c5",
+      "name": "read",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        256
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst query = input.callback_query || input.body?.callback_query; \n\nif (!query) return []; \n\n// Безопасно бьем строку, даже если data пришла пустой\nconst actionData = (query.data || '').split('|'); \nconst action = actionData[0] || null;\nconst rowId = actionData[1] || null; \n\n// Перенесли return на новую строку и добавили ?. для защиты от пустых message\nreturn [{ \n  json: { \n    callbackQueryId: query.id, \n    chatId: query.message?.chat?.id || null, \n    messageId: query.message?.message_id || null, \n    action: action, \n    rowId: rowId, \n    originalText: query.message?.text || \"\", \n    answerText: action === 'edit' ? 'Жду новые данные' : 'Принято' \n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        144
+      ],
+      "id": "279dd389-1e53-48e0-ad58-cf6029bc47da",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cb_cond",
+                    "leftValue": "={{ $json.callback_query ? true : false }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "callback"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "msg_cond",
+                    "leftValue": "={{ $json.message ? true : false }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "message"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -800,
+        336
+      ],
+      "id": "5c74ce57-6bb4-424d-93d8-74b744dc2727",
+      "name": "Callback vs Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst correction = input.message.text; const replyText = input.message.reply_to_message?.text || \"\"; // Извлекаем ID из текста сообщения бота, на которое ответил юзер\nconst idMatch = replyText.match(/\\[ID:(\\d+)\\]/);\nconst entryId = idMatch ? idMatch[1] : null; // Извлекаем старое описание блюда (оно в первой строке после \"🍽 \")\nconst descMatch = replyText.match(/🍽 (.*?)\\n/);\nconst originalText = descMatch ? descMatch[1] : \"неизвестно\"; return { json: { prompt: `Пользователь вносит правку в блюдо. \\nВот старое описание: \"${originalText}\". \\nВот правка пользователя: \"${correction}\". \\nПересчитай ВСЕ параметры: калории, БЖУ, полезные и вредные жиры, клетчатку, сахар, ЛПВП, ЛПНП), натрий, кофеин, алкоголь и все микроэлементы. Верни ТОЛЬКО строгий JSON со ВСЕМИ полями.`, Entry_ID: entryId }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        528
+      ],
+      "id": "0ff6ccdd-b5c5-40e9-9765-c41c444c3e8f",
+      "name": "prep"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Food diary').item.json.message.chat.id }}",
+        "text": "=✅ Записано! 🍽 {{ $json.Meal_description }}\n🔥 {{ $json.Calories }} ккал\n🥩 {{ $json.Proteins }}г белков | {{ $json.Carbs }}г углеводов | {{ $json.Fats }}г жиров Данные сохранены в таблицу.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "=✅ Подтвердить",
+                    "additionalFields": {
+                      "callback_data": "=confirm|{{ $json.rowNumber }}"
+                    }
+                  },
+                  {
+                    "text": "❌ Удалить",
+                    "additionalFields": {
+                      "callback_data": "={{ 'delete|' + $json.Entry_ID }}"
+                    }
+                  },
+                  {
+                    "text": "⚖️ Изменить последний",
+                    "additionalFields": {
+                      "callback_data": "={{ 'edit|' + ($json.Entry_ID || $('Food diary').item.json.message?.reply_to_message?.text?.match(/\\[ID:(\\d+)\\]/)?.[1] || $('Food diary').item.json.message?.message_id) }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1936,
+        496
+      ],
+      "id": "0b7f0bc3-32a6-4700-acf4-7c82fcb4c3d0",
+      "name": "answer",
+      "webhookId": "5bcdc6de-9bfe-49b4-a645-b343e9f7d754",
+      "credentials": {
+        "telegramApi": {
+          "id": "8CKBKo8CXTaLD3YI",
+          "name": "vlad_health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Food diary').first().json.message?.chat?.id || $('Food diary').first().json.callback_query?.message?.chat?.id }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "6c9a97b7-4835-4b9f-82fa-1836ea000840",
+      "name": "send stat",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        784,
+        256
+      ],
+      "webhookId": "453ed814-cc61-4304-8bbb-d3ecc148e17f",
+      "credentials": {
+        "telegramApi": {
+          "id": "8CKBKo8CXTaLD3YI",
+          "name": "vlad_health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $('Code').item.json.chatId }}",
+        "messageId": "={{ $('Code').item.json.messageId }}",
+        "text": "={{ $('Code').item.json.originalText + '\\n\\n❌ *Удалено*' }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        144
+      ],
+      "id": "21d86ac6-9830-4b57-a6f6-a70f55c2c3ad",
+      "name": "del1",
+      "webhookId": "ef66263b-325c-498f-adb7-fdde6836950e",
+      "credentials": {
+        "telegramApi": {
+          "id": "8CKBKo8CXTaLD3YI",
+          "name": "vlad_health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code').item.json.chatId }}",
+        "text": "={{ $('Code').item.json.originalText + '\\n\\n⚖️ Введите новые данные\\n[ID:' + $('Code').item.json.rowId + ']' }}",
+        "replyMarkup": "forceReply",
+        "forceReply": {
+          "force_reply": true
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        288
+      ],
+      "id": "1dd6f6a8-dd44-410f-90e1-3678c1fbad67",
+      "name": "edit",
+      "webhookId": "ef66263b-325c-498f-adb7-fdde6836950e",
+      "credentials": {
+        "telegramApi": {
+          "id": "8CKBKo8CXTaLD3YI",
+          "name": "vlad_health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "chatId": "={{ $('Code').item.json.chatId }}",
+        "messageId": "={{ $('Code').item.json.messageId }}",
+        "text": "={{ $('Code').item.json.originalText + '\\n\\n✅ *Подтверждено*' }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4d26e400-4092-4b0d-8e21-986b52b29f8e",
+      "name": "conf",
+      "webhookId": "ef66263b-325c-498f-adb7-fdde6836950e",
+      "credentials": {
+        "telegramApi": {
+          "id": "8CKBKo8CXTaLD3YI",
+          "name": "vlad_health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Entry_ID",
+              "lookupValue": "={{ $('Code').item.json.rowId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        144,
+        144
+      ],
+      "id": "c74fcc7d-e807-4d4d-a9fe-7fb24df16f45",
+      "name": "find row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "reply_cond",
+                    "leftValue": "={{ $('Food diary').item.json.message?.reply_to_message ? true : false }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Правка"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1472,
+        496
+      ],
+      "id": "ea62bc5e-86de-4505-b22f-f8eaea9c446a",
+      "name": "Правка или Новая (Switch)"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Meal_description": "={{ $json.Meal_description }}",
+            "Calories": "={{ $json.Calories }}",
+            "Proteins": "={{ $json.Proteins }}",
+            "Carbs": "={{ $json.Carbs }}",
+            "Fats": "={{ $json.Fats }}",
+            "Магний": "={{ $json['Магний'] }}",
+            "Витамин D": "={{ $json['Витамин D'] }}",
+            "Омега-3 (EPA/DHA)": "={{ $json['Омега-3 (EPA/DHA)'] }}",
+            "Селен": "={{ $json['Селен'] }}",
+            "Йод": "={{ $json['Йод'] }}",
+            "Калий": "={{ $json['Калий'] }}",
+            "Железо": "={{ $json['Железо'] }}",
+            "Кальций": "={{ $json['Кальций'] }}",
+            "Витамин B12": "={{ $json['Витамин B12'] }}",
+            "User_ID": "={{ $json.User_ID || ($('Food diary').item.json.message.from.first_name + ' ' + ($('Food diary').item.json.message.from.last_name || '')) }}",
+            "Витамин К": "={{ $json['Витамин К'] }}",
+            "Витамин Е": "={{ $json['Витамин Е'] }}",
+            "Цинк": "={{ $json['Цинк'] }}",
+            "Entry_ID": "={{ Number($('Food diary').item.json.message?.reply_to_message?.text?.match(/ID[^\\d]*(\\d+)/i)?.[1] || $('Food diary').item.json.message?.message_id) }}",
+            "Клетчатка": "={{ $json['Клетчатка'] }}",
+            "Натрий": "={{ $json['Натрий'] }}",
+            "Кофеин": "={{ $json['Кофеин'] }}",
+            "Алкоголь": "={{ $json['Алкоголь'] }}",
+            "Трансжиры": "={{ $json['Трансжиры'] }}",
+            "Насыщенные жиры": "={{ $json['Насыщенные жиры'] }}",
+            "Добавленный сахар": "={{ $json['Добавленный сахар'] }}",
+            "Холестерин": "={{ $json['Холестерин'] }}"
+          },
+          "matchingColumns": [
+            "Entry_ID"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1712,
+        400
+      ],
+      "id": "3be65495-0e9f-4ed5-a0d6-c8ac61300421",
+      "name": "Только Обновление",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ DateTime.fromSeconds($node[\"Food diary\"].json.message.date).setZone('Asia/Vladivostok').toISO() }}",
+            "Meal_description": "={{ $json.Meal_description }}",
+            "Calories": "={{ $json.Calories }}",
+            "Proteins": "={{ $json.Proteins }}",
+            "Carbs": "={{ $json.Carbs }}",
+            "Fats": "={{ $json.Fats }}",
+            "Магний": "={{ $json['Магний'] }}",
+            "Витамин D": "={{ $json['Витамин D'] }}",
+            "Омега-3 (EPA/DHA)": "={{ $json['Омега-3 (EPA/DHA)'] }}",
+            "Селен": "={{ $json['Селен'] }}",
+            "Йод": "={{ $json['Йод'] }}",
+            "Калий": "={{ $json['Калий'] }}",
+            "Железо": "={{ $json['Железо'] }}",
+            "Кальций": "={{ $json['Кальций'] }}",
+            "Витамин B12": "={{ $json['Витамин B12'] }}",
+            "User_ID": "={{ $json.User_ID || ($('Food diary').item.json.message.from.first_name + ' ' + ($('Food diary').item.json.message.from.last_name || '')) }}",
+            "Витамин К": "={{ $json['Витамин К'] }}",
+            "Витамин Е": "={{ $json['Витамин Е'] }}",
+            "Цинк": "={{ $json['Цинк'] }}",
+            "Entry_ID": "={{ Number($('Food diary').item.json.message?.message_id) }}",
+            "Клетчатка": "={{ $json['Клетчатка'] }}",
+            "Натрий": "={{ $json['Натрий'] }}",
+            "Кофеин": "={{ $json['Кофеин'] }}",
+            "Алкоголь": "={{ $json['Алкоголь'] }}",
+            "Трансжиры": "={{ $json['Трансжиры'] }}",
+            "Насыщенные жиры": "={{ $json['Насыщенные жиры'] }}",
+            "Добавленный сахар": "={{ $json['Добавленный сахар'] }}",
+            "Холестерин": "={{ $json['Холестерин'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1712,
+        608
+      ],
+      "id": "80b66a4a-8f66-4570-933e-a25713f9ba22",
+      "name": "Новая запись",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Диетолог текст",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Диетолог фото",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON from AI": {
+      "main": [
+        [
+          {
+            "node": "Правка или Новая (Switch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON from AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Диетолог текст": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "AI Диетолог фото": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "AI Диетолог фото",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "текст и фото1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "фото1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "текст1": {
+      "main": [
+        [
+          {
+            "node": "AI Диетолог текст",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Агрегация /day_week": {
+      "main": [
+        [
+          {
+            "node": "send stat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Message Types": {
+      "main": [
+        [
+          {
+            "node": "prep",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "read",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "текст и фото1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "текст1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "фото1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Food diary": {
+      "main": [
+        [
+          {
+            "node": "Callback vs Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Query a callback": {
+      "main": [
+        [
+          {
+            "node": "Switch callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch callback": {
+      "main": [
+        [
+          {
+            "node": "conf",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "del1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "edit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read": {
+      "main": [
+        [
+          {
+            "node": "Агрегация /day_week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Answer Query a callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback vs Message": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch Message Types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prep": {
+      "main": [
+        [
+          {
+            "node": "AI Диетолог текст",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "del1": {
+      "main": [
+        [
+          {
+            "node": "find row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "find row": {
+      "main": [
+        [
+          {
+            "node": "del",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Правка или Новая (Switch)": {
+      "main": [
+        [
+          {
+            "node": "Только Обновление",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Новая запись",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Только Обновление": {
+      "main": [
+        [
+          {
+            "node": "answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Новая запись": {
+      "main": [
+        [
+          {
+            "node": "answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Asia/Vladivostok",
+    "saveDataSuccessExecution": "none",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": {},
+  "meta": {},
+  "pinData": {},
+  "versionId": "9f820935-aeaf-4348-b85a-04e9778863df",
+  "activeVersionId": "9f820935-aeaf-4348-b85a-04e9778863df",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-05T04:42:37.147Z",
+      "createdAt": "2026-06-05T04:42:37.147Z",
+      "role": "workflow:owner",
+      "workflowId": "d58d41a9-4c2e-46aa-83cc-8f44841188a5",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-20T04:32:23.000Z",
+    "createdAt": "2026-08-20T04:32:09.253Z",
+    "versionId": "9f820935-aeaf-4348-b85a-04e9778863df",
+    "workflowId": "d58d41a9-4c2e-46aa-83cc-8f44841188a5",
+    "nodes": [
+      {
+        "parameters": {
+          "model": "google/gemini-3.1-flash-lite",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          784,
+          752
+        ],
+        "id": "36bf1da3-189a-4076-b274-0c4f7f594743",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nlet jsonString = null; // Ищем текст во всех возможных местах\nconst possiblePaths = [ 'text', 'result.text', 'message.text', 'output.text', 'response.text'\n]; for (const path of possiblePaths) { const keys = path.split('.'); let value = input; for (const key of keys) { value = value?.[key]; } if (value && typeof value === 'string') { jsonString = value; break; }\n} if (!jsonString) { console.log('Доступные поля:', JSON.stringify(Object.keys(input), null, 2)); throw new Error('Текст не найден. Проверьте консоль для списка полей');\n} try { const startIdx = jsonString.indexOf('{'); const endIdx = jsonString.lastIndexOf('}'); if (startIdx === -1 || endIdx === -1) { throw new Error('JSON не найден'); } const parsed = JSON.parse(jsonString.substring(startIdx, endIdx + 1)); return { json: { ...input, ...parsed } };\n} catch (error) { throw new Error(`Parse error: ${error.message}`);\n}"
+        },
+        "id": "a0696621-b93b-4f16-b6d7-a4de6d7a699f",
+        "name": "Parse JSON from AI",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1296,
+          496
+        ]
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          1136,
+          496
+        ],
+        "id": "6eb8dc73-8292-44e6-ac0b-f42304c4c2f7",
+        "name": "Merge"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "Ты — профессиональный ИИ-нутрициолог и аналитик данных. Твоя задача — анализировать изображения или описания еды, определять состав блюда и выдавать данные в строгом формате JSON для импорта в Google Таблицы.\n\n### ИНСТРУКЦИИ ПО АНАЛИЗУ:\n1. **Распознавание:** Определи основные ингредиенты блюда.\n2. **Оценка веса:** Визуально оцени вес порции (в граммах), основываясь на стандартной посуде (тарелка ~25см, столовая ложка и т.д.). Учитывай способ приготовления (жарка добавляет калории за счет масла, варка может уменьшать вес).\n3. **Расчет нутриентов:** Используй усредненные данные из авторитетных баз (USDA, FoodData Central) для рассчитанных ингредиентов и веса.\n4. **Микроэлементы:** Дай оценку содержания микроэлементов. Если продукт не является источником нутриента, ставь 0.\n   - Единицы измерения: Калории (ккал), БЖУ и Клетчатка (граммы), Минералы, Холестерин, Натрий, Кофеин и Омега-3 (мг), Витамины (мкг), Алкоголь (г).\n   - **Жиры:** Из состава общих жиров (\"Fats\") вытаскивай и записывай отдельно подкатегории: \"Насыщенные жиры\" (г) и \"Трансжиры\" (г). Сумма этих двух колонок не обязана равняться общим жирам, так как остаток — это ненасыщенные жиры.\n   - **Добавленный сахар:** Считай только добавленный сахар (г) (сиропы, сахар, мед, добавки). Естественный сахар из фруктов/овощей/молочки сюда не включай.\n   - **Омега-3 (EPA/DHA):** Строго разделяй морские и растительные источники. Для рыбы и морепродуктов указывай 100% от расчетного значения ЭПК/ДГК. Для растительных источников (грецкие орехи, льняное семя, чиа, растительные масла) рассчитай общее количество АЛК (ALA), умножь его на коэффициент конверсии 0.05 (5%) и запиши в JSON только эту итоговую цифру.\n\n### ТРЕБОВАНИЯ К ВЫВОДУ (JSON):\n1. Выведи ТОЛЬКО код JSON, обернутый в стандартный тег markdown: ```json [твой код] ```. Никаких приветствий, финальных фраз или пояснений вне этого блока быть не должно.\n2. Ключи должны точно соответствовать названиям колонок в таблице (соблюдай регистр и язык, как в шаблоне ниже).\n3. Все числовые значения должны быть типом `number` (без кавычек, без единиц измерения в тексте).\n4. Если значение неизвестно или ничтожно мало, используй `0`.\n5. В поле `Meal_description` кратко опиши блюдо и укажи предполагаемый вес (например: \"Овсяная каша на молоке, 250г\").\n\n### СТРУКТУРА JSON:\n```json\n{\n  \"Meal_description\": \"Строка с описанием и весом\",\n  \"Calories\": 0,\n  \"Proteins\": 0,\n  \"Carbs\": 0,\n  \"Fats\": 0,\n  \"Магний\": 0,\n  \"Витамин D\": 0,\n  \"Омега-3 (EPA/DHA)\": 0,\n  \"Селен\": 0,\n  \"Йод\": 0,\n  \"Калий\": 0,\n  \"Железо\": 0,\n  \"Кальций\": 0,\n  \"Витамин B12\": 0,\n  \"Витамин К\": 0,\n  \"Витамин Е\": 0,\n  \"Цинк\": 0,\n  \"Клетчатка\": 0,\n  \"Холестерин\": 0,\n  \"Добавленный сахар\": 0,\n  \"Натрий\": 0,\n  \"Кофеин\": 0,\n  \"Алкоголь\": 0,\n  \"Насыщенные жиры\": 0,\n  \"Трансжиры\": 0\n}",
+          "messages": {
+            "messageValues": [
+              {
+                "type": "HumanMessagePromptTemplate",
+                "message": "={{ $json.prompt}}"
+              }
+            ]
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4,
+        "position": [
+          784,
+          560
+        ],
+        "id": "45a6e5bd-c765-4341-bf68-2a25add0ac64",
+        "name": "AI Диетолог текст"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "Ты — профессиональный ИИ-нутрициолог и аналитик данных. Твоя задача — анализировать изображения или описания еды, определять состав блюда и выдавать данные в строгом формате JSON для импорта в Google Таблицы.\n\n### ИНСТРУКЦИИ ПО АНАЛИЗУ:\n1. **Распознавание:** Определи основные ингредиенты блюда.\n2. **Оценка веса:** Визуально оцени вес порции (в граммах), основываясь на стандартной посуде (тарелка ~25см, столовая ложка и т.д.). Учитывай способ приготовления (жарка добавляет калории за счет масла, варка может уменьшать вес).\n3. **Расчет нутриентов:** Используй усредненные данные из авторитетных баз (USDA, FoodData Central) для рассчитанных ингредиентов и веса.\n4. **Микроэлементы:** Дай оценку содержания микроэлементов. Если продукт не является источником нутриента, ставь 0.\n   - Единицы измерения: Калории (ккал), БЖУ и Клетчатка (граммы), Минералы, Холестерин, Натрий, Кофеин и Омега-3 (мг), Витамины (мкг), Алкоголь (г).\n   - **Жиры:** Из состава общих жиров (\"Fats\") вытаскивай и записывай отдельно подкатегории: \"Насыщенные жиры\" (г) и \"Трансжиры\" (г). Сумма этих двух колонок не обязана равняться общим жирам, так как остаток — это ненасыщенные жиры.\n   - **Добавленный сахар:** Считай только добавленный сахар (г) (сиропы, сахар, мед, добавки). Естественный сахар из фруктов/овощей/молочки сюда не включай.\n   - **Омега-3 (EPA/DHA):** Строго разделяй морские и растительные источники. Для рыбы и морепродуктов указывай 100% от расчетного значения ЭПК/ДГК. Для растительных источников (грецкие орехи, льняное семя, чиа, растительные масла) рассчитай общее количество АЛК (ALA), умножь его на коэффициент конверсии 0.05 (5%) и запиши в JSON только эту итоговую цифру.\n\n### ТРЕБОВАНИЯ К ВЫВОДУ (JSON):\n1. Выведи ТОЛЬКО код JSON, обернутый в стандартный тег markdown: ```json [твой код] ```. Никаких приветствий, финальных фраз или пояснений вне этого блока быть не должно.\n2. Ключи должны точно соответствовать названиям колонок в таблице (соблюдай регистр и язык, как в шаблоне ниже).\n3. Все числовые значения должны быть типом `number` (без кавычек, без единиц измерения в тексте).\n4. Если значение неизвестно или ничтожно мало, используй `0`.\n5. В поле `Meal_description` кратко опиши блюдо и укажи предполагаемый вес (например: \"Овсяная каша на молоке, 250г\").\n\n### СТРУКТУРА JSON:\n```json\n{\n  \"Meal_description\": \"Строка с описанием и весом\",\n  \"Calories\": 0,\n  \"Proteins\": 0,\n  \"Carbs\": 0,\n  \"Fats\": 0,\n  \"Магний\": 0,\n  \"Витамин D\": 0,\n  \"Омега-3 (EPA/DHA)\": 0,\n  \"Селен\": 0,\n  \"Йод\": 0,\n  \"Калий\": 0,\n  \"Железо\": 0,\n  \"Кальций\": 0,\n  \"Витамин B12\": 0,\n  \"Витамин К\": 0,\n  \"Витамин Е\": 0,\n  \"Цинк\": 0,\n  \"Клетчатка\": 0,\n  \"Холестерин\": 0,\n  \"Добавленный сахар\": 0,\n  \"Натрий\": 0,\n  \"Кофеин\": 0,\n  \"Алкоголь\": 0,\n  \"Насыщенные жиры\": 0,\n  \"Трансжиры\": 0\n}",
+          "messages": {
+            "messageValues": [
+              {
+                "type": "HumanMessagePromptTemplate",
+                "message": "={{ $json.prompt}}"
+              },
+              {
+                "type": "HumanMessagePromptTemplate",
+                "messageType": "imageBinary"
+              }
+            ]
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4,
+        "position": [
+          784,
+          432
+        ],
+        "id": "50da7759-6fe7-4bcb-8943-a0569e6d4f7e",
+        "name": "AI Диетолог фото",
+        "retryOnFail": false
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          608,
+          432
+        ],
+        "id": "8563960b-099a-4313-b420-8c156d0c4e27",
+        "name": "Merge1"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.caption || input.message?.text || ''; // Получаем binary данные\nconst binaryData = $input.first().binary; return { json: { prompt: `Ты нутрициолог. Пользователь прислал фото еды с комментарием: \"${userText}\". Используй комментарий для уточнения состава (вес, ингредиенты, способ приготовления). Оцени вес, БЖУ и микроэлементы. Верни ТОЛЬКО JSON в формате: {\"Meal_description\": \"описание, вес\", \"Calories\": 0, \"Proteins\": 0, \"Carbs\": 0, \"Fats\": 0, \"Магний\": 0, \"Витамин D\": 0, \"Омега-3 (EPA/DHA)\": 0, \"Селен\": 0, \"Йод\": 0, \"Калий\": 0, \"Железо\": 0, \"Кальций\": 0, \"Витамин B12\": 0, \"Витамин К\": 0, \"Витамин Е\": 0, \"Цинк\": 0, \"Клетчатка\": 0, \"\"\"\"Добавленный сахар\": 0, \"Натрий\": 0, \"Кофеин\": 0, \"Алкоголь\": 0, \"Вода\": 0, \"Насыщенные жиры\": 0, \"Трансжиры\": 0}`, hasImage: true, userText: userText }, binary: binaryData\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          416,
+          400
+        ],
+        "id": "69e6c607-9f40-463b-b211-0e53822e0539",
+        "name": "текст и фото1"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем binary данные\nconst binaryData = $input.first().binary; return { json: { prompt: `Ты нутрициолог. Пользователь прислал фото еды. Оцени вес, способ приготовления, рассчитай БЖУ и микроэлементы. Верни ТОЛЬКО JSON в формате: {\"Meal_description\": \"описание, вес\", \"Calories\": 0, \"Proteins\": 0, \"Carbs\": 0, \"Fats\": 0, \"Магний\": 0, \"Витамин D\": 0, \"Омега-3 (EPA/DHA)\": 0, \"Селен\": 0, \"Йод\": 0, \"Калий\": 0, \"Железо\": 0, \"Кальций\": 0, \"Витамин B12\": 0, \"Витамин К\": 0, \"Витамин Е\": 0, \"Цинк\": 0, \"Клетчатка\": 0, \"\"\"\"Добавленный сахар\": 0, \"Натрий\": 0, \"Кофеин\": 0, \"Алкоголь\": 0, \"Вода\": 0, \"Насыщенные жиры\": 0, \"Трансжиры\": 0}`, hasImage: true, userText: '' }, binary: binaryData\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          416,
+          800
+        ],
+        "id": "dfd2bbe7-4fc9-4f7c-b20a-124039c50dad",
+        "name": "фото1"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем текст из сообщения\nconst input = $input.first().json;\nconst userText = input.message?.text || ''; return { json: { prompt: `Ты нутрициолог. Пользователь описал еду текстом: \"${userText}\". Оцени вес, способ приготовления, рассчитай БЖУ и микроэлементы. Верни ТОЛЬКО JSON в формате: {\"Meal_description\": \"описание, вес\", \"Calories\": 0, \"Proteins\": 0, \"Carbs\": 0, \"Fats\": 0, \"Магний\": 0, \"Витамин D\": 0, \"Омега-3 (EPA/DHA)\": 0, \"Селен\": 0, \"Йод\": 0, \"Калий\": 0, \"Железо\": 0, \"Кальций\": 0, \"Витамин B12\": 0, \"Витамин К\": 0, \"Витамин Е\": 0, \"Цинк\": 0, \"Клетчатка\": 0, \"\"\"\"Добавленный сахар\": 0, \"Натрий\": 0, \"Кофеин\": 0, \"Алкоголь\": 0, \"Вода\": 0, \"Насыщенные жиры\": 0, \"Трансжиры\": 0}`, hasImage: false, userText: userText }\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          416,
+          672
+        ],
+        "id": "4f389df1-acaf-4aa1-8f40-bc1fc5f67183",
+        "name": "текст1"
+      },
+      {
+        "parameters": {
+          "jsCode": "// --- НАСТРОЙКИ НОРМ (Дневные) ---\nconst NORMS = { cal: 2400, prot: 160, carb: 270, fat: 90\n}; const items = $input.all();\nconst triggerData = $('Food diary').first().json; const user = triggerData.callback_query ? triggerData.callback_query.from : triggerData.message.from;\nconst currentUserId = `${user.first_name} ${user.last_name || ''}`.trim(); const command = triggerData.callback_query?.data || triggerData.message?.text || '/today';\nconst isWeek = command.includes('week'); let stats = { cal: 0, prot: 0, carb: 0, fat: 0 };\nlet count = 0; const vlaTime = new Date(new Date().getTime() + (10 * 60 * 60 * 1000));\nconst todayStr = vlaTime.toISOString().split('T')[0]; const weekAgoTime = new Date(vlaTime.getTime() - (6 * 24 * 60 * 60 * 1000));\nconst weekAgoStr = weekAgoTime.toISOString().split('T')[0]; for (const item of items) { const row = item.json; if (row.User_ID !== currentUserId || !row.Date) continue; const rowDate = row.Date.split('T')[0]; const isMatch = isWeek ? (rowDate >= weekAgoStr && rowDate <= todayStr) : (rowDate === todayStr); if (isMatch) { stats.cal += Number(row.Calories) || 0; stats.prot += Number(row.Proteins) || 0; stats.carb += Number(row.Carbs) || 0; stats.fat += Number(row.Fats) || 0; count++; }\n} function generateBar(current, target) { const segments = 10; const progress = Math.min(Math.round((current / target) * segments), segments); const percentage = Math.round((current / target) * 100); return '🟩'.repeat(progress) + '⬜'.repeat(segments - progress) + ` ${percentage}%`;\n} const multiplier = isWeek ? 7 : 1;\nconst periodText = isWeek ? `за 7 дней (${weekAgoStr} — ${todayStr})` : `за сегодня (${todayStr})`; const message = count > 0 ?[ `📊 *Статистика ${periodText}:*`, ``, `🔥 *Калории:* ${Math.round(stats.cal)} / ${NORMS.cal * multiplier}`, generateBar(stats.cal, NORMS.cal * multiplier), ``, `🥩 *Белки:* ${Math.round(stats.prot)}г / ${NORMS.prot * multiplier}г`, generateBar(stats.prot, NORMS.prot * multiplier), ``, `🍚 *Углеводы:* ${Math.round(stats.carb)}г / ${NORMS.carb * multiplier}г`, generateBar(stats.carb, NORMS.carb * multiplier), ``, `🥑 *Жиры:* ${Math.round(stats.fat)}г / ${NORMS.fat * multiplier}г`, generateBar(stats.fat, NORMS.fat * multiplier) ].join('\\n') : `📊 ${isWeek ? 'За последние 7 дней' : 'За сегодня'} записей не найдено.`; return[{ json: { text: message, reply_markup: { inline_keyboard: [[ { text: '☀️ Сегодня', callback_data: '/today' }, { text: '📅 Неделя', callback_data: '/week' } ] ] } }\n}];"
+        },
+        "id": "0ff706ea-0089-44ad-8215-2e1b19da4bcc",
+        "name": "Агрегация /day_week",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          592,
+          256
+        ]
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": false,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "reply_cond",
+                      "leftValue": "={{ !!$json.message?.reply_to_message }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "правка"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": false,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "cmd_cond",
+                      "leftValue": "={{ $json.message?.text?.startsWith('/') }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "Статистика"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": false,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "text_photo_cond",
+                      "leftValue": "={{ $json.message?.photo != null && ($json.message?.caption != null || $json.message?.text != null) }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "текст и фото"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": false,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "text_only_cond",
+                      "leftValue": "={{ $json.message?.text != null && $json.message?.photo == null && !($json.message?.text || '').startsWith('/') }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "текст"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": false,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "photo_only_cond",
+                      "leftValue": "={{ $json.message?.photo != null && $json.message?.caption == null }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "фото"
+              }
+            ]
+          },
+          "looseTypeValidation": true,
+          "options": {
+            "ignoreCase": true
+          }
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          0,
+          480
+        ],
+        "id": "1b741a1b-cf73-4384-baf1-3f76311d2d0d",
+        "name": "Switch Message Types"
+      },
+      {
+        "parameters": {
+          "updates": [
+            "message",
+            "callback_query"
+          ],
+          "additionalFields": {
+            "download": true
+          }
+        },
+        "type": "n8n-nodes-base.telegramTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -976,
+          336
+        ],
+        "id": "05acb8a0-0e83-49ad-ae41-a14fb9be2ce6",
+        "name": "Food diary",
+        "webhookId": "eaf95ddc-da54-42c5-8dd7-493c0e308da6",
+        "credentials": {
+          "telegramApi": {
+            "id": "8CKBKo8CXTaLD3YI",
+            "name": "vlad_health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "resource": "callback",
+          "queryId": "={{ $json.callbackQueryId }}",
+          "additionalFields": {
+            "text": "={{ $json.answerText }}"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -400,
+          144
+        ],
+        "id": "5fa5c0bc-7ce0-4437-826f-87aa59e2c990",
+        "name": "Answer Query a callback",
+        "webhookId": "2ceaa888-a5ec-41d2-b4a6-771ed50ed6d8",
+        "credentials": {
+          "telegramApi": {
+            "id": "8CKBKo8CXTaLD3YI",
+            "name": "vlad_health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $node[\"Code\"].json.action }}",
+                      "rightValue": "confirm",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "id": "8225fa28-a11d-478f-8a06-8b74f5708294"
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "confirm"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "54dd7646-6af8-4fd2-968d-b2b1276528e6",
+                      "leftValue": "={{ $node[\"Code\"].json.action }}",
+                      "rightValue": "delete",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "delete"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "e8e6b512-e03d-44df-b7a8-fe8ae2d006af",
+                      "leftValue": "={{ $node[\"Code\"].json.action }}",
+                      "rightValue": "edit",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "edit"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          -224,
+          128
+        ],
+        "id": "2f4a19cf-b959-43a3-9ab0-643a1d52bf21",
+        "name": "Switch callback"
+      },
+      {
+        "parameters": {
+          "operation": "delete",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "startIndex": "={{ $json.row_number }}"
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          288,
+          144
+        ],
+        "id": "4e3705d4-3213-4d15-9f5c-5f40028f5866",
+        "name": "del",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list"
+          },
+          "options": {}
+        },
+        "id": "4e731604-c409-409e-a437-f742f76c70c5",
+        "name": "read",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          416,
+          256
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconst query = input.callback_query || input.body?.callback_query; \n\nif (!query) return []; \n\n// Безопасно бьем строку, даже если data пришла пустой\nconst actionData = (query.data || '').split('|'); \nconst action = actionData[0] || null;\nconst rowId = actionData[1] || null; \n\n// Перенесли return на новую строку и добавили ?. для защиты от пустых message\nreturn [{ \n  json: { \n    callbackQueryId: query.id, \n    chatId: query.message?.chat?.id || null, \n    messageId: query.message?.message_id || null, \n    action: action, \n    rowId: rowId, \n    originalText: query.message?.text || \"\", \n    answerText: action === 'edit' ? 'Жду новые данные' : 'Принято' \n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -576,
+          144
+        ],
+        "id": "279dd389-1e53-48e0-ad58-cf6029bc47da",
+        "name": "Code"
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "cb_cond",
+                      "leftValue": "={{ $json.callback_query ? true : false }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "callback"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "msg_cond",
+                      "leftValue": "={{ $json.message ? true : false }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "message"
+              }
+            ]
+          },
+          "looseTypeValidation": true,
+          "options": {}
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          -800,
+          336
+        ],
+        "id": "5c74ce57-6bb4-424d-93d8-74b744dc2727",
+        "name": "Callback vs Message"
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconst correction = input.message.text; const replyText = input.message.reply_to_message?.text || \"\"; // Извлекаем ID из текста сообщения бота, на которое ответил юзер\nconst idMatch = replyText.match(/\\[ID:(\\d+)\\]/);\nconst entryId = idMatch ? idMatch[1] : null; // Извлекаем старое описание блюда (оно в первой строке после \"🍽 \")\nconst descMatch = replyText.match(/🍽 (.*?)\\n/);\nconst originalText = descMatch ? descMatch[1] : \"неизвестно\"; return { json: { prompt: `Пользователь вносит правку в блюдо. \\nВот старое описание: \"${originalText}\". \\nВот правка пользователя: \"${correction}\". \\nПересчитай ВСЕ параметры: калории, БЖУ, полезные и вредные жиры, клетчатку, сахар, ЛПВП, ЛПНП), натрий, кофеин, алкоголь и все микроэлементы. Верни ТОЛЬКО строгий JSON со ВСЕМИ полями.`, Entry_ID: entryId }\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          416,
+          528
+        ],
+        "id": "0ff6ccdd-b5c5-40e9-9765-c41c444c3e8f",
+        "name": "prep"
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Food diary').item.json.message.chat.id }}",
+          "text": "=✅ Записано! 🍽 {{ $json.Meal_description }}\n🔥 {{ $json.Calories }} ккал\n🥩 {{ $json.Proteins }}г белков | {{ $json.Carbs }}г углеводов | {{ $json.Fats }}г жиров Данные сохранены в таблицу.",
+          "replyMarkup": "inlineKeyboard",
+          "inlineKeyboard": {
+            "rows": [
+              {
+                "row": {
+                  "buttons": [
+                    {
+                      "text": "=✅ Подтвердить",
+                      "additionalFields": {
+                        "callback_data": "=confirm|{{ $json.rowNumber }}"
+                      }
+                    },
+                    {
+                      "text": "❌ Удалить",
+                      "additionalFields": {
+                        "callback_data": "={{ 'delete|' + $json.Entry_ID }}"
+                      }
+                    },
+                    {
+                      "text": "⚖️ Изменить последний",
+                      "additionalFields": {
+                        "callback_data": "={{ 'edit|' + ($json.Entry_ID || $('Food diary').item.json.message?.reply_to_message?.text?.match(/\\[ID:(\\d+)\\]/)?.[1] || $('Food diary').item.json.message?.message_id) }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          1936,
+          496
+        ],
+        "id": "0b7f0bc3-32a6-4700-acf4-7c82fcb4c3d0",
+        "name": "answer",
+        "webhookId": "5bcdc6de-9bfe-49b4-a645-b343e9f7d754",
+        "credentials": {
+          "telegramApi": {
+            "id": "8CKBKo8CXTaLD3YI",
+            "name": "vlad_health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Food diary').first().json.message?.chat?.id || $('Food diary').first().json.callback_query?.message?.chat?.id }}",
+          "text": "={{ $json.text }}",
+          "replyMarkup": "inlineKeyboard",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "id": "6c9a97b7-4835-4b9f-82fa-1836ea000840",
+        "name": "send stat",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          784,
+          256
+        ],
+        "webhookId": "453ed814-cc61-4304-8bbb-d3ecc148e17f",
+        "credentials": {
+          "telegramApi": {
+            "id": "8CKBKo8CXTaLD3YI",
+            "name": "vlad_health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "editMessageText",
+          "chatId": "={{ $('Code').item.json.chatId }}",
+          "messageId": "={{ $('Code').item.json.messageId }}",
+          "text": "={{ $('Code').item.json.originalText + '\\n\\n❌ *Удалено*' }}",
+          "additionalFields": {}
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          144
+        ],
+        "id": "21d86ac6-9830-4b57-a6f6-a70f55c2c3ad",
+        "name": "del1",
+        "webhookId": "ef66263b-325c-498f-adb7-fdde6836950e",
+        "credentials": {
+          "telegramApi": {
+            "id": "8CKBKo8CXTaLD3YI",
+            "name": "vlad_health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Code').item.json.chatId }}",
+          "text": "={{ $('Code').item.json.originalText + '\\n\\n⚖️ Введите новые данные\\n[ID:' + $('Code').item.json.rowId + ']' }}",
+          "replyMarkup": "forceReply",
+          "forceReply": {
+            "force_reply": true
+          },
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          288
+        ],
+        "id": "1dd6f6a8-dd44-410f-90e1-3678c1fbad67",
+        "name": "edit",
+        "webhookId": "ef66263b-325c-498f-adb7-fdde6836950e",
+        "credentials": {
+          "telegramApi": {
+            "id": "8CKBKo8CXTaLD3YI",
+            "name": "vlad_health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "editMessageText",
+          "chatId": "={{ $('Code').item.json.chatId }}",
+          "messageId": "={{ $('Code').item.json.messageId }}",
+          "text": "={{ $('Code').item.json.originalText + '\\n\\n✅ *Подтверждено*' }}",
+          "additionalFields": {}
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "id": "4d26e400-4092-4b0d-8e21-986b52b29f8e",
+        "name": "conf",
+        "webhookId": "ef66263b-325c-498f-adb7-fdde6836950e",
+        "credentials": {
+          "telegramApi": {
+            "id": "8CKBKo8CXTaLD3YI",
+            "name": "vlad_health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "filtersUI": {
+            "values": [
+              {
+                "lookupColumn": "Entry_ID",
+                "lookupValue": "={{ $('Code').item.json.rowId }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          144,
+          144
+        ],
+        "id": "c74fcc7d-e807-4d4d-a9fe-7fb24df16f45",
+        "name": "find row",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "reply_cond",
+                      "leftValue": "={{ $('Food diary').item.json.message?.reply_to_message ? true : false }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "Правка"
+              }
+            ]
+          },
+          "options": {
+            "fallbackOutput": "extra"
+          }
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          1472,
+          496
+        ],
+        "id": "ea62bc5e-86de-4505-b22f-f8eaea9c446a",
+        "name": "Правка или Новая (Switch)"
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Meal_description": "={{ $json.Meal_description }}",
+              "Calories": "={{ $json.Calories }}",
+              "Proteins": "={{ $json.Proteins }}",
+              "Carbs": "={{ $json.Carbs }}",
+              "Fats": "={{ $json.Fats }}",
+              "Магний": "={{ $json['Магний'] }}",
+              "Витамин D": "={{ $json['Витамин D'] }}",
+              "Омега-3 (EPA/DHA)": "={{ $json['Омега-3 (EPA/DHA)'] }}",
+              "Селен": "={{ $json['Селен'] }}",
+              "Йод": "={{ $json['Йод'] }}",
+              "Калий": "={{ $json['Калий'] }}",
+              "Железо": "={{ $json['Железо'] }}",
+              "Кальций": "={{ $json['Кальций'] }}",
+              "Витамин B12": "={{ $json['Витамин B12'] }}",
+              "User_ID": "={{ $json.User_ID || ($('Food diary').item.json.message.from.first_name + ' ' + ($('Food diary').item.json.message.from.last_name || '')) }}",
+              "Витамин К": "={{ $json['Витамин К'] }}",
+              "Витамин Е": "={{ $json['Витамин Е'] }}",
+              "Цинк": "={{ $json['Цинк'] }}",
+              "Entry_ID": "={{ Number($('Food diary').item.json.message?.reply_to_message?.text?.match(/ID[^\\d]*(\\d+)/i)?.[1] || $('Food diary').item.json.message?.message_id) }}",
+              "Клетчатка": "={{ $json['Клетчатка'] }}",
+              "Натрий": "={{ $json['Натрий'] }}",
+              "Кофеин": "={{ $json['Кофеин'] }}",
+              "Алкоголь": "={{ $json['Алкоголь'] }}",
+              "Трансжиры": "={{ $json['Трансжиры'] }}",
+              "Насыщенные жиры": "={{ $json['Насыщенные жиры'] }}",
+              "Добавленный сахар": "={{ $json['Добавленный сахар'] }}",
+              "Холестерин": "={{ $json['Холестерин'] }}"
+            },
+            "matchingColumns": [
+              "Entry_ID"
+            ],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1712,
+          400
+        ],
+        "id": "3be65495-0e9f-4ed5-a0d6-c8ac61300421",
+        "name": "Только Обновление",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Date": "={{ DateTime.fromSeconds($node[\"Food diary\"].json.message.date).setZone('Asia/Vladivostok').toISO() }}",
+              "Meal_description": "={{ $json.Meal_description }}",
+              "Calories": "={{ $json.Calories }}",
+              "Proteins": "={{ $json.Proteins }}",
+              "Carbs": "={{ $json.Carbs }}",
+              "Fats": "={{ $json.Fats }}",
+              "Магний": "={{ $json['Магний'] }}",
+              "Витамин D": "={{ $json['Витамин D'] }}",
+              "Омега-3 (EPA/DHA)": "={{ $json['Омега-3 (EPA/DHA)'] }}",
+              "Селен": "={{ $json['Селен'] }}",
+              "Йод": "={{ $json['Йод'] }}",
+              "Калий": "={{ $json['Калий'] }}",
+              "Железо": "={{ $json['Железо'] }}",
+              "Кальций": "={{ $json['Кальций'] }}",
+              "Витамин B12": "={{ $json['Витамин B12'] }}",
+              "User_ID": "={{ $json.User_ID || ($('Food diary').item.json.message.from.first_name + ' ' + ($('Food diary').item.json.message.from.last_name || '')) }}",
+              "Витамин К": "={{ $json['Витамин К'] }}",
+              "Витамин Е": "={{ $json['Витамин Е'] }}",
+              "Цинк": "={{ $json['Цинк'] }}",
+              "Entry_ID": "={{ Number($('Food diary').item.json.message?.message_id) }}",
+              "Клетчатка": "={{ $json['Клетчатка'] }}",
+              "Натрий": "={{ $json['Натрий'] }}",
+              "Кофеин": "={{ $json['Кофеин'] }}",
+              "Алкоголь": "={{ $json['Алкоголь'] }}",
+              "Трансжиры": "={{ $json['Трансжиры'] }}",
+              "Насыщенные жиры": "={{ $json['Насыщенные жиры'] }}",
+              "Добавленный сахар": "={{ $json['Добавленный сахар'] }}",
+              "Холестерин": "={{ $json['Холестерин'] }}"
+            },
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1712,
+          608
+        ],
+        "id": "80b66a4a-8f66-4570-933e-a25713f9ba22",
+        "name": "Новая запись",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Диетолог текст",
+              "type": "ai_languageModel",
+              "index": 0
+            },
+            {
+              "node": "AI Диетолог фото",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse JSON from AI": {
+        "main": [
+          [
+            {
+              "node": "Правка или Новая (Switch)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "Parse JSON from AI",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Диетолог текст": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "AI Диетолог фото": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge1": {
+        "main": [
+          [
+            {
+              "node": "AI Диетолог фото",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "текст и фото1": {
+        "main": [
+          [
+            {
+              "node": "Merge1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "фото1": {
+        "main": [
+          [
+            {
+              "node": "Merge1",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "текст1": {
+        "main": [
+          [
+            {
+              "node": "AI Диетолог текст",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Агрегация /day_week": {
+        "main": [
+          [
+            {
+              "node": "send stat",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch Message Types": {
+        "main": [
+          [
+            {
+              "node": "prep",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "read",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "текст и фото1",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "текст1",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "фото1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Food diary": {
+        "main": [
+          [
+            {
+              "node": "Callback vs Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Answer Query a callback": {
+        "main": [
+          [
+            {
+              "node": "Switch callback",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch callback": {
+        "main": [
+          [
+            {
+              "node": "conf",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "del1",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "edit",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "read": {
+        "main": [
+          [
+            {
+              "node": "Агрегация /day_week",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code": {
+        "main": [
+          [
+            {
+              "node": "Answer Query a callback",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Callback vs Message": {
+        "main": [
+          [
+            {
+              "node": "Code",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Switch Message Types",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "prep": {
+        "main": [
+          [
+            {
+              "node": "AI Диетолог текст",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "del1": {
+        "main": [
+          [
+            {
+              "node": "find row",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "find row": {
+        "main": [
+          [
+            {
+              "node": "del",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Правка или Новая (Switch)": {
+        "main": [
+          [
+            {
+              "node": "Только Обновление",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Новая запись",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Только Обновление": {
+        "main": [
+          [
+            {
+              "node": "answer",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Новая запись": {
+        "main": [
+          [
+            {
+              "node": "answer",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 9f820935",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
