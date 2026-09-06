@@ -1,0 +1,262 @@
+{
+  "updatedAt": "2026-08-19T22:23:07.401Z",
+  "createdAt": "2026-08-19T22:06:38.266Z",
+  "id": "gdPPCDNCr1T0Rucf",
+  "name": "Был ли завтрак?",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "check-breakfast",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Check",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -480,
+        -192
+      ],
+      "id": "a8e6f851-a5d7-46d6-8396-2bc618b0bea4",
+      "typeVersion": 2.1,
+      "webhookId": "cb5b7221-de1a-4a1b-b5b0-a7ae58ada379"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "combineFilters": "OR",
+        "options": {}
+      },
+      "name": "Get Today Meals",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -256,
+        -192
+      ],
+      "id": "22a6f07c-6ec0-4e5b-900c-8d8cd9758c09",
+      "typeVersion": 4.7,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем текущую дату по Владивостоку (UTC+10)\nconst today = new Date(new Date().getTime() + 10 * 3600 * 1000);\nconst dd = String(today.getUTCDate()).padStart(2, '0');\nconst mm = String(today.getUTCMonth() + 1).padStart(2, '0');\nconst yyyy = today.getUTCFullYear();\n\n// Формируем возможные форматы даты, которые могут прийти из таблицы\nconst f1 = `${yyyy}-${mm}-${dd}`; // 2026-08-20\nconst f2 = `${dd}.${mm}.${yyyy}`; // 20.08.2026\nconst f3 = `${dd}/${mm}/${yyyy}`; // 20/08/2026\n\n// Проверяем, есть ли хотя бы одна запись за сегодня\nconst hasBreakfast = $input.all().some(item => {\n  const d = String(item.json['Date'] || item.json['Дата'] || '');\n  return d.includes(f1) || d.includes(f2) || d.includes(f3);\n});\n\n// Отдаем результат в формате JSON для вебхука\nreturn { json: { breakfast_ready: hasBreakfast } };"
+      },
+      "name": "Check Logic",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -48,
+        -192
+      ],
+      "id": "1a50fc59-51cb-49d5-ab3c-f6fdfe3da5df",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        144,
+        -192
+      ],
+      "id": "08c7f037-78ad-4420-a320-2d1d31e0965a",
+      "typeVersion": 1.5
+    }
+  ],
+  "connections": {
+    "Webhook Check": {
+      "main": [
+        [
+          {
+            "node": "Get Today Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today Meals": {
+      "main": [
+        [
+          {
+            "node": "Check Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Logic": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "13ad7aa1-2f35-466c-b8d9-47bc60fe4da7",
+  "activeVersionId": "13ad7aa1-2f35-466c-b8d9-47bc60fe4da7",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-08-19T22:06:38.271Z",
+      "createdAt": "2026-08-19T22:06:38.271Z",
+      "role": "workflow:owner",
+      "workflowId": "gdPPCDNCr1T0Rucf",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-19T22:23:28.000Z",
+    "createdAt": "2026-08-19T22:23:07.402Z",
+    "versionId": "13ad7aa1-2f35-466c-b8d9-47bc60fe4da7",
+    "workflowId": "gdPPCDNCr1T0Rucf",
+    "nodes": [
+      {
+        "parameters": {
+          "path": "check-breakfast",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "name": "Webhook Check",
+        "type": "n8n-nodes-base.webhook",
+        "position": [
+          -480,
+          -192
+        ],
+        "id": "a8e6f851-a5d7-46d6-8396-2bc618b0bea4",
+        "typeVersion": 2.1,
+        "webhookId": "cb5b7221-de1a-4a1b-b5b0-a7ae58ada379"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "combineFilters": "OR",
+          "options": {}
+        },
+        "name": "Get Today Meals",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          -256,
+          -192
+        ],
+        "id": "22a6f07c-6ec0-4e5b-900c-8d8cd9758c09",
+        "typeVersion": 4.7,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Получаем текущую дату по Владивостоку (UTC+10)\nconst today = new Date(new Date().getTime() + 10 * 3600 * 1000);\nconst dd = String(today.getUTCDate()).padStart(2, '0');\nconst mm = String(today.getUTCMonth() + 1).padStart(2, '0');\nconst yyyy = today.getUTCFullYear();\n\n// Формируем возможные форматы даты, которые могут прийти из таблицы\nconst f1 = `${yyyy}-${mm}-${dd}`; // 2026-08-20\nconst f2 = `${dd}.${mm}.${yyyy}`; // 20.08.2026\nconst f3 = `${dd}/${mm}/${yyyy}`; // 20/08/2026\n\n// Проверяем, есть ли хотя бы одна запись за сегодня\nconst hasBreakfast = $input.all().some(item => {\n  const d = String(item.json['Date'] || item.json['Дата'] || '');\n  return d.includes(f1) || d.includes(f2) || d.includes(f3);\n});\n\n// Отдаем результат в формате JSON для вебхука\nreturn { json: { breakfast_ready: hasBreakfast } };"
+        },
+        "name": "Check Logic",
+        "type": "n8n-nodes-base.code",
+        "position": [
+          -48,
+          -192
+        ],
+        "id": "1a50fc59-51cb-49d5-ab3c-f6fdfe3da5df",
+        "typeVersion": 2
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "name": "Respond to Webhook",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "position": [
+          144,
+          -192
+        ],
+        "id": "08c7f037-78ad-4420-a320-2d1d31e0965a",
+        "typeVersion": 1.5
+      }
+    ],
+    "connections": {
+      "Webhook Check": {
+        "main": [
+          [
+            {
+              "node": "Get Today Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Today Meals": {
+        "main": [
+          [
+            {
+              "node": "Check Logic",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Logic": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 13ad7aa1",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
