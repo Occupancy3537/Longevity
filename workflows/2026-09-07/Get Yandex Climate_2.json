@@ -1,0 +1,518 @@
+{
+  "updatedAt": "2026-08-04T05:34:46.729Z",
+  "createdAt": "2026-08-04T03:28:20.987Z",
+  "id": "jweIKyjWAZ2V6Kbu",
+  "name": "Get Yandex Climate_2",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9c3ded4d-d821-4478-ad98-8a30ad5f5aea",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.iot.yandex.net/v1.0/devices/actions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"devices\": [\n    {\n      \"id\": \"1c92a9dc-cd69-448a-98ba-f202814f50b0\",\n      \"actions\": [\n        {\n          \"type\": \"devices.capabilities.on_off\",\n          \"state\": {\n            \"instance\": \"on\",\n            \"value\": true\n          }\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "name": "Wake Up Cache (Yandex API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        208,
+        0
+      ],
+      "typeVersion": 4.1,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "4c6c50b8-959c-4d67-a6c3-447e87d4e873",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "7kVXuwf0VVNHQtJb",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "Wait 5s",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        384,
+        0
+      ],
+      "typeVersion": 1.1,
+      "id": "2e6825e0-7b60-41d2-9c0a-a6504043ac40",
+      "webhookId": "7cea1ff8-ef24-4d77-96d6-9904e40b317e"
+    },
+    {
+      "parameters": {
+        "url": "https://api.iot.yandex.net/v1.0/devices/1c92a9dc-cd69-448a-98ba-f202814f50b0",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {}
+      },
+      "name": "Get Yandex Climate",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        560,
+        0
+      ],
+      "typeVersion": 4.1,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "92785188-ce0c-4c59-9ee4-ded5ea4fd82b",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "7kVXuwf0VVNHQtJb",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let temp = null;\nlet hum = null;\nlet pm25 = null;\n\n// Теперь в ответе приходит объект самого устройства\nlet device = $input.first().json;\n\nif (device && device.properties) {\n  for (let prop of device.properties) {\n    if (prop.parameters && prop.state && prop.state.value !== null) {\n      if (prop.parameters.instance === 'temperature') temp = prop.state.value;\n      if (prop.parameters.instance === 'humidity') hum = prop.state.value;\n      if (prop.parameters.instance === 'pm2.5_density') pm25 = prop.state.value;\n    }\n  }\n}\n\nreturn {\n  \"Дата\": new Date().toISOString(),\n  \"Температура\": temp,\n  \"Влажность\": hum,\n  \"PM2.5\": pm25\n};"
+      },
+      "name": "Parse Climate",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        752,
+        0
+      ],
+      "typeVersion": 2,
+      "id": "21fc8072-6c2c-472b-8b2f-b9fba17700c9"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw",
+          "mode": "list",
+          "cachedResultName": "MicroClimate",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Дата",
+              "displayName": "Дата",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Температура",
+              "displayName": "Температура",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Влажность",
+              "displayName": "Влажность",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        944,
+        0
+      ],
+      "typeVersion": 4.3,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "ee537441-4a72-4f60-9818-4c4e48cd9175",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Wake Up Cache (Yandex API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Up Cache (Yandex API)": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s": {
+      "main": [
+        [
+          {
+            "node": "Get Yandex Climate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Yandex Climate": {
+      "main": [
+        [
+          {
+            "node": "Parse Climate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Climate": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": {},
+  "versionId": "b210a7e7-13c5-45a7-9d47-b7b17eda579a",
+  "activeVersionId": "b210a7e7-13c5-45a7-9d47-b7b17eda579a",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-08-04T03:28:20.994Z",
+      "createdAt": "2026-08-04T03:28:20.994Z",
+      "role": "workflow:owner",
+      "workflowId": "jweIKyjWAZ2V6Kbu",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-08-04T05:36:39.000Z",
+    "createdAt": "2026-08-04T05:34:46.730Z",
+    "versionId": "b210a7e7-13c5-45a7-9d47-b7b17eda579a",
+    "workflowId": "jweIKyjWAZ2V6Kbu",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "triggerAtMinute": 5
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          0,
+          0
+        ],
+        "id": "9c3ded4d-d821-4478-ad98-8a30ad5f5aea",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.iot.yandex.net/v1.0/devices/actions",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "{\n  \"devices\": [\n    {\n      \"id\": \"1c92a9dc-cd69-448a-98ba-f202814f50b0\",\n      \"actions\": [\n        {\n          \"type\": \"devices.capabilities.on_off\",\n          \"state\": {\n            \"instance\": \"on\",\n            \"value\": true\n          }\n        }\n      ]\n    }\n  ]\n}",
+          "options": {}
+        },
+        "name": "Wake Up Cache (Yandex API)",
+        "type": "n8n-nodes-base.httpRequest",
+        "position": [
+          208,
+          0
+        ],
+        "typeVersion": 4.1,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "4c6c50b8-959c-4d67-a6c3-447e87d4e873",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "7kVXuwf0VVNHQtJb",
+            "name": "Header Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "name": "Wait 5s",
+        "type": "n8n-nodes-base.wait",
+        "position": [
+          384,
+          0
+        ],
+        "typeVersion": 1.1,
+        "id": "2e6825e0-7b60-41d2-9c0a-a6504043ac40",
+        "webhookId": "7cea1ff8-ef24-4d77-96d6-9904e40b317e"
+      },
+      {
+        "parameters": {
+          "url": "https://api.iot.yandex.net/v1.0/devices/1c92a9dc-cd69-448a-98ba-f202814f50b0",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "httpHeaderAuth",
+          "options": {}
+        },
+        "name": "Get Yandex Climate",
+        "type": "n8n-nodes-base.httpRequest",
+        "position": [
+          560,
+          0
+        ],
+        "typeVersion": 4.1,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "92785188-ce0c-4c59-9ee4-ded5ea4fd82b",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "7kVXuwf0VVNHQtJb",
+            "name": "Header Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "let temp = null;\nlet hum = null;\nlet pm25 = null;\n\n// Теперь в ответе приходит объект самого устройства\nlet device = $input.first().json;\n\nif (device && device.properties) {\n  for (let prop of device.properties) {\n    if (prop.parameters && prop.state && prop.state.value !== null) {\n      if (prop.parameters.instance === 'temperature') temp = prop.state.value;\n      if (prop.parameters.instance === 'humidity') hum = prop.state.value;\n      if (prop.parameters.instance === 'pm2.5_density') pm25 = prop.state.value;\n    }\n  }\n}\n\nreturn {\n  \"Дата\": new Date().toISOString(),\n  \"Температура\": temp,\n  \"Влажность\": hum,\n  \"PM2.5\": pm25\n};"
+        },
+        "name": "Parse Climate",
+        "type": "n8n-nodes-base.code",
+        "position": [
+          752,
+          0
+        ],
+        "typeVersion": 2,
+        "id": "21fc8072-6c2c-472b-8b2f-b9fba17700c9"
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw",
+            "mode": "list",
+            "cachedResultName": "MicroClimate",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Лист1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wejYO7GKnizGQ9QIMzPua4NxY8uGKwRIcJxBDvyfcqw/edit#gid=0"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "Дата",
+                "displayName": "Дата",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Температура",
+                "displayName": "Температура",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Влажность",
+                "displayName": "Влажность",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "name": "Save to Google Sheets",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          944,
+          0
+        ],
+        "typeVersion": 4.3,
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "id": "ee537441-4a72-4f60-9818-4c4e48cd9175",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Wake Up Cache (Yandex API)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wake Up Cache (Yandex API)": {
+        "main": [
+          [
+            {
+              "node": "Wait 5s",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait 5s": {
+        "main": [
+          [
+            {
+              "node": "Get Yandex Climate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Yandex Climate": {
+        "main": [
+          [
+            {
+              "node": "Parse Climate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Climate": {
+        "main": [
+          [
+            {
+              "node": "Save to Google Sheets",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version b210a7e7",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
