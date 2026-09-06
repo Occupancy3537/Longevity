@@ -1,0 +1,604 @@
+{
+  "updatedAt": "2026-09-06T03:55:46.000Z",
+  "createdAt": "2026-09-06T03:47:54.486Z",
+  "id": "jhZkSbKL09lGzT6x",
+  "name": "action-ack",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "action-ack",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "d3e2b141-29e7-45f8-984b-fcd69146e890",
+      "name": "Webhook",
+      "webhookId": "cf81c804-7083-4aa0-940e-419fd76a0a90"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Отметка выполнения действия. Без неё «Что сработало» меряет совпадение, а не эффект.\nconst q = $input.first().json.query || {};\nconst b = $input.first().json.body || {};\nconst token = q.token || b.token;\nif (token !== 'ak_ryFiYBXUs6') return [{ json: { ok: 'false', error: 'forbidden' } }];\nconst id = String(b.id || q.id || '').trim();\nif (!id) return [{ json: { ok: 'false', error: 'no_id' } }];\nconst doneRaw = (b.done !== undefined ? b.done : q.done);\nconst done = String(doneRaw) === 'true' || doneRaw === true;\nconst parts = id.split('|');\nreturn [{ json: {\n  ok: 'true',\n  Action_ID: id,\n  Date_Issued: parts[0] || '',\n  Title: parts.slice(1).join('|'),\n  Done: done ? 'да' : 'нет',\n  Done_At: new Date(Date.now() + 10*3600*1000).toISOString().slice(0,16).replace('T',' '),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "b2f28473-6989-495d-81f4-9bc69ce38d68",
+      "name": "Build Row"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Action_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Action_ID": "={{ $json[\"Action_ID\"] }}",
+            "Date_Issued": "={{ $json[\"Date_Issued\"] }}",
+            "Title": "={{ $json[\"Title\"] }}",
+            "Done": "={{ $json[\"Done\"] }}",
+            "Done_At": "={{ $json[\"Done_At\"] }}"
+          },
+          "matchingColumns": [
+            "Action_ID"
+          ],
+          "schema": [
+            {
+              "id": "Action_ID",
+              "displayName": "Action_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date_Issued",
+              "displayName": "Date_Issued",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Done",
+              "displayName": "Done",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Done_At",
+              "displayName": "Done_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -300,
+        0
+      ],
+      "id": "f2f6012b-44f9-4c75-8d06-df807d29fe6d",
+      "name": "Write Action_Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5fc0f8fc-1c1e-42ed-8bca-2dc54270239e",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "cd26a790-0783-430d-828d-cd49dbde6b1b",
+      "name": "Token OK?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: !$json.error, error: $json.error ? String($json.error).slice(0,200) : null } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "content-type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -100,
+        -80
+      ],
+      "id": "d9c76339-18db-40bd-900f-422032c6be06",
+      "name": "Respond OK"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: 'forbidden' } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "content-type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -100,
+        110
+      ],
+      "id": "ade62f93-9430-4348-acb2-a7fa73653e5c",
+      "name": "Respond Forbidden"
+    }
+  ],
+  "connections": {
+    "Token OK?": {
+      "main": [
+        [
+          {
+            "node": "Write Action_Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Forbidden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Row": {
+      "main": [
+        [
+          {
+            "node": "Token OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Action_Log": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "880fc1ca-8eda-42c1-adcf-f48bc92dc317",
+  "activeVersionId": "880fc1ca-8eda-42c1-adcf-f48bc92dc317",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-06T03:47:54.498Z",
+      "createdAt": "2026-09-06T03:47:54.498Z",
+      "role": "workflow:owner",
+      "workflowId": "jhZkSbKL09lGzT6x",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-06T03:55:40.517Z",
+    "createdAt": "2026-09-06T03:55:40.517Z",
+    "versionId": "880fc1ca-8eda-42c1-adcf-f48bc92dc317",
+    "workflowId": "jhZkSbKL09lGzT6x",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "action-ack",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -700,
+          0
+        ],
+        "id": "d3e2b141-29e7-45f8-984b-fcd69146e890",
+        "name": "Webhook",
+        "webhookId": "cf81c804-7083-4aa0-940e-419fd76a0a90"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Отметка выполнения действия. Без неё «Что сработало» меряет совпадение, а не эффект.\nconst q = $input.first().json.query || {};\nconst b = $input.first().json.body || {};\nconst token = q.token || b.token;\nif (token !== 'ak_ryFiYBXUs6') return [{ json: { ok: 'false', error: 'forbidden' } }];\nconst id = String(b.id || q.id || '').trim();\nif (!id) return [{ json: { ok: 'false', error: 'no_id' } }];\nconst doneRaw = (b.done !== undefined ? b.done : q.done);\nconst done = String(doneRaw) === 'true' || doneRaw === true;\nconst parts = id.split('|');\nreturn [{ json: {\n  ok: 'true',\n  Action_ID: id,\n  Date_Issued: parts[0] || '',\n  Title: parts.slice(1).join('|'),\n  Done: done ? 'да' : 'нет',\n  Done_At: new Date(Date.now() + 10*3600*1000).toISOString().slice(0,16).replace('T',' '),\n}}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -500,
+          0
+        ],
+        "id": "b2f28473-6989-495d-81f4-9bc69ce38d68",
+        "name": "Build Row"
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Action_Log",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Action_ID": "={{ $json[\"Action_ID\"] }}",
+              "Date_Issued": "={{ $json[\"Date_Issued\"] }}",
+              "Title": "={{ $json[\"Title\"] }}",
+              "Done": "={{ $json[\"Done\"] }}",
+              "Done_At": "={{ $json[\"Done_At\"] }}"
+            },
+            "matchingColumns": [
+              "Action_ID"
+            ],
+            "schema": [
+              {
+                "id": "Action_ID",
+                "displayName": "Action_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Date_Issued",
+                "displayName": "Date_Issued",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Title",
+                "displayName": "Title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Done",
+                "displayName": "Done",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              },
+              {
+                "id": "Done_At",
+                "displayName": "Done_At",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -300,
+          0
+        ],
+        "id": "f2f6012b-44f9-4c75-8d06-df807d29fe6d",
+        "name": "Write Action_Log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "5fc0f8fc-1c1e-42ed-8bca-2dc54270239e",
+                "leftValue": "={{ $json.ok }}",
+                "rightValue": "false",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEquals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "looseTypeValidation": true,
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          -380,
+          0
+        ],
+        "id": "cd26a790-0783-430d-828d-cd49dbde6b1b",
+        "name": "Token OK?"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { ok: !$json.error, error: $json.error ? String($json.error).slice(0,200) : null } }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, OPTIONS"
+                },
+                {
+                  "name": "Access-Control-Allow-Headers",
+                  "value": "content-type"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -100,
+          -80
+        ],
+        "id": "d9c76339-18db-40bd-900f-422032c6be06",
+        "name": "Respond OK"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { ok: false, error: 'forbidden' } }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, OPTIONS"
+                },
+                {
+                  "name": "Access-Control-Allow-Headers",
+                  "value": "content-type"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -100,
+          110
+        ],
+        "id": "ade62f93-9430-4348-acb2-a7fa73653e5c",
+        "name": "Respond Forbidden"
+      }
+    ],
+    "connections": {
+      "Token OK?": {
+        "main": [
+          [
+            {
+              "node": "Write Action_Log",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond Forbidden",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Build Row",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Row": {
+        "main": [
+          [
+            {
+              "node": "Token OK?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write Action_Log": {
+        "main": [
+          [
+            {
+              "node": "Respond OK",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: ack: честный ответ при ошибке записи)",
+    "name": "Patch 880fc1ca — ack: честный ответ при ошибке записи",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
