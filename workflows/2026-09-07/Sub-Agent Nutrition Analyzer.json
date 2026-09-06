@@ -1,0 +1,247 @@
+{
+  "updatedAt": "2026-09-03T00:44:58.000Z",
+  "createdAt": "2026-04-09T04:17:24.742Z",
+  "id": "9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+  "name": "Sub-Agent: Nutrition Analyzer",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        512
+      ],
+      "id": "acd5a1f2-6e92-4c3b-98ae-d1db23926cfb",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ------------------------------------------------------------\n// Конфигурация\n// ------------------------------------------------------------\nconst NUMERIC_FIELDS = [\n  'Calories', 'Proteins', 'Carbs', 'Fats',\n  'Магний', 'Витамин D', 'Омега-3 (EPA/DHA)', 'Селен', 'Йод',\n  'Калий', 'Железо', 'Кальций', 'Витамин B12', 'Витамин К',\n  'Витамин Е', 'Цинк'\n];\n\n// ------------------------------------------------------------\n// Вспомогательные функции\n// ------------------------------------------------------------\n\n/**\n * Безопасное преобразование строки в число\n */\nfunction toNumber(value) {\n  if (value === null || value === undefined || value === '') return 0;\n  const num = parseFloat(value);\n  return isNaN(num) ? 0 : num;\n}\n\n/**\n * Парсинг даты с учётом временной зоны и сдвига ±2 часа\n * Если время < 2:00, считаем предыдущим днём\n */\nfunction parseDateWithShift(dateStr) {\n  if (!dateStr) return null;\n  \n  let date;\n  if (dateStr instanceof Date) {\n    date = new Date(dateStr);\n  } else {\n    const str = String(dateStr).trim();\n    const isoMatch = str.match(/^(\\d{4}-\\d{2}-\\d{2})[T ]/);\n    if (isoMatch) {\n      date = new Date(str);\n    } else {\n      const ymdMatch = str.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n      if (ymdMatch) {\n        date = new Date(parseInt(ymdMatch[1]), parseInt(ymdMatch[2]) - 1, parseInt(ymdMatch[3]), 12, 0, 0);\n      } else {\n        const dmyMatch = str.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/);\n        if (dmyMatch) {\n          date = new Date(parseInt(dmyMatch[3]), parseInt(dmyMatch[2]) - 1, parseInt(dmyMatch[1]), 12, 0, 0);\n        } else {\n          date = new Date(str);\n        }\n      }\n    }\n  }\n  \n  if (isNaN(date.getTime())) return null;\n  \n  const hours = date.getHours();\n  if (hours < 2) {\n    date.setDate(date.getDate() - 1);\n  }\n  return date;\n}\n\n/**\n * Форматирование даты в YYYY-MM-DD\n */\nfunction formatDate(date) {\n  const year = date.getFullYear();\n  const month = String(date.getMonth() + 1).padStart(2, '0');\n  const day = String(date.getDate()).padStart(2, '0');\n  return `${year}-${month}-${day}`;\n}\n\n/**\n * Получить самую позднюю дату (без учёта сдвига, для определения окна)\n */\nfunction getMaxDate(rows) {\n  let maxDate = null;\n  rows.forEach(row => {\n    const date = parseDateWithShift(row.Date);\n    if (date && (!maxDate || date > maxDate)) {\n      maxDate = date;\n    }\n  });\n  return maxDate;\n}\n\n/**\n * Проверить, попадает ли дата в окно последних N дней (не включая maxDate)\n */\nfunction isWithinLastNDays(date, maxDate, nDays) {\n  if (!date || !maxDate) return false;\n  if (date >= maxDate) return false;\n  const diffTime = maxDate - date;\n  const diffDays = diffTime / (1000 * 60 * 60 * 24);\n  return diffDays > 0 && diffDays <= nDays;\n}\n\n/**\n * Расчёт коэффициента вариации (в процентах)\n */\nfunction calcVariation(values) {\n  if (values.length < 2) return null;\n  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;\n  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));\n  const variance = squaredDiffs.reduce((sum, v) => sum + v, 0) / values.length;\n  const stdDev = Math.sqrt(variance);\n  return (stdDev / mean) * 100;\n}\n\n// ------------------------------------------------------------\n// Основная логика\n// ------------------------------------------------------------\n\n// 1. Получить все строки из входа\nconst allRows = $input.all().map(item => item.json);\n\nif (allRows.length === 0) {\n  return [{ json: { error: 'Нет данных для анализа' } }];\n}\n\n// 2. Найти максимальную дату\nconst maxDate = getMaxDate(allRows);\nif (!maxDate) {\n  return [{ json: { error: 'Не удалось определить даты в данных' } }];\n}\n\n// 3. Отфильтровать записи за последние 7 дней ДО максимальной даты\nconst filteredRows = allRows.filter(row => {\n  const date = parseDateWithShift(row.Date);\n  if (!date) return false;\n  if (formatDate(date) === formatDate(maxDate)) return false;\n  return isWithinLastNDays(date, maxDate, 7);\n});\n\n// 4. Группировка по пользователям и дням\nconst userData = {};\n\nfilteredRows.forEach(row => {\n  const userId = row.User_ID;\n  if (!userId) return;\n  \n  const date = parseDateWithShift(row.Date);\n  if (!date) return;\n  const dateStr = formatDate(date);\n  \n  if (!userData[userId]) {\n    userData[userId] = { days: {} };\n  }\n  \n  if (!userData[userId].days[dateStr]) {\n    userData[userId].days[dateStr] = {\n      sums: {}\n    };\n    NUMERIC_FIELDS.forEach(field => {\n      userData[userId].days[dateStr].sums[field] = 0;\n    });\n  }\n  \n  const dayEntry = userData[userId].days[dateStr];\n  NUMERIC_FIELDS.forEach(field => {\n    dayEntry.sums[field] += toNumber(row[field]);\n  });\n});\n\n// 5. Для каждого пользователя рассчитать средние за день\nconst outputRows = [];\n\nObject.entries(userData).forEach(([userId, data]) => {\n  const days = Object.keys(data.days).sort();\n  const daysCount = days.length;\n  \n  if (daysCount === 0) return;\n  \n  const dailyValues = {};\n  NUMERIC_FIELDS.forEach(field => { dailyValues[field] = []; });\n  \n  days.forEach(dateStr => {\n    const dayData = data.days[dateStr];\n    NUMERIC_FIELDS.forEach(field => {\n      dailyValues[field].push(dayData.sums[field]);\n    });\n  });\n  \n  // Сумма за период (только для расчёта среднего)\n  const totals = {};\n  NUMERIC_FIELDS.forEach(field => {\n    totals[field] = dailyValues[field].reduce((sum, v) => sum + v, 0);\n  });\n  \n  // Среднее за день\n  const averages = {};\n  NUMERIC_FIELDS.forEach(field => {\n    averages[field] = daysCount > 0 ? totals[field] / daysCount : 0;\n  });\n  \n  // Стабильность по калориям\n  const calorieValues = dailyValues['Calories'];\n  const variation = calcVariation(calorieValues);\n  const stability = variation !== null ? Math.max(0, 100 - variation).toFixed(1) : null;\n  \n  // Формируем одну строку\n  const outputRow = {\n    'User_ID': userId,\n    'Date': formatDate(maxDate),\n    'Дней с данными': daysCount,\n    'Стабильность питания, %': stability ? `${stability}%` : 'недостаточно данных'\n  };\n  \n  NUMERIC_FIELDS.forEach(field => {\n    outputRow[field] = Number(averages[field].toFixed(1));\n  });\n  \n  outputRows.push(outputRow);\n});\n\nreturn outputRows.map(row => ({ json: row }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        512
+      ],
+      "id": "2f7899ef-47cc-47d4-8c63-c5d8b5d3d04b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "date"
+            },
+            {
+              "name": "userID"
+            }
+          ]
+        }
+      },
+      "id": "0bdd20a6-4d7b-4754-996c-5633ec61f884",
+      "typeVersion": 1.1,
+      "name": "Nutrition Analyzer",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        432,
+        512
+      ]
+    }
+  ],
+  "connections": {
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        []
+      ]
+    },
+    "Nutrition Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Vladivostok",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "4e586bf6-17a1-40ac-8730-d800e2b09754",
+  "activeVersionId": "4e586bf6-17a1-40ac-8730-d800e2b09754",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T00:43:56.146Z",
+      "createdAt": "2026-09-03T00:43:56.146Z",
+      "role": "workflow:owner",
+      "workflowId": "9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T00:44:52.101Z",
+    "createdAt": "2026-09-03T00:44:52.101Z",
+    "versionId": "4e586bf6-17a1-40ac-8730-d800e2b09754",
+    "workflowId": "9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+    "nodes": [
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=403788598"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          624,
+          512
+        ],
+        "id": "acd5a1f2-6e92-4c3b-98ae-d1db23926cfb",
+        "name": "Get row(s) in sheet",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// ------------------------------------------------------------\n// Конфигурация\n// ------------------------------------------------------------\nconst NUMERIC_FIELDS = [\n  'Calories', 'Proteins', 'Carbs', 'Fats',\n  'Магний', 'Витамин D', 'Омега-3 (EPA/DHA)', 'Селен', 'Йод',\n  'Калий', 'Железо', 'Кальций', 'Витамин B12', 'Витамин К',\n  'Витамин Е', 'Цинк'\n];\n\n// ------------------------------------------------------------\n// Вспомогательные функции\n// ------------------------------------------------------------\n\n/**\n * Безопасное преобразование строки в число\n */\nfunction toNumber(value) {\n  if (value === null || value === undefined || value === '') return 0;\n  const num = parseFloat(value);\n  return isNaN(num) ? 0 : num;\n}\n\n/**\n * Парсинг даты с учётом временной зоны и сдвига ±2 часа\n * Если время < 2:00, считаем предыдущим днём\n */\nfunction parseDateWithShift(dateStr) {\n  if (!dateStr) return null;\n  \n  let date;\n  if (dateStr instanceof Date) {\n    date = new Date(dateStr);\n  } else {\n    const str = String(dateStr).trim();\n    const isoMatch = str.match(/^(\\d{4}-\\d{2}-\\d{2})[T ]/);\n    if (isoMatch) {\n      date = new Date(str);\n    } else {\n      const ymdMatch = str.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n      if (ymdMatch) {\n        date = new Date(parseInt(ymdMatch[1]), parseInt(ymdMatch[2]) - 1, parseInt(ymdMatch[3]), 12, 0, 0);\n      } else {\n        const dmyMatch = str.match(/^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/);\n        if (dmyMatch) {\n          date = new Date(parseInt(dmyMatch[3]), parseInt(dmyMatch[2]) - 1, parseInt(dmyMatch[1]), 12, 0, 0);\n        } else {\n          date = new Date(str);\n        }\n      }\n    }\n  }\n  \n  if (isNaN(date.getTime())) return null;\n  \n  const hours = date.getHours();\n  if (hours < 2) {\n    date.setDate(date.getDate() - 1);\n  }\n  return date;\n}\n\n/**\n * Форматирование даты в YYYY-MM-DD\n */\nfunction formatDate(date) {\n  const year = date.getFullYear();\n  const month = String(date.getMonth() + 1).padStart(2, '0');\n  const day = String(date.getDate()).padStart(2, '0');\n  return `${year}-${month}-${day}`;\n}\n\n/**\n * Получить самую позднюю дату (без учёта сдвига, для определения окна)\n */\nfunction getMaxDate(rows) {\n  let maxDate = null;\n  rows.forEach(row => {\n    const date = parseDateWithShift(row.Date);\n    if (date && (!maxDate || date > maxDate)) {\n      maxDate = date;\n    }\n  });\n  return maxDate;\n}\n\n/**\n * Проверить, попадает ли дата в окно последних N дней (не включая maxDate)\n */\nfunction isWithinLastNDays(date, maxDate, nDays) {\n  if (!date || !maxDate) return false;\n  if (date >= maxDate) return false;\n  const diffTime = maxDate - date;\n  const diffDays = diffTime / (1000 * 60 * 60 * 24);\n  return diffDays > 0 && diffDays <= nDays;\n}\n\n/**\n * Расчёт коэффициента вариации (в процентах)\n */\nfunction calcVariation(values) {\n  if (values.length < 2) return null;\n  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;\n  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));\n  const variance = squaredDiffs.reduce((sum, v) => sum + v, 0) / values.length;\n  const stdDev = Math.sqrt(variance);\n  return (stdDev / mean) * 100;\n}\n\n// ------------------------------------------------------------\n// Основная логика\n// ------------------------------------------------------------\n\n// 1. Получить все строки из входа\nconst allRows = $input.all().map(item => item.json);\n\nif (allRows.length === 0) {\n  return [{ json: { error: 'Нет данных для анализа' } }];\n}\n\n// 2. Найти максимальную дату\nconst maxDate = getMaxDate(allRows);\nif (!maxDate) {\n  return [{ json: { error: 'Не удалось определить даты в данных' } }];\n}\n\n// 3. Отфильтровать записи за последние 7 дней ДО максимальной даты\nconst filteredRows = allRows.filter(row => {\n  const date = parseDateWithShift(row.Date);\n  if (!date) return false;\n  if (formatDate(date) === formatDate(maxDate)) return false;\n  return isWithinLastNDays(date, maxDate, 7);\n});\n\n// 4. Группировка по пользователям и дням\nconst userData = {};\n\nfilteredRows.forEach(row => {\n  const userId = row.User_ID;\n  if (!userId) return;\n  \n  const date = parseDateWithShift(row.Date);\n  if (!date) return;\n  const dateStr = formatDate(date);\n  \n  if (!userData[userId]) {\n    userData[userId] = { days: {} };\n  }\n  \n  if (!userData[userId].days[dateStr]) {\n    userData[userId].days[dateStr] = {\n      sums: {}\n    };\n    NUMERIC_FIELDS.forEach(field => {\n      userData[userId].days[dateStr].sums[field] = 0;\n    });\n  }\n  \n  const dayEntry = userData[userId].days[dateStr];\n  NUMERIC_FIELDS.forEach(field => {\n    dayEntry.sums[field] += toNumber(row[field]);\n  });\n});\n\n// 5. Для каждого пользователя рассчитать средние за день\nconst outputRows = [];\n\nObject.entries(userData).forEach(([userId, data]) => {\n  const days = Object.keys(data.days).sort();\n  const daysCount = days.length;\n  \n  if (daysCount === 0) return;\n  \n  const dailyValues = {};\n  NUMERIC_FIELDS.forEach(field => { dailyValues[field] = []; });\n  \n  days.forEach(dateStr => {\n    const dayData = data.days[dateStr];\n    NUMERIC_FIELDS.forEach(field => {\n      dailyValues[field].push(dayData.sums[field]);\n    });\n  });\n  \n  // Сумма за период (только для расчёта среднего)\n  const totals = {};\n  NUMERIC_FIELDS.forEach(field => {\n    totals[field] = dailyValues[field].reduce((sum, v) => sum + v, 0);\n  });\n  \n  // Среднее за день\n  const averages = {};\n  NUMERIC_FIELDS.forEach(field => {\n    averages[field] = daysCount > 0 ? totals[field] / daysCount : 0;\n  });\n  \n  // Стабильность по калориям\n  const calorieValues = dailyValues['Calories'];\n  const variation = calcVariation(calorieValues);\n  const stability = variation !== null ? Math.max(0, 100 - variation).toFixed(1) : null;\n  \n  // Формируем одну строку\n  const outputRow = {\n    'User_ID': userId,\n    'Date': formatDate(maxDate),\n    'Дней с данными': daysCount,\n    'Стабильность питания, %': stability ? `${stability}%` : 'недостаточно данных'\n  };\n  \n  NUMERIC_FIELDS.forEach(field => {\n    outputRow[field] = Number(averages[field].toFixed(1));\n  });\n  \n  outputRows.push(outputRow);\n});\n\nreturn outputRows.map(row => ({ json: row }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          816,
+          512
+        ],
+        "id": "2f7899ef-47cc-47d4-8c63-c5d8b5d3d04b",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "date"
+              },
+              {
+                "name": "userID"
+              }
+            ]
+          }
+        },
+        "id": "0bdd20a6-4d7b-4754-996c-5633ec61f884",
+        "typeVersion": 1.1,
+        "name": "Nutrition Analyzer",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "position": [
+          432,
+          512
+        ]
+      }
+    ],
+    "connections": {
+      "Get row(s) in sheet": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          []
+        ]
+      },
+      "Nutrition Analyzer": {
+        "main": [
+          [
+            {
+              "node": "Get row(s) in sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: AI Doctor migration)",
+    "name": "Patch 4e586bf6 — AI Doctor migration",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
