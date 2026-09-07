@@ -1,0 +1,3817 @@
+{
+  "updatedAt": "2026-09-03T06:29:07.469Z",
+  "createdAt": "2026-04-03T07:14:31.899Z",
+  "id": "63e03896-e6bc-4df4-a2fa-318240170693",
+  "name": "Sub-Agent: Registrar",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=СЕГОДНЯ: {{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd') }} (Владивосток).\n\nТы — ИИ-ассистент врача (Регистратор анализов и всех возможных исследований здоровья).\n\nПеред тобой медкарта: {{ $json.medical_record.User_ID }}, город {{ $json.medical_record.Location }}.\n\nТвоя задача: внимательно изучить прикреплённое фото ИЛИ вот этот извлеченный текст из документа:\nТекст документа: {{ $json.extracted_text }}\nСообщение пациента: {{ $json.user_message }}\n\nОБЯЗАТЕЛЬНЫЕ ПРАВИЛА ЗАПОЛНЕНИЯ ИНСТРУМЕНТА Add_Medical_Note:\n\n1. Date: НЕ заполняй сам. Вместо этого верни поле document_date — дату СТРОГО из шапки документа (ищи «дата исследования», «дата забора», «дата приёма», дату рядом с названием лаборатории или ФИО). Формат ГГГГ.ММ.ДД. Если в документе только день и месяц — год бери текущий из строки СЕГОДНЯ выше. Если явной даты в документе НЕТ — верни document_date пустым, система подставит сегодняшнюю, это нормально. НИКОГДА не выдумывай дату, не ставь наугад и не бери числа из тела текста (референсы, номера бланков).\n2. Category (Категория): \n   - Если пациент описывает самочувствие, реакцию на продукт или жалобы — пиши строго «Симптом». \n   - Если это результаты обследований — классифицируй по типу (например, «Лабораторные исследования»).\n3. Note (Заметка): Кратко зафиксируй суть. Для анализов пиши «В норме» / «Не в норме» (кратко перечислив отклонения). Для продуктов/лекарств — укажи состав и описанную реакцию.\n4. Trigger (Триггер): Если пациент указывает, после чего возникла реакция (например, прием продукта, усталость) — запиши это сюда.\n5. Plan (План): \n   - Если пациент указывает намерение (например, «хочу выяснить на какой компонент»), трансформируй это в задачу наблюдения: «Следить за дальнейшими симптомами, выявить аллерген».\n   - Это ЕДИНСТВЕННОЕ исключение, где ты можешь формулировать задачу. В остальном медицинские советы давать строго запрещено.\n6. Doctor (Доктор): Укажи фамилию врача/лаборанта из данных (если нет — оставь пустым). В конце через дефис добавь: «Registrar - Модель Gemini 3.1 Flash».\n\nЕСЛИ ДОКУМЕНТ — ЛАБОРАТОРНЫЙ АНАЛИЗ С ЧИСЛОВЫМИ РЕЗУЛЬТАТАМИ:\nКроме Add_Medical_Note обязательно вызови инструмент Save_Lab_Results и передай в него:\n- document_date — та же дата из шапки (ГГГГ.ММ.ДД);\n- lab_name — название лаборатории/учреждения;\n- notes — тип анализа (ОАК, биохимия, гормоны, липиды и т.п.);\n- markers_json — JSON-массив СТРОКОЙ со ВСЕМИ числовыми показателями документа: [{\"name\":\"...\",\"value\":\"...\",\"unit\":\"...\",\"ref_low\":\"...\",\"ref_high\":\"...\"}]. name пиши строго как в документе, включай только строки с числовым значением, ничего не выдумывай.\nИнструмент вернёт, сколько показателей записано и какие названия не распознаны — коротко упомяни это в финальном ответе.\n\nВыводи результат работы инструмента Add_Medical_Note из графы Note или в случае неудачи, пиши - \"Данные не получилось извлечь\".",
+        "options": {
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -16
+      ],
+      "id": "f0a32f6b-a843-413c-a5fe-f3e368bd49f6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3.8-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        400,
+        192
+      ],
+      "id": "88d54e16-66b4-43c1-b8ec-d1ef6e5a8d23",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        -16
+      ],
+      "id": "802f5b52-cef4-49c6-aa77-8f1fad8aae06",
+      "name": "Ответ в Telegram1",
+      "webhookId": "83bbc420-af7d-4900-a81e-139eb51be404",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Append row in sheet in Google Sheets",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Doctor_Notes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ (function(){ var d=($fromAI('document_date','Дата ИЗ ШАПКИ документа (дата исследования/забора/приёма). Формат ГГГГ.ММ.ДД. Пусто если явной даты в документе нет.','string')||'').trim().replace(/[\\/\\-]/g,'.').slice(0,10); var today=$now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd'); return (/^\\d{4}\\.\\d{2}\\.\\d{2}$/.test(d) && d<=today) ? d : today; })() }}",
+            "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+            "Note": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Note', ``, 'string') }}",
+            "Trigger": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Trigger', ``, 'string') }}",
+            "Plan": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Plan', ``, 'string') }}",
+            "Doctor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Doctor', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Note",
+              "displayName": "Note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Trigger",
+              "displayName": "Trigger",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Plan",
+              "displayName": "Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Doctor",
+              "displayName": "Doctor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        608,
+        224
+      ],
+      "id": "56d1d123-bbd5-4aca-b773-578fbdc3ed28",
+      "name": "Add_Medical_Note",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Берем данные из профиля пользователя (результат работы Google Sheets)\nconst sheetData = $('User Profile').first().json;\n\n// Берем исходное сообщение из Telegram\nconst telegramData = $('Registrar').first().json;\n\n// ВАЖНО: Забираем текст напрямую из ноды Merge, \n// так как нода User Profile затерла стандартный поток\nconst mergeData = $('Merge Экстракторы').first().json || {};\nconst extractedText = mergeData.text || \"\"; \n\n// Берем картинку (если она есть) из стартового узла\nconst binaryData = $('Registrar').first().binary;\n\nreturn [{\n  json: {\n    // Передаем только самое необходимое для авторизации\n    medical_record: {\n      User_ID: sheetData.User_ID, \n      Location: sheetData.Location\n    },\n    user_message: telegramData.message?.text || telegramData.message?.caption || \"Данные во вложении\",\n    \n    // Кладем найденный 'text' в переменную 'extracted_text', которую ждет промпт\n    extracted_text: extractedText, \n    \n    telegram_id: telegramData.message?.from?.id,\n    chat_id: telegramData.message?.chat?.id\n  },\n  binary: binaryData \n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -16
+      ],
+      "id": "da455c52-84b8-4600-87af-d7d2ff9e0486",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+          "mode": "list",
+          "cachedResultName": "User_Profile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Telegram_ID",
+              "lookupValue": "={{ $('Registrar').first().json.message.from.id.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -16,
+        -16
+      ],
+      "id": "27f4a4d5-4883-4863-9fcb-99b69009b8eb",
+      "name": "User Profile",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -864,
+        0
+      ],
+      "id": "403aec4b-f25d-4ab4-9896-49cea560e234",
+      "name": "Registrar"
+    },
+    {
+      "parameters": {
+        "operation": "rtf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        -240
+      ],
+      "id": "d3f46bbe-70d7-4c34-b0aa-6ccbce0c8d2c",
+      "name": "RTF Экстрактор"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        -48
+      ],
+      "id": "97dcc865-aa7c-490e-88c1-ed6b1973d883",
+      "name": "CSV Экстрактор"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        -416
+      ],
+      "id": "fa6d81ca-e364-4c54-9333-e5ee191bb980",
+      "name": "PDF Экстрактор"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.userText || $binary.data?.fileName || '' }}",
+                    "rightValue": ".pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "endsWith"
+                    },
+                    "id": "fbe605ce-3435-4dbb-b27e-3c2c48ddcdfb"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d0496884-a15f-4db3-a337-cc0f1c32c253",
+                    "leftValue": "={{ $json.userText || $binary.data?.fileName || '' }}",
+                    "rightValue": ".rtf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "RTF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e540f544-ca5b-4efe-a9fc-3d55d81596f0",
+                    "leftValue": "={{ $json.userText || $json.message?.text || $binary.data?.fileName || '' }}",
+                    "rightValue": "WELLTORY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WELLTORY"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "fc009560-b9c4-498d-bb74-8189b754f90e",
+                    "leftValue": "={{ ($json.userText || '') + ($json.message?.text || '') + ($binary.data?.fileName || '') }}",
+                    "rightValue": "Журнал тренировок",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Prana"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8bb56d25-6380-4965-b778-59c47f7cc5b4",
+                    "leftValue": "={{ $json.userText || $binary.data?.fileName || '' }}",
+                    "rightValue": ".csv",
+                    "operator": {
+                      "type": "string",
+                      "operation": "endsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CSV"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "21503204-bb77-4976-a1c8-6c33bc70bf36",
+                    "leftValue": "={{ $json.message.photo != null }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "929190d0-acbd-45d6-a948-21cba894608f",
+                    "leftValue": "={{ $json.userText || $json.message?.text || $json.message?.caption || '' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -688,
+        -48
+      ],
+      "id": "dff3414b-db4a-4ee0-923e-8ab0ef6a6d7f",
+      "name": "Сортировка документов"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -192,
+        -48
+      ],
+      "id": "fb5ba3cc-bc23-42bd-bc84-d0c50e59712f",
+      "name": "Merge Экстракторы"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+        "text": "Данный тип файлов не поддерживается ❌ Пожалуйста, прикрепите PDF, CSV, RTF или отправьте данные обычной картинкой",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -336,
+        176
+      ],
+      "id": "bf7fe717-eb75-43b1-b739-be5ceb4546b9",
+      "name": "Заглушка",
+      "webhookId": "cb97882d-8bf4-4ab4-b4b6-7311780a9b40",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Получаем даты, которые УЖЕ ЕСТЬ в Daily_Trends (приходят на вход из узла чтения)\nconst existingDates = items.map(item => item.json['Дата']).filter(Boolean);\n\n// 2. Получаем сырой CSV (обращаемся к предыдущему узлу по имени)\nconst csvRecords = $('Extract Welltory').all().map(item => item.json);\n\nconst dailyWelltory = {};\n\ncsvRecords.forEach(row => {\n  const fullDate = String(row['Date'] || '').trim();\n  const dateOnly = fullDate.split('T')[0];\n\n  if (!dateOnly) return;\n\n  // 🛡 ГЛАВНЫЙ ФИЛЬТР: Берем данные ТОЛЬКО если эта дата уже есть в базе!\n  if (existingDates.includes(dateOnly)) {\n    // Берем только первый (утренний) замер\n    if (!dailyWelltory[dateOnly]) {\n      dailyWelltory[dateOnly] = {\n        \"Дата\": dateOnly, \n        \"ВСР_Стресс\": Number(row['Stress(HRV)'] || 0),\n        \"ВСР_Энергия\": Number(row['Energy(HRV)'] || 0),\n        \"ВСР_RMSSD\": Number(row['rMSSD'] || 0),\n        \"ВСР_SDNN\": Number(row['SDNN'] || 0)\n      };\n    }\n  }\n});\n\n// Отдаем чистые данные без всяких сообщений для Telegram\nreturn Object.values(dailyWelltory).map(data => ({ json: data }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        336
+      ],
+      "id": "f825fafd-53a6-4133-8ac5-71fef531f2eb",
+      "name": "Трансформатор Welltory"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+        "text": "=✅ <b>Welltory синхронизирован!</b>\n🫀 Обновлено дней в базе: <b>{{ $input.all().length }}</b>",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        368,
+        336
+      ],
+      "id": "f6fc1db0-dac6-4ce4-9f6b-6721bb2aa77b",
+      "name": "Отчет об успехе",
+      "webhookId": "62d43b76-578d-4c64-adb7-db76e8162b9c",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Дата"
+          ],
+          "schema": [
+            {
+              "id": "Дата",
+              "displayName": "Дата",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_отбоя",
+              "displayName": "Время_отбоя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Время_подъема",
+              "displayName": "Время_подъема",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Время_в_кровати_мин",
+              "displayName": "Время_в_кровати_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Чистый_сон_мин",
+              "displayName": "Чистый_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Эффективность_сна_",
+              "displayName": "Эффективность_сна_",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Глубокий_сон_мин",
+              "displayName": "Глубокий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Глубокий_1_половина_мин",
+              "displayName": "Глубокий_1_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Глубокий_2_половина_мин",
+              "displayName": "Глубокий_2_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "REM_сон_мин",
+              "displayName": "REM_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Легкий_сон_мин",
+              "displayName": "Легкий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пробуждения_кол_во",
+              "displayName": "Пробуждения_кол_во",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Бодрствование_мин",
+              "displayName": "Бодрствование_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пульс_ночной_средний",
+              "displayName": "Пульс_ночной_средний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пульс_ночной_мин",
+              "displayName": "Пульс_ночной_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пульс_ночной_макс",
+              "displayName": "Пульс_ночной_макс",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ВСР_ночная",
+              "displayName": "ВСР_ночная",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Температура_avg_C",
+              "displayName": "Температура_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Влажность_avg_%",
+              "displayName": "Влажность_avg_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PM25_avg",
+              "displayName": "PM25_avg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_время",
+              "displayName": "Ужин_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Завтрак_время",
+              "displayName": "Завтрак_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Окно_голода_до_сна_ч",
+              "displayName": "Окно_голода_до_сна_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Длительность_голода_ч",
+              "displayName": "Длительность_голода_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Ккал",
+              "displayName": "Ужин_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Белки_г",
+              "displayName": "Ужин_Белки_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Жиры_г",
+              "displayName": "Ужин_Жиры_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Углеводы_г",
+              "displayName": "Ужин_Углеводы_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Шаги_за_вчера",
+              "displayName": "Шаги_за_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Плотность_1к",
+              "displayName": "Активность_Плотность_1к",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Доля_интенсива_%",
+              "displayName": "Активность_Доля_интенсива_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Ккал_на_1к",
+              "displayName": "Активность_Ккал_на_1к",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Оценка_дня",
+              "displayName": "Активность_Оценка_дня",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Тип_дня",
+              "displayName": "Активность_Тип_дня",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_тип",
+              "displayName": "Тренировка_тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_длительность_мин",
+              "displayName": "Тренировка_длительность_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_Ккал",
+              "displayName": "Тренировка_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_поздняя",
+              "displayName": "Тренировка_поздняя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Атмосферное_давление_ночь_hPa",
+              "displayName": "Атмосферное_давление_ночь_hPa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Лекарства_принимаемые",
+              "displayName": "Лекарства_принимаемые",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Время_последнего_кофе",
+              "displayName": "Время_последнего_кофе",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Алкоголь_гр",
+              "displayName": "Алкоголь_гр",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Жалобы_вчера",
+              "displayName": "Жалобы_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Дефициты",
+              "displayName": "Дефициты",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        192,
+        336
+      ],
+      "id": "7e6d557d-0856-4483-bd7f-d90c50715881",
+      "name": "Запись в Daily Trends",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+        "text": "=🧘‍♂️ <b>Prana Breath синхронизирован!</b>\n🫁 Обновлено дней с практиками: <b>{{ $input.all().length }}</b>",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        592
+      ],
+      "id": "f66d357e-5e3b-466f-9cfd-0cb57bc210fe",
+      "name": "Отчет об успехе1",
+      "webhookId": "62d43b76-578d-4c64-adb7-db76e8162b9c",
+      "executeOnce": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Дата"
+          ],
+          "schema": [
+            {
+              "id": "Дата",
+              "displayName": "Дата",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время_отбоя",
+              "displayName": "Время_отбоя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Время_подъема",
+              "displayName": "Время_подъема",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Время_в_кровати_мин",
+              "displayName": "Время_в_кровати_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Чистый_сон_мин",
+              "displayName": "Чистый_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Эффективность_сна_",
+              "displayName": "Эффективность_сна_",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Глубокий_сон_мин",
+              "displayName": "Глубокий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Глубокий_1_половина_мин",
+              "displayName": "Глубокий_1_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Глубокий_2_половина_мин",
+              "displayName": "Глубокий_2_половина_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "REM_сон_мин",
+              "displayName": "REM_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Легкий_сон_мин",
+              "displayName": "Легкий_сон_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пробуждения_кол_во",
+              "displayName": "Пробуждения_кол_во",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Бодрствование_мин",
+              "displayName": "Бодрствование_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пульс_ночной_средний",
+              "displayName": "Пульс_ночной_средний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пульс_ночной_мин",
+              "displayName": "Пульс_ночной_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Пульс_ночной_макс",
+              "displayName": "Пульс_ночной_макс",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ВСР_ночная",
+              "displayName": "ВСР_ночная",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Температура_avg_C",
+              "displayName": "Температура_avg_C",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Влажность_avg_%",
+              "displayName": "Влажность_avg_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PM25_avg",
+              "displayName": "PM25_avg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_время",
+              "displayName": "Ужин_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Завтрак_время",
+              "displayName": "Завтрак_время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Окно_голода_до_сна_ч",
+              "displayName": "Окно_голода_до_сна_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Длительность_голода_ч",
+              "displayName": "Длительность_голода_ч",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Ккал",
+              "displayName": "Ужин_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Белки_г",
+              "displayName": "Ужин_Белки_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Жиры_г",
+              "displayName": "Ужин_Жиры_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ужин_Углеводы_г",
+              "displayName": "Ужин_Углеводы_г",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Шаги_за_вчера",
+              "displayName": "Шаги_за_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Плотность_1к",
+              "displayName": "Активность_Плотность_1к",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Доля_интенсива_%",
+              "displayName": "Активность_Доля_интенсива_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Ккал_на_1к",
+              "displayName": "Активность_Ккал_на_1к",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Оценка_дня",
+              "displayName": "Активность_Оценка_дня",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Активность_Тип_дня",
+              "displayName": "Активность_Тип_дня",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_тип",
+              "displayName": "Тренировка_тип",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_длительность_мин",
+              "displayName": "Тренировка_длительность_мин",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_Ккал",
+              "displayName": "Тренировка_Ккал",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тренировка_поздняя",
+              "displayName": "Тренировка_поздняя",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Атмосферное_давление_ночь_hPa",
+              "displayName": "Атмосферное_давление_ночь_hPa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Лекарства_принимаемые",
+              "displayName": "Лекарства_принимаемые",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Время_последнего_кофе",
+              "displayName": "Время_последнего_кофе",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Алкоголь_гр",
+              "displayName": "Алкоголь_гр",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Жалобы_вчера",
+              "displayName": "Жалобы_вчера",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Дефициты",
+              "displayName": "Дефициты",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        592
+      ],
+      "id": "2eded7bd-a864-421d-85cd-80fb5fd1c4c2",
+      "name": "Запись в Daily Trends1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Получаем даты, которые УЖЕ ЕСТЬ в базе\nconst existingDates = items.map(item => item.json['Дата']).filter(Boolean);\n\n// 2. ЧИТАЕМ ДАННЫЕ\nlet rawText = \"\";\nconst switchNode = $('Сортировка документов').first();\n\nif (switchNode.binary && switchNode.binary.data) {\n  rawText = Buffer.from(switchNode.binary.data.data, 'base64').toString('utf8');\n}\nif (!rawText || rawText.length < 20) {\n  rawText = switchNode.json.userText || switchNode.json.message?.text || \"\";\n}\n\nconst lines = rawText.split('\\n');\nconst dailyPrana = {};\n\n// 3. Сканируем каждую строчку\nlines.forEach(line => {\n  const columns = line.split(',');\n  \n  // Ищем дату\n  const dateColIndex = columns.findIndex(col => /\\d{4}-\\d{2}-\\d{2}/.test(col));\n  if (dateColIndex === -1) return; \n  \n  const dateVal = columns[dateColIndex].match(/\\d{4}-\\d{2}-\\d{2}/)[0];\n  if (!existingDates.includes(dateVal)) return;\n\n  // В Prana ТИП тренировки лежит через 2 колонки после даты, а ДЛИТЕЛЬНОСТЬ - через 3\n  const typeRaw = columns[dateColIndex + 2] || '';\n  const durationRaw = columns[dateColIndex + 3] || '';\n  \n  // Очищаем тип тренировки от любых скрытых символов (оставляем только буквы, цифры, пробелы и дефисы)\n  const typeClean = typeRaw.replace(/[^\\wА-Яа-яЁё\\s\\-]/gi, '').trim();\n  \n  // Очищаем и считаем длительность\n  const durationClean = durationRaw.replace(/[^\\dчмсhms]/gi, '');\n  let totalMinutes = 0;\n  \n  const hMatch = durationClean.match(/(\\d+)[чh]/i);\n  const mMatch = durationClean.match(/(\\d+)[мm]/i);\n  const sMatch = durationClean.match(/(\\d+)[сs]/i);\n  \n  if (hMatch) totalMinutes += parseInt(hMatch[1], 10) * 60;\n  if (mMatch) totalMinutes += parseInt(mMatch[1], 10);\n  if (sMatch) totalMinutes += parseInt(sMatch[1], 10) / 60;\n  \n  if (totalMinutes === 0) return;\n  \n  // Создаем запись\n  if (!dailyPrana[dateVal]) {\n    dailyPrana[dateVal] = {\n      \"Дата\": dateVal,\n      \"Prana_Длительность_мин\": 0,\n      \"Prana_Тип\":[] // Создаем пустой массив для типов тренировок\n    };\n  }\n  \n  // Прибавляем время\n  dailyPrana[dateVal][\"Prana_Длительность_мин\"] += totalMinutes;\n  \n  // Добавляем тип тренировки (только если такого еще не было за сегодня)\n  if (typeClean && !dailyPrana[dateVal][\"Prana_Тип\"].includes(typeClean)) {\n    dailyPrana[dateVal][\"Prana_Тип\"].push(typeClean);\n  }\n});\n\n// Формируем красивый результат перед отправкой\nObject.keys(dailyPrana).forEach(date => {\n  // Округляем минуты до 1 знака\n  dailyPrana[date][\"Prana_Длительность_мин\"] = Math.round(dailyPrana[date][\"Prana_Длительность_мин\"] * 10) / 10;\n  \n  // Превращаем массив типов в красивую строку через запятую (например: \"Расслабление, Дыхание 4-7-8\")\n  dailyPrana[date][\"Prana_Тип\"] = dailyPrana[date][\"Prana_Тип\"].join(', ');\n});\n\n// Возвращаем чистые данные для базы\nreturn Object.values(dailyPrana).map(data => ({ json: data }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        592
+      ],
+      "id": "06354a31-f7f9-4a9c-8584-8c4b51295cce",
+      "name": "Трансформатор Prahna"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        336
+      ],
+      "id": "51686897-a4c5-46ba-b64c-12a99dc9cf4a",
+      "name": "Extract Welltory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -416,
+        592
+      ],
+      "id": "0266d8b5-5811-41a2-b75d-21ec2cf594f8",
+      "name": "Get existing dates Prana",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -208,
+        336
+      ],
+      "id": "0396e771-31cf-49e9-b9c6-b87d6bae3207",
+      "name": "Get existing dates Welltory",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Сохранить СТРУКТУРНЫЕ числовые результаты лабораторного анализа в базу биомаркеров (книга phenoage). Вызывай ДОПОЛНИТЕЛЬНО к Add_Medical_Note, когда документ — лабораторный анализ крови/мочи/кала с числовыми показателями.",
+        "workflowId": {
+          "__rl": true,
+          "value": "a7d1c4e2-9b30-4f55-8c21-6de2b1a4f7c0",
+          "mode": "list",
+          "cachedResultName": "Save_Lab_Results"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "document_date": "={{ $fromAI(\"document_date\", \"Дата документа в формате ГГГГ.ММ.ДД из шапки. Пусто, если явной даты нет.\", 'string') }}",
+            "lab_name": "={{ $fromAI(\"lab_name\", \"Название лаборатории или медучреждения из документа.\", 'string') }}",
+            "notes": "={{ $fromAI(\"notes\", \"Короткая пометка о типе анализа: ОАК, биохимия, гормоны, липидный профиль и т.п.\", 'string') }}",
+            "markers_json": "={{ $fromAI(\"markers_json\", \"JSON-массив СТРОКОЙ со всеми числовыми показателями: [{\\\"name\\\":\\\"...\\\",\\\"value\\\":\\\"...\\\",\\\"unit\\\":\\\"...\\\",\\\"ref_low\\\":\\\"...\\\",\\\"ref_high\\\":\\\"...\\\"}]. name — строго как в документе. Только показатели с числовым значением; качественные (отрицательно/не обнаружено) не включать. Ничего не выдумывать.\", 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "document_date",
+              "displayName": "document_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "lab_name",
+              "displayName": "lab_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "markers_json",
+              "displayName": "markers_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        288
+      ],
+      "id": "4dda96dd-d4b9-465f-8c52-7c381b793121",
+      "name": "Save_Lab_Results"
+    }
+  ],
+  "connections": {
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Ответ в Telegram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ответ в Telegram1": {
+      "main": [
+        []
+      ]
+    },
+    "Add_Medical_Note": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Profile": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar": {
+      "main": [
+        [
+          {
+            "node": "Сортировка документов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RTF Экстрактор": {
+      "main": [
+        [
+          {
+            "node": "Merge Экстракторы",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "CSV Экстрактор": {
+      "main": [
+        [
+          {
+            "node": "Merge Экстракторы",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "PDF Экстрактор": {
+      "main": [
+        [
+          {
+            "node": "Merge Экстракторы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сортировка документов": {
+      "main": [
+        [
+          {
+            "node": "PDF Экстрактор",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RTF Экстрактор",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Welltory",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get existing dates Prana",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CSV Экстрактор",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Экстракторы",
+            "type": "main",
+            "index": 3
+          }
+        ],
+        [
+          {
+            "node": "Merge Экстракторы",
+            "type": "main",
+            "index": 3
+          }
+        ],
+        [
+          {
+            "node": "Заглушка",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Экстракторы": {
+      "main": [
+        [
+          {
+            "node": "User Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Трансформатор Welltory": {
+      "main": [
+        [
+          {
+            "node": "Запись в Daily Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запись в Daily Trends": {
+      "main": [
+        [
+          {
+            "node": "Отчет об успехе",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запись в Daily Trends1": {
+      "main": [
+        [
+          {
+            "node": "Отчет об успехе1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Трансформатор Prahna": {
+      "main": [
+        [
+          {
+            "node": "Запись в Daily Trends1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Welltory": {
+      "main": [
+        [
+          {
+            "node": "Get existing dates Welltory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get existing dates Prana": {
+      "main": [
+        [
+          {
+            "node": "Трансформатор Prahna",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get existing dates Welltory": {
+      "main": [
+        [
+          {
+            "node": "Трансформатор Welltory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save_Lab_Results": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true,
+    "saveExecutionProgress": true,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "98c843da-8946-4e96-bc37-d2dfbc89e398",
+  "activeVersionId": "98c843da-8946-4e96-bc37-d2dfbc89e398",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T00:44:08.716Z",
+      "createdAt": "2026-09-03T00:44:08.716Z",
+      "role": "workflow:owner",
+      "workflowId": "63e03896-e6bc-4df4-a2fa-318240170693",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-03T06:29:09.000Z",
+    "createdAt": "2026-09-03T06:29:07.472Z",
+    "versionId": "98c843da-8946-4e96-bc37-d2dfbc89e398",
+    "workflowId": "63e03896-e6bc-4df4-a2fa-318240170693",
+    "nodes": [
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=СЕГОДНЯ: {{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd') }} (Владивосток).\n\nТы — ИИ-ассистент врача (Регистратор анализов и всех возможных исследований здоровья).\n\nПеред тобой медкарта: {{ $json.medical_record.User_ID }}, город {{ $json.medical_record.Location }}.\n\nТвоя задача: внимательно изучить прикреплённое фото ИЛИ вот этот извлеченный текст из документа:\nТекст документа: {{ $json.extracted_text }}\nСообщение пациента: {{ $json.user_message }}\n\nОБЯЗАТЕЛЬНЫЕ ПРАВИЛА ЗАПОЛНЕНИЯ ИНСТРУМЕНТА Add_Medical_Note:\n\n1. Date: НЕ заполняй сам. Вместо этого верни поле document_date — дату СТРОГО из шапки документа (ищи «дата исследования», «дата забора», «дата приёма», дату рядом с названием лаборатории или ФИО). Формат ГГГГ.ММ.ДД. Если в документе только день и месяц — год бери текущий из строки СЕГОДНЯ выше. Если явной даты в документе НЕТ — верни document_date пустым, система подставит сегодняшнюю, это нормально. НИКОГДА не выдумывай дату, не ставь наугад и не бери числа из тела текста (референсы, номера бланков).\n2. Category (Категория): \n   - Если пациент описывает самочувствие, реакцию на продукт или жалобы — пиши строго «Симптом». \n   - Если это результаты обследований — классифицируй по типу (например, «Лабораторные исследования»).\n3. Note (Заметка): Кратко зафиксируй суть. Для анализов пиши «В норме» / «Не в норме» (кратко перечислив отклонения). Для продуктов/лекарств — укажи состав и описанную реакцию.\n4. Trigger (Триггер): Если пациент указывает, после чего возникла реакция (например, прием продукта, усталость) — запиши это сюда.\n5. Plan (План): \n   - Если пациент указывает намерение (например, «хочу выяснить на какой компонент»), трансформируй это в задачу наблюдения: «Следить за дальнейшими симптомами, выявить аллерген».\n   - Это ЕДИНСТВЕННОЕ исключение, где ты можешь формулировать задачу. В остальном медицинские советы давать строго запрещено.\n6. Doctor (Доктор): Укажи фамилию врача/лаборанта из данных (если нет — оставь пустым). В конце через дефис добавь: «Registrar - Модель Gemini 3.1 Flash».\n\nЕСЛИ ДОКУМЕНТ — ЛАБОРАТОРНЫЙ АНАЛИЗ С ЧИСЛОВЫМИ РЕЗУЛЬТАТАМИ:\nКроме Add_Medical_Note обязательно вызови инструмент Save_Lab_Results и передай в него:\n- document_date — та же дата из шапки (ГГГГ.ММ.ДД);\n- lab_name — название лаборатории/учреждения;\n- notes — тип анализа (ОАК, биохимия, гормоны, липиды и т.п.);\n- markers_json — JSON-массив СТРОКОЙ со ВСЕМИ числовыми показателями документа: [{\"name\":\"...\",\"value\":\"...\",\"unit\":\"...\",\"ref_low\":\"...\",\"ref_high\":\"...\"}]. name пиши строго как в документе, включай только строки с числовым значением, ничего не выдумывай.\nИнструмент вернёт, сколько показателей записано и какие названия не распознаны — коротко упомяни это в финальном ответе.\n\nВыводи результат работы инструмента Add_Medical_Note из графы Note или в случае неудачи, пиши - \"Данные не получилось извлечь\".",
+          "options": {
+            "passthroughBinaryImages": true
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          400,
+          -16
+        ],
+        "id": "f0a32f6b-a843-413c-a5fe-f3e368bd49f6",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "model": "google/gemini-3.8-flash",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          400,
+          192
+        ],
+        "id": "88d54e16-66b4-43c1-b8ec-d1ef6e5a8d23",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+          "text": "={{ $json.output }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          720,
+          -16
+        ],
+        "id": "802f5b52-cef4-49c6-aa77-8f1fad8aae06",
+        "name": "Ответ в Telegram1",
+        "webhookId": "83bbc420-af7d-4900-a81e-139eb51be404",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Append row in sheet in Google Sheets",
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Doctor_Notes",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Date": "={{ (function(){ var d=($fromAI('document_date','Дата ИЗ ШАПКИ документа (дата исследования/забора/приёма). Формат ГГГГ.ММ.ДД. Пусто если явной даты в документе нет.','string')||'').trim().replace(/[\\/\\-]/g,'.').slice(0,10); var today=$now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd'); return (/^\\d{4}\\.\\d{2}\\.\\d{2}$/.test(d) && d<=today) ? d : today; })() }}",
+              "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+              "Note": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Note', ``, 'string') }}",
+              "Trigger": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Trigger', ``, 'string') }}",
+              "Plan": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Plan', ``, 'string') }}",
+              "Doctor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Doctor', ``, 'string') }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Category",
+                "displayName": "Category",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Note",
+                "displayName": "Note",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Trigger",
+                "displayName": "Trigger",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Plan",
+                "displayName": "Plan",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Doctor",
+                "displayName": "Doctor",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheetsTool",
+        "typeVersion": 4.7,
+        "position": [
+          608,
+          224
+        ],
+        "id": "56d1d123-bbd5-4aca-b773-578fbdc3ed28",
+        "name": "Add_Medical_Note",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Берем данные из профиля пользователя (результат работы Google Sheets)\nconst sheetData = $('User Profile').first().json;\n\n// Берем исходное сообщение из Telegram\nconst telegramData = $('Registrar').first().json;\n\n// ВАЖНО: Забираем текст напрямую из ноды Merge, \n// так как нода User Profile затерла стандартный поток\nconst mergeData = $('Merge Экстракторы').first().json || {};\nconst extractedText = mergeData.text || \"\"; \n\n// Берем картинку (если она есть) из стартового узла\nconst binaryData = $('Registrar').first().binary;\n\nreturn [{\n  json: {\n    // Передаем только самое необходимое для авторизации\n    medical_record: {\n      User_ID: sheetData.User_ID, \n      Location: sheetData.Location\n    },\n    user_message: telegramData.message?.text || telegramData.message?.caption || \"Данные во вложении\",\n    \n    // Кладем найденный 'text' в переменную 'extracted_text', которую ждет промпт\n    extracted_text: extractedText, \n    \n    telegram_id: telegramData.message?.from?.id,\n    chat_id: telegramData.message?.chat?.id\n  },\n  binary: binaryData \n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          192,
+          -16
+        ],
+        "id": "da455c52-84b8-4600-87af-d7d2ff9e0486",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+            "mode": "list",
+            "cachedResultName": "User_Profile",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Лист1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit#gid=0"
+          },
+          "filtersUI": {
+            "values": [
+              {
+                "lookupColumn": "Telegram_ID",
+                "lookupValue": "={{ $('Registrar').first().json.message.from.id.toString() }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -16,
+          -16
+        ],
+        "id": "27f4a4d5-4883-4863-9fcb-99b69009b8eb",
+        "name": "User Profile",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "inputSource": "passthrough"
+        },
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -864,
+          0
+        ],
+        "id": "403aec4b-f25d-4ab4-9896-49cea560e234",
+        "name": "Registrar"
+      },
+      {
+        "parameters": {
+          "operation": "rtf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          -432,
+          -240
+        ],
+        "id": "d3f46bbe-70d7-4c34-b0aa-6ccbce0c8d2c",
+        "name": "RTF Экстрактор"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          -432,
+          -48
+        ],
+        "id": "97dcc865-aa7c-490e-88c1-ed6b1973d883",
+        "name": "CSV Экстрактор"
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          -432,
+          -416
+        ],
+        "id": "fa6d81ca-e364-4c54-9333-e5ee191bb980",
+        "name": "PDF Экстрактор"
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.userText || $binary.data?.fileName || '' }}",
+                      "rightValue": ".pdf",
+                      "operator": {
+                        "type": "string",
+                        "operation": "endsWith"
+                      },
+                      "id": "fbe605ce-3435-4dbb-b27e-3c2c48ddcdfb"
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "PDF"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "d0496884-a15f-4db3-a337-cc0f1c32c253",
+                      "leftValue": "={{ $json.userText || $binary.data?.fileName || '' }}",
+                      "rightValue": ".rtf",
+                      "operator": {
+                        "type": "string",
+                        "operation": "contains"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "RTF"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "e540f544-ca5b-4efe-a9fc-3d55d81596f0",
+                      "leftValue": "={{ $json.userText || $json.message?.text || $binary.data?.fileName || '' }}",
+                      "rightValue": "WELLTORY",
+                      "operator": {
+                        "type": "string",
+                        "operation": "contains"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "WELLTORY"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "fc009560-b9c4-498d-bb74-8189b754f90e",
+                      "leftValue": "={{ ($json.userText || '') + ($json.message?.text || '') + ($binary.data?.fileName || '') }}",
+                      "rightValue": "Журнал тренировок",
+                      "operator": {
+                        "type": "string",
+                        "operation": "contains"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "Prana"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "8bb56d25-6380-4965-b778-59c47f7cc5b4",
+                      "leftValue": "={{ $json.userText || $binary.data?.fileName || '' }}",
+                      "rightValue": ".csv",
+                      "operator": {
+                        "type": "string",
+                        "operation": "endsWith"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "CSV"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "21503204-bb77-4976-a1c8-6c33bc70bf36",
+                      "leftValue": "={{ $json.message.photo != null }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "boolean",
+                        "operation": "true",
+                        "singleValue": true
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "Image"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "929190d0-acbd-45d6-a948-21cba894608f",
+                      "leftValue": "={{ $json.userText || $json.message?.text || $json.message?.caption || '' }}",
+                      "rightValue": "",
+                      "operator": {
+                        "type": "string",
+                        "operation": "notEmpty",
+                        "singleValue": true
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "Text"
+              }
+            ]
+          },
+          "looseTypeValidation": true,
+          "options": {
+            "fallbackOutput": "extra"
+          }
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          -688,
+          -48
+        ],
+        "id": "dff3414b-db4a-4ee0-923e-8ab0ef6a6d7f",
+        "name": "Сортировка документов"
+      },
+      {
+        "parameters": {
+          "numberInputs": 4
+        },
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          -192,
+          -48
+        ],
+        "id": "fb5ba3cc-bc23-42bd-bc84-d0c50e59712f",
+        "name": "Merge Экстракторы"
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+          "text": "Данный тип файлов не поддерживается ❌ Пожалуйста, прикрепите PDF, CSV, RTF или отправьте данные обычной картинкой",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -336,
+          176
+        ],
+        "id": "bf7fe717-eb75-43b1-b739-be5ceb4546b9",
+        "name": "Заглушка",
+        "webhookId": "cb97882d-8bf4-4ab4-b4b6-7311780a9b40",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Получаем даты, которые УЖЕ ЕСТЬ в Daily_Trends (приходят на вход из узла чтения)\nconst existingDates = items.map(item => item.json['Дата']).filter(Boolean);\n\n// 2. Получаем сырой CSV (обращаемся к предыдущему узлу по имени)\nconst csvRecords = $('Extract Welltory').all().map(item => item.json);\n\nconst dailyWelltory = {};\n\ncsvRecords.forEach(row => {\n  const fullDate = String(row['Date'] || '').trim();\n  const dateOnly = fullDate.split('T')[0];\n\n  if (!dateOnly) return;\n\n  // 🛡 ГЛАВНЫЙ ФИЛЬТР: Берем данные ТОЛЬКО если эта дата уже есть в базе!\n  if (existingDates.includes(dateOnly)) {\n    // Берем только первый (утренний) замер\n    if (!dailyWelltory[dateOnly]) {\n      dailyWelltory[dateOnly] = {\n        \"Дата\": dateOnly, \n        \"ВСР_Стресс\": Number(row['Stress(HRV)'] || 0),\n        \"ВСР_Энергия\": Number(row['Energy(HRV)'] || 0),\n        \"ВСР_RMSSD\": Number(row['rMSSD'] || 0),\n        \"ВСР_SDNN\": Number(row['SDNN'] || 0)\n      };\n    }\n  }\n});\n\n// Отдаем чистые данные без всяких сообщений для Telegram\nreturn Object.values(dailyWelltory).map(data => ({ json: data }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          16,
+          336
+        ],
+        "id": "f825fafd-53a6-4133-8ac5-71fef531f2eb",
+        "name": "Трансформатор Welltory"
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+          "text": "=✅ <b>Welltory синхронизирован!</b>\n🫀 Обновлено дней в базе: <b>{{ $input.all().length }}</b>",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          368,
+          336
+        ],
+        "id": "f6fc1db0-dac6-4ce4-9f6b-6721bb2aa77b",
+        "name": "Отчет об успехе",
+        "webhookId": "62d43b76-578d-4c64-adb7-db76e8162b9c",
+        "executeOnce": true,
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [
+              "Дата"
+            ],
+            "schema": [
+              {
+                "id": "Дата",
+                "displayName": "Дата",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_отбоя",
+                "displayName": "Время_отбоя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Время_подъема",
+                "displayName": "Время_подъема",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Время_в_кровати_мин",
+                "displayName": "Время_в_кровати_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Чистый_сон_мин",
+                "displayName": "Чистый_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Эффективность_сна_",
+                "displayName": "Эффективность_сна_",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Глубокий_сон_мин",
+                "displayName": "Глубокий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Глубокий_1_половина_мин",
+                "displayName": "Глубокий_1_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Глубокий_2_половина_мин",
+                "displayName": "Глубокий_2_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "REM_сон_мин",
+                "displayName": "REM_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Легкий_сон_мин",
+                "displayName": "Легкий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пробуждения_кол_во",
+                "displayName": "Пробуждения_кол_во",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Бодрствование_мин",
+                "displayName": "Бодрствование_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пульс_ночной_средний",
+                "displayName": "Пульс_ночной_средний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пульс_ночной_мин",
+                "displayName": "Пульс_ночной_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пульс_ночной_макс",
+                "displayName": "Пульс_ночной_макс",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "ВСР_ночная",
+                "displayName": "ВСР_ночная",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Температура_avg_C",
+                "displayName": "Температура_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Влажность_avg_%",
+                "displayName": "Влажность_avg_%",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "PM25_avg",
+                "displayName": "PM25_avg",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_время",
+                "displayName": "Ужин_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Завтрак_время",
+                "displayName": "Завтрак_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Окно_голода_до_сна_ч",
+                "displayName": "Окно_голода_до_сна_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Длительность_голода_ч",
+                "displayName": "Длительность_голода_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Ккал",
+                "displayName": "Ужин_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Белки_г",
+                "displayName": "Ужин_Белки_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Жиры_г",
+                "displayName": "Ужин_Жиры_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Углеводы_г",
+                "displayName": "Ужин_Углеводы_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Шаги_за_вчера",
+                "displayName": "Шаги_за_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Плотность_1к",
+                "displayName": "Активность_Плотность_1к",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Доля_интенсива_%",
+                "displayName": "Активность_Доля_интенсива_%",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Ккал_на_1к",
+                "displayName": "Активность_Ккал_на_1к",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Оценка_дня",
+                "displayName": "Активность_Оценка_дня",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Тип_дня",
+                "displayName": "Активность_Тип_дня",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_тип",
+                "displayName": "Тренировка_тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_длительность_мин",
+                "displayName": "Тренировка_длительность_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_Ккал",
+                "displayName": "Тренировка_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_поздняя",
+                "displayName": "Тренировка_поздняя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Атмосферное_давление_ночь_hPa",
+                "displayName": "Атмосферное_давление_ночь_hPa",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Лекарства_принимаемые",
+                "displayName": "Лекарства_принимаемые",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Время_последнего_кофе",
+                "displayName": "Время_последнего_кофе",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Алкоголь_гр",
+                "displayName": "Алкоголь_гр",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Жалобы_вчера",
+                "displayName": "Жалобы_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Дефициты",
+                "displayName": "Дефициты",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          192,
+          336
+        ],
+        "id": "7e6d557d-0856-4483-bd7f-d90c50715881",
+        "name": "Запись в Daily Trends",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Registrar').first().json.message.chat.id }}",
+          "text": "=🧘‍♂️ <b>Prana Breath синхронизирован!</b>\n🫁 Обновлено дней с практиками: <b>{{ $input.all().length }}</b>",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          400,
+          592
+        ],
+        "id": "f66d357e-5e3b-466f-9cfd-0cb57bc210fe",
+        "name": "Отчет об успехе1",
+        "webhookId": "62d43b76-578d-4c64-adb7-db76e8162b9c",
+        "executeOnce": true,
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [
+              "Дата"
+            ],
+            "schema": [
+              {
+                "id": "Дата",
+                "displayName": "Дата",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Время_отбоя",
+                "displayName": "Время_отбоя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Время_подъема",
+                "displayName": "Время_подъема",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Время_в_кровати_мин",
+                "displayName": "Время_в_кровати_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Чистый_сон_мин",
+                "displayName": "Чистый_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Эффективность_сна_",
+                "displayName": "Эффективность_сна_",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Глубокий_сон_мин",
+                "displayName": "Глубокий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Глубокий_1_половина_мин",
+                "displayName": "Глубокий_1_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Глубокий_2_половина_мин",
+                "displayName": "Глубокий_2_половина_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "REM_сон_мин",
+                "displayName": "REM_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Легкий_сон_мин",
+                "displayName": "Легкий_сон_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пробуждения_кол_во",
+                "displayName": "Пробуждения_кол_во",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Бодрствование_мин",
+                "displayName": "Бодрствование_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пульс_ночной_средний",
+                "displayName": "Пульс_ночной_средний",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пульс_ночной_мин",
+                "displayName": "Пульс_ночной_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Пульс_ночной_макс",
+                "displayName": "Пульс_ночной_макс",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "ВСР_ночная",
+                "displayName": "ВСР_ночная",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Температура_avg_C",
+                "displayName": "Температура_avg_C",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Влажность_avg_%",
+                "displayName": "Влажность_avg_%",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "PM25_avg",
+                "displayName": "PM25_avg",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_время",
+                "displayName": "Ужин_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Завтрак_время",
+                "displayName": "Завтрак_время",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Окно_голода_до_сна_ч",
+                "displayName": "Окно_голода_до_сна_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Длительность_голода_ч",
+                "displayName": "Длительность_голода_ч",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Ккал",
+                "displayName": "Ужин_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Белки_г",
+                "displayName": "Ужин_Белки_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Жиры_г",
+                "displayName": "Ужин_Жиры_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Ужин_Углеводы_г",
+                "displayName": "Ужин_Углеводы_г",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Шаги_за_вчера",
+                "displayName": "Шаги_за_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Плотность_1к",
+                "displayName": "Активность_Плотность_1к",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Доля_интенсива_%",
+                "displayName": "Активность_Доля_интенсива_%",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Ккал_на_1к",
+                "displayName": "Активность_Ккал_на_1к",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Оценка_дня",
+                "displayName": "Активность_Оценка_дня",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Активность_Тип_дня",
+                "displayName": "Активность_Тип_дня",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_тип",
+                "displayName": "Тренировка_тип",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_длительность_мин",
+                "displayName": "Тренировка_длительность_мин",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_Ккал",
+                "displayName": "Тренировка_Ккал",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Тренировка_поздняя",
+                "displayName": "Тренировка_поздняя",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Атмосферное_давление_ночь_hPa",
+                "displayName": "Атмосферное_давление_ночь_hPa",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Лекарства_принимаемые",
+                "displayName": "Лекарства_принимаемые",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Время_последнего_кофе",
+                "displayName": "Время_последнего_кофе",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Алкоголь_гр",
+                "displayName": "Алкоголь_гр",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Жалобы_вчера",
+                "displayName": "Жалобы_вчера",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Дефициты",
+                "displayName": "Дефициты",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          224,
+          592
+        ],
+        "id": "2eded7bd-a864-421d-85cd-80fb5fd1c4c2",
+        "name": "Запись в Daily Trends1",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Получаем даты, которые УЖЕ ЕСТЬ в базе\nconst existingDates = items.map(item => item.json['Дата']).filter(Boolean);\n\n// 2. ЧИТАЕМ ДАННЫЕ\nlet rawText = \"\";\nconst switchNode = $('Сортировка документов').first();\n\nif (switchNode.binary && switchNode.binary.data) {\n  rawText = Buffer.from(switchNode.binary.data.data, 'base64').toString('utf8');\n}\nif (!rawText || rawText.length < 20) {\n  rawText = switchNode.json.userText || switchNode.json.message?.text || \"\";\n}\n\nconst lines = rawText.split('\\n');\nconst dailyPrana = {};\n\n// 3. Сканируем каждую строчку\nlines.forEach(line => {\n  const columns = line.split(',');\n  \n  // Ищем дату\n  const dateColIndex = columns.findIndex(col => /\\d{4}-\\d{2}-\\d{2}/.test(col));\n  if (dateColIndex === -1) return; \n  \n  const dateVal = columns[dateColIndex].match(/\\d{4}-\\d{2}-\\d{2}/)[0];\n  if (!existingDates.includes(dateVal)) return;\n\n  // В Prana ТИП тренировки лежит через 2 колонки после даты, а ДЛИТЕЛЬНОСТЬ - через 3\n  const typeRaw = columns[dateColIndex + 2] || '';\n  const durationRaw = columns[dateColIndex + 3] || '';\n  \n  // Очищаем тип тренировки от любых скрытых символов (оставляем только буквы, цифры, пробелы и дефисы)\n  const typeClean = typeRaw.replace(/[^\\wА-Яа-яЁё\\s\\-]/gi, '').trim();\n  \n  // Очищаем и считаем длительность\n  const durationClean = durationRaw.replace(/[^\\dчмсhms]/gi, '');\n  let totalMinutes = 0;\n  \n  const hMatch = durationClean.match(/(\\d+)[чh]/i);\n  const mMatch = durationClean.match(/(\\d+)[мm]/i);\n  const sMatch = durationClean.match(/(\\d+)[сs]/i);\n  \n  if (hMatch) totalMinutes += parseInt(hMatch[1], 10) * 60;\n  if (mMatch) totalMinutes += parseInt(mMatch[1], 10);\n  if (sMatch) totalMinutes += parseInt(sMatch[1], 10) / 60;\n  \n  if (totalMinutes === 0) return;\n  \n  // Создаем запись\n  if (!dailyPrana[dateVal]) {\n    dailyPrana[dateVal] = {\n      \"Дата\": dateVal,\n      \"Prana_Длительность_мин\": 0,\n      \"Prana_Тип\":[] // Создаем пустой массив для типов тренировок\n    };\n  }\n  \n  // Прибавляем время\n  dailyPrana[dateVal][\"Prana_Длительность_мин\"] += totalMinutes;\n  \n  // Добавляем тип тренировки (только если такого еще не было за сегодня)\n  if (typeClean && !dailyPrana[dateVal][\"Prana_Тип\"].includes(typeClean)) {\n    dailyPrana[dateVal][\"Prana_Тип\"].push(typeClean);\n  }\n});\n\n// Формируем красивый результат перед отправкой\nObject.keys(dailyPrana).forEach(date => {\n  // Округляем минуты до 1 знака\n  dailyPrana[date][\"Prana_Длительность_мин\"] = Math.round(dailyPrana[date][\"Prana_Длительность_мин\"] * 10) / 10;\n  \n  // Превращаем массив типов в красивую строку через запятую (например: \"Расслабление, Дыхание 4-7-8\")\n  dailyPrana[date][\"Prana_Тип\"] = dailyPrana[date][\"Prana_Тип\"].join(', ');\n});\n\n// Возвращаем чистые данные для базы\nreturn Object.values(dailyPrana).map(data => ({ json: data }));"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          16,
+          592
+        ],
+        "id": "06354a31-f7f9-4a9c-8584-8c4b51295cce",
+        "name": "Трансформатор Prahna"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          -416,
+          336
+        ],
+        "id": "51686897-a4c5-46ba-b64c-12a99dc9cf4a",
+        "name": "Extract Welltory"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -416,
+          592
+        ],
+        "id": "0266d8b5-5811-41a2-b75d-21ec2cf594f8",
+        "name": "Get existing dates Prana",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=1616801477"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -208,
+          336
+        ],
+        "id": "0396e771-31cf-49e9-b9c6-b87d6bae3207",
+        "name": "Get existing dates Welltory",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "description": "Сохранить СТРУКТУРНЫЕ числовые результаты лабораторного анализа в базу биомаркеров (книга phenoage). Вызывай ДОПОЛНИТЕЛЬНО к Add_Medical_Note, когда документ — лабораторный анализ крови/мочи/кала с числовыми показателями.",
+          "workflowId": {
+            "__rl": true,
+            "value": "a7d1c4e2-9b30-4f55-8c21-6de2b1a4f7c0",
+            "mode": "list",
+            "cachedResultName": "Save_Lab_Results"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "document_date": "={{ $fromAI(\"document_date\", \"Дата документа в формате ГГГГ.ММ.ДД из шапки. Пусто, если явной даты нет.\", 'string') }}",
+              "lab_name": "={{ $fromAI(\"lab_name\", \"Название лаборатории или медучреждения из документа.\", 'string') }}",
+              "notes": "={{ $fromAI(\"notes\", \"Короткая пометка о типе анализа: ОАК, биохимия, гормоны, липидный профиль и т.п.\", 'string') }}",
+              "markers_json": "={{ $fromAI(\"markers_json\", \"JSON-массив СТРОКОЙ со всеми числовыми показателями: [{\\\"name\\\":\\\"...\\\",\\\"value\\\":\\\"...\\\",\\\"unit\\\":\\\"...\\\",\\\"ref_low\\\":\\\"...\\\",\\\"ref_high\\\":\\\"...\\\"}]. name — строго как в документе. Только показатели с числовым значением; качественные (отрицательно/не обнаружено) не включать. Ничего не выдумывать.\", 'string') }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "document_date",
+                "displayName": "document_date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "lab_name",
+                "displayName": "lab_name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "notes",
+                "displayName": "notes",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "markers_json",
+                "displayName": "markers_json",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+        "typeVersion": 2.2,
+        "position": [
+          800,
+          288
+        ],
+        "id": "4dda96dd-d4b9-465f-8c52-7c381b793121",
+        "name": "Save_Lab_Results"
+      }
+    ],
+    "connections": {
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Ответ в Telegram1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ответ в Telegram1": {
+        "main": [
+          []
+        ]
+      },
+      "Add_Medical_Note": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "User Profile": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Registrar": {
+        "main": [
+          [
+            {
+              "node": "Сортировка документов",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "RTF Экстрактор": {
+        "main": [
+          [
+            {
+              "node": "Merge Экстракторы",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "CSV Экстрактор": {
+        "main": [
+          [
+            {
+              "node": "Merge Экстракторы",
+              "type": "main",
+              "index": 2
+            }
+          ]
+        ]
+      },
+      "PDF Экстрактор": {
+        "main": [
+          [
+            {
+              "node": "Merge Экстракторы",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Сортировка документов": {
+        "main": [
+          [
+            {
+              "node": "PDF Экстрактор",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "RTF Экстрактор",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Extract Welltory",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Get existing dates Prana",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "CSV Экстрактор",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Merge Экстракторы",
+              "type": "main",
+              "index": 3
+            }
+          ],
+          [
+            {
+              "node": "Merge Экстракторы",
+              "type": "main",
+              "index": 3
+            }
+          ],
+          [
+            {
+              "node": "Заглушка",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge Экстракторы": {
+        "main": [
+          [
+            {
+              "node": "User Profile",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Трансформатор Welltory": {
+        "main": [
+          [
+            {
+              "node": "Запись в Daily Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Запись в Daily Trends": {
+        "main": [
+          [
+            {
+              "node": "Отчет об успехе",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Запись в Daily Trends1": {
+        "main": [
+          [
+            {
+              "node": "Отчет об успехе1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Трансформатор Prahna": {
+        "main": [
+          [
+            {
+              "node": "Запись в Daily Trends1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Welltory": {
+        "main": [
+          [
+            {
+              "node": "Get existing dates Welltory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get existing dates Prana": {
+        "main": [
+          [
+            {
+              "node": "Трансформатор Prahna",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get existing dates Welltory": {
+        "main": [
+          [
+            {
+              "node": "Трансформатор Welltory",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save_Lab_Results": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Vlad Vasuk",
+    "name": "Version 98c843da",
+    "description": "",
+    "autosaved": true
+  },
+  "tags": []
+}
