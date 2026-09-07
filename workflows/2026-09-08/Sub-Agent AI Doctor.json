@@ -1,0 +1,1599 @@
+{
+  "updatedAt": "2026-09-07T11:49:11.000Z",
+  "createdAt": "2026-03-31T06:58:45.452Z",
+  "id": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+  "name": "Sub-Agent: AI Doctor",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=СЕГОДНЯ: {{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd') }} (Владивосток). Все события в данных — прошлое. Никогда не указывай даты позже сегодняшней.\n\nТы — превентивный врач пациента, работаешь в доказательной парадигме (EBM). Ведёшь его медкарту и лист симптомов, анализируешь данные его гаджетов и питания. Ты НЕ ставишь диагнозы — ты формулируешь гипотезы для проверки у живого врача. Финал любой жалобы — либо «наблюдаем», либо «сходи к [специалисту] с этой выжимкой».\n\n## 🗣 СООБЩЕНИЕ ПАЦИЕНТА:\n{{ $json.user_message }}\n\n## 👤 КАРТА ПАЦИЕНТА\n- Имя: {{ $json.medical_record.User_ID }}\n- Хронические: {{ $json.medical_record.Chronic_Conditions }}\n- ОДА и неврология: {{ $json.medical_record['ОДА и неврология'] }}\n- Сон/НС: {{ $json.medical_record['Сон и нервная система (HRV)'] }}\n- ССС: {{ $json.medical_record['Сердечно-сосудистая система'] }}\n- Аллергии/реакции: новокаин — анафилаксия; пенициллин; фосфаты/сульфаты.\n\n## 🚨 КРАСНЫЕ ФЛАГИ — ПРОВЕРЯЙ ПЕРВЫМ ДЕЛОМ\nОтдельный код уже проверил сообщение по списку неотложных состояний. Но ты ОБЯЗАН оценить сам. Признаки неотложки: боль в груди с отдачей в руку/челюсть/лопатку + одышка/пот; внезапная односторонняя слабость/онемение, перекос лица, спутанная речь; «самая сильная головная боль в жизни» / как удар; рвота кровью или «кофейной гущей», чёрный стул; отёк горла/языка, трудно дышать или глотать; потеря сознания, впервые возникшие судороги; внезапная нестерпимая боль в животе/спине; лихорадка 38+ со спутанностью или ригидностью шеи.\nЕсли видишь любое — твой ВЕСЬ ответ: «🚨 Похоже на неотложное состояние. Немедленно к врачу или вызови скорую: 103 / 112. Уточняющих вопросов не задаю, чтобы не терять время. Как будешь в безопасности — напиши, что было, занесу в карту.» Инструменты не вызывай.\n\n## 🧠 АЛГОРИТМ\n\n### СЦЕНАРИЙ А: жалоба на СИМПТОМ / боль / самочувствие\n1. Красные флаги (см. выше). Нет — продолжай.\n2. Вызови `Read_Symptoms` — это новый симптом или продолжение уже отслеживаемого?\n3. Хватает ли данных для гипотезы? Если жалоба размытая — задай 1–2 ТОЧЕЧНЫХ уточняющих вопроса и остановись (ответ придёт следующим сообщением).\n4. Автономно подними контекст: `Get_Patient_Medical_History` (было ли раньше, что помогало), питание за последние 3 дня (Nutrition Analyzer), трекеры (сон/пульс/ВСР). Свяжи симптом с тем, что менялось в питании/активности/лекарствах в эти дни.\n4b. Если симптом ПОВТОРЯЮЩИЙСЯ и в Symptom_Log по его Symptom_ID уже ≥3 эпизода — вызови `Analyze_Symptom_Food`. Разбери кандидатов: назови 1–2 самых вероятных пищевых триггера, предложи элиминационный тест (убрать на 2 недели → вернуть, следить по эпизодам). Меньше 4 эпизодов — скажи «данных мало, продолжаем копить».\n5. Вызови `Log_Symptom` — структурная строка в лист симптомов (Symptom_ID тот же, если продолжение; в Change — динамика).\n6. Вызови `Add_Medical_Note` — короткая клиническая запись в медкарту (как сейчас).\n7. Ответ пациенту:\n   - Гипотезы (2–3), КАЖДАЯ помечена «гипотеза, не диагноз».\n   - Связь с его данными («вчера в 20:00 было X г жиров + алкоголь, сегодня боль в левом подреберье»).\n   - Что делать: по умолчанию — «наблюдаем N дней, при усилении — к врачу раньше». Режим (еда, поза, паузы), НЕ препараты и дозы.\n   - Если гипотеза серьёзная или симптом не первый раз — «подготовил выжимку, сходи к [терапевт/гастроэнтеролог/невролог/…]».\n\n### СЦЕНАРИЙ Б: прямой вопрос (можно ли добавку? как спал? что по анализу?)\n1. Уточняющих вопросов не нужно.\n2. Подними нужный инструмент, дай короткий экспертный ответ. Симптом не пишем.\n\n## ⚠️ ПРАВИЛА\n- НЕ ставь диагноз, не назначай препараты и дозы. Только гипотезы + режим + «к живому врачу с выжимкой».\n- Запрещены: долгие приветствия/прощания, вода, «я ознакомился с картой», «как ИИ я не могу». Говори как уверенный врач.\n- Формат — Telegram HTML: <b> <i> <u> <s> <code>. Без Markdown (**текст**).\n- НЕ выводи названия инструментов и их поля в чат. Вызывай программно (function call).\n- Никаких дат позже сегодняшней.\n",
+        "options": {
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -16
+      ],
+      "id": "54072cfd-2ece-4a85-922e-b265bc8e2ca5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "minimax/minimax-m3",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        176,
+        224
+      ],
+      "id": "8080efc1-3949-429d-8cad-fbf87fdb0211",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Главврач').first().json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        944,
+        -16
+      ],
+      "id": "51523436-3900-4394-958e-3bf3b5222a87",
+      "name": "Ответ в Telegram1",
+      "webhookId": "5bcdc6de-9bfe-49b4-a645-b343e9f7d754",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sub-Agent: AI Doctor — подготовка пакета для агента + ПОЛ красных флагов (Фаза 2).\n// ВАЖНО: в JS-regex \\w НЕ матчит кириллицу — во всех паттернах ниже вместо \\w используем [а-яёa-z0-9].\nconst sheetData = $input.first().json;\nconst triggerData = $('Главврач').first().json;\nconst binaryData = $('Главврач').first().binary;\nconst msg = triggerData.message?.caption || triggerData.message?.text || 'Посмотри на это фото.';\n\n// L = «буква/цифра» (кириллица + латиница). Строим паттерны через шаблонные строки.\nconst L = '[а-яёa-z0-9]';\nconst rx = (s) => new RegExp(s.replace(/\\\\W/g, L), 'i');\n\nconst RED_FLAGS = [\n  ['боль в груди с иррадиацией / одышка',\n    rx('(груд|за\\\\s*грудин)[^.!?]{0,70}(отда[еёт]|иррадиир|в\\\\s*(лев\\\\W*\\\\s*)?руку|в\\\\s*(нижн\\\\W*\\\\s*)?челюст|в\\\\s*лопатк|в\\\\s*шею)|дав(ит|ящ\\\\W*|ление)[^.!?]{0,45}груд[^.!?]{0,45}(одышк|воздух|пот\\\\W|тошнот|слабост)|жж[её]т?[^.!?]{0,25}груд[^.!?]{0,45}(одышк|рук|челюст|пот)')],\n  ['признаки инсульта',\n    rx('(онемел\\\\W*|отнял\\\\W*|отня\\\\W*|перестал\\\\W*\\\\s*(слушать|двигать|шевелить|работать))[^.!?]{0,45}(рук|ног|половин\\\\W*\\\\s*тела|лиц)|перекос\\\\W*[^.!?]{0,20}(лиц|рот)|(речь|говор\\\\W*)[^.!?]{0,25}(спутан|невнятн|заплет|пропал)|(резко|внезапно)[^.!?]{0,25}не\\\\s*могу\\\\s*(говорить|двигать)|двоится\\\\s*в\\\\s*глаз|(внезапн\\\\W*|резк\\\\W*)[^.!?]{0,25}(слепот|потер\\\\W*\\\\s*зрени)')],\n  ['громоподобная / worst-ever головная боль',\n    rx('(сам\\\\W*\\\\s*(сильн\\\\W*|жутк\\\\W*|невыносим\\\\W*|ужасн\\\\W*)[^.!?]{0,25}(головн\\\\W*\\\\s*боль|голова))|громоподобн\\\\W*[^.!?]{0,20}голов|(внезапн\\\\W*|резк\\\\W*)[^.!?]{0,25}(сильнейш\\\\W*|нестерпим\\\\W*|как\\\\s*удар)[^.!?]{0,20}голов|голов\\\\W*\\\\s*боль[^.!?]{0,35}(в\\\\s*жизни|никогда\\\\s*так|как\\\\s*удар|громоподоб)|(сильнейш|нестерпим)\\\\W*\\\\s*(головн\\\\W*\\\\s*боль|голов)')],\n  ['ЖКТ-кровотечение',\n    rx('кофейн\\\\W*\\\\s*гущ|рвот\\\\W*[^.!?]{0,25}(кровь|с\\\\s*кровью|бур\\\\W|ч[ёе]рн)|ч[ёе]рн\\\\W*\\\\s*(стул|кал)(?![^.!?]{0,20}(активирован|уголь|железо|висмут|черник|св[её]кл))|мелена|(кровь|ал\\\\W*\\\\s*кров)[^.!?]{0,25}(в\\\\s*стуле|в\\\\s*кале|из\\\\s*(зад|прям\\\\W*\\\\s*кишк)|при\\\\s*дефекац|обильн)')],\n  ['отёк гортани / удушье (анафилаксия)',\n    rx('от[ёек]\\\\W*[^.!?]{0,20}(гортан|язык\\\\W|горл|губ)|(трудно|тяжело|не\\\\s*могу|стало\\\\s*трудно)\\\\s*(дышать|глотать|вдохнуть|сделать\\\\s*вдох)|горло\\\\s*(сжим|перекр|отекл|распух|сдавл)|распух\\\\W*[^.!?]{0,15}(лицо|горло|язык|губ)|крапивниц\\\\W*[^.!?]{0,25}(вс[её]\\\\s*тело|от[её]к|дыхан|горло)')],\n  ['потеря сознания / судороги',\n    rx('потер\\\\W*\\\\s*сознани|(упал|потерял\\\\W*|отключил\\\\W*)[^.!?]{0,20}(в\\\\s*обморок|сознание|отруб)|(перв\\\\W*\\\\s*раз|впервые)[^.!?]{0,20}судорог|судорог\\\\W*[^.!?]{0,25}(не\\\\s*прекращ|вс[её]\\\\s*тело|минут)|эпи?приступ|припадок\\\\s*(с|со|без)\\\\s*судорог')],\n  ['внезапная нестерпимая боль в животе/боку/спине',\n    rx('(внезапн\\\\W*|резк\\\\W*|остр\\\\W*)[^.!?]{0,15}(сильнейш\\\\W*|нестерпим\\\\W*|острейш\\\\W*|кинжальн\\\\W*|невыносим\\\\W*)[^.!?]{0,20}бол\\\\W*[^.!?]{0,20}(живот|поясниц|спин|бок|подреберь)|бол\\\\W*[^.!?]{0,12}(как\\\\s*удар\\\\s*ножом|будто\\\\s*разрыв)')],\n  ['лихорадка + спутанность / ригидность шеи',\n    rx('(температур\\\\W*|жар|лихорадк)[^.!?]{0,20}(3[89]|4[012])[^.!?]{0,55}(спутан|брежу|бред\\\\b|не\\\\s*могу\\\\s*согнуть\\\\s*шею|ригидн|светобоязн|сыпь\\\\s*не\\\\s*исчез)|не\\\\s*могу\\\\s*согнуть\\\\s*шею[^.!?]{0,25}(температур|жар|свет|голов)')],\n];\n\nconst redFlag = { hit: false, matched: [] };\nfor (const [label, re] of RED_FLAGS) {\n  if (re.test(msg)) { redFlag.hit = true; redFlag.matched.push(label); }\n}\n\nconst result = {\n  json: {\n    medical_record: sheetData,\n    user_message: msg,\n    telegram_id: triggerData.message?.from?.id,\n    chat_id: triggerData.message?.chat?.id,\n    red_flag: redFlag,\n    today: new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10),\n  },\n};\nif (binaryData) result.binary = binaryData;\nreturn [result];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        -16
+      ],
+      "id": "f69e1229-f25e-44e9-95ca-6709abb5ea14",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.telegram_id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        384
+      ],
+      "id": "a7fa97aa-f425-4b94-89fa-29bcf2ccb962",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Используй этот инструмент для получения данных о принимаемых лекарствах и добавках, поездках и встречах из Google Calendar",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "vasukvladislav@gmail.com",
+          "mode": "list",
+          "cachedResultName": "vasukvladislav@gmail.com"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        304
+      ],
+      "id": "efe51635-5674-4308-8773-a6fdb67e154e",
+      "name": "Get many events in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PqacoYjKhCXLSGf8",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+          "mode": "list",
+          "cachedResultName": "User_Profile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Telegram_ID",
+              "lookupValue": "={{ $('Главврач').first().json.message.from.id.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -176,
+        -16
+      ],
+      "id": "94f2a3ce-1fab-461c-ae10-f85b0a6e88f3",
+      "name": "User Profile",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -384,
+        -16
+      ],
+      "id": "788b6413-0da8-4c92-aeb5-5f5a942a5419",
+      "name": "Главврач"
+    },
+    {
+      "parameters": {
+        "description": "Используй этот инструмент для получения анализа питания (нутрициологии) пациента. Возвращает данные о БЖУ, калориях и дефицитах.",
+        "workflowId": {
+          "__rl": true,
+          "value": "9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+          "cachedResultName": "Sub-Agent: Nutrition Analyzer"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('date', ``, 'string') }}",
+            "userID": "={{ $json.medical_record.User_ID }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "userID",
+              "displayName": "userID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "Chat ID",
+              "displayName": "Chat ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        336
+      ],
+      "id": "8ae6ab18-4175-4799-9814-b8d862aadb22",
+      "name": "Call 'Sub-Agent: Nutrition Analyzer'"
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = $json.output || \"\";\n\n// 1. Превращаем <br> и <p> в нормальные текстовые переносы\ntext = text.replace(/<br\\s*\\/?>/gi, '\\n');\ntext = text.replace(/<\\/?p>/gi, '\\n\\n');\n\n// 2. Спасаем жирный шрифт (Markdown в HTML)\ntext = text.replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>');\ntext = text.replace(/\\*/g, '');\n\n// 3. СПАСАЕМ МЕДИЦИНСКИЕ АНАЛИЗЫ (знаки < и >)\n// Если после < идет пробел или цифра - это точно математика, а не тег\ntext = text.replace(/<(?=\\s|[0-9])/g, '&lt;');\n// Аналогично для знака >\ntext = text.replace(/(?<=\\s|[0-9])>/g, '&gt;');\n\n// 4. Оставляем только разрешенные теги Телеграма\nconst allowedTags = \"b|strong|i|em|u|s|strike|del|a|code|pre\";\nconst sanitizeRegex = new RegExp(`<\\/?(?!(?:${allowedTags})\\\\b)[a-z0-9]+[^>]*>`, 'gi');\ntext = text.replace(sanitizeRegex, '');\n\n// 5. 🏗 АВТО-БАЛАНСИРОВЩИК ТЕГОВ (Лечит ошибку Unmatched end tag)\nconst stack =[];\nconst tagRegex = /<\\/?([a-z]+)[^>]*>/gi;\nlet match;\n\n// Проходим по всем тегам в тексте\nwhile ((match = tagRegex.exec(text)) !== null) {\n  const tag = match[1].toLowerCase();\n  const isClosing = match[0].startsWith('</');\n\n  if (!isClosing) {\n    // Если тег открылся - кладем его в \"память\"\n    stack.push(tag);\n  } else {\n    // Если тег закрылся - убираем его из памяти\n    const lastIndex = stack.lastIndexOf(tag);\n    if (lastIndex !== -1) {\n      stack.splice(lastIndex, 1); \n    }\n  }\n}\n\n// Все теги, которые остались в \"памяти\" - нейросеть забыла закрыть!\n// Аккуратно закрываем их в самом конце текста в обратном порядке\nfor (let i = stack.length - 1; i >= 0; i--) {\n  text += `</${stack[i]}>`;\n}\n\n// 6. Убираем лишние пустые строки\ntext = text.replace(/\\n{3,}/g, '\\n\\n');\n\nreturn { \n  json: { \n    ...$json,\n    output: text.trim() \n  } \n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        -16
+      ],
+      "id": "8f7b4ae7-a948-4b89-87b1-bb1f4bac9d5f",
+      "name": "Sanitizer"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Используй этот инструмент, ЕСЛИ пациент жалуется на обострение, боль или новые симптомы. Инструмент вернет историю прошлых обращений (Doctor Notes), прошлые триггеры и реакции на лечение. Обязательно сопоставь текущую жалобу с историей прошлых записей из этого инструмента.",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Doctor_Notes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        320
+      ],
+      "id": "7af95a32-b1c2-42f4-a7a2-a09a6d1f4bd1",
+      "name": "Get_Patient_Medical_History",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Вызывай эту функцию каждый раз, когда пациент сообщает о новых симптомах, реакциях на препараты или обострениях. Инструмент запишет эти данные напрямую в базу данных пациента.",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Doctor_Notes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd') }}",
+            "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+            "Note": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Note', ``, 'string') }}",
+            "Trigger": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Trigger', ``, 'string') }}",
+            "Plan": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Plan', ``, 'string') }}",
+            "Doctor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Doctor', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Note",
+              "displayName": "Note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Trigger",
+              "displayName": "Trigger",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Plan",
+              "displayName": "Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Doctor",
+              "displayName": "Doctor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        304
+      ],
+      "id": "3d3dd8e5-b472-408d-b6e9-fc9cb682a88a",
+      "name": "Add_Medical_Note",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendChatAction",
+        "chatId": "={{ $json.chat_id || $json.message?.chat?.id }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -176,
+        128
+      ],
+      "id": "d56205cf-ba7f-4aa2-be02-beebed6d9dd1",
+      "name": "typing (doctor)",
+      "webhookId": "5f8caf03-3dd4-4e13-b105-7ec3e985458d",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0a49007-98df-4389-9dfc-d88fa73584d2",
+              "leftValue": "={{ $json.red_flag.hit }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7281e71f-56d8-4fb8-9962-bc1480a119ba",
+      "name": "Red-Flag Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ \"🚨 То, что ты описал, похоже на неотложное состояние (\" + $json.red_flag.matched.join(\", \") + \"). Не жди — сразу к врачу или вызови скорую: 103 / 112. Уточняющих вопросов не задаю, чтобы не терять время. Как будешь в безопасности — напиши, что было, занесу в карту.\" }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "99bc845b-3a3a-4587-babb-d495cd1ea8e7",
+      "name": "Emergency Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        -208
+      ],
+      "webhookId": "fdaee3dc-65b1-435c-a903-15e7f2b0270e",
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Записывает СТРУКТУРНУЮ строку симптома в лист Symptom_Log (отдельно от медкарты). Вызывай, когда пациент сообщает о физическом состоянии/самочувствии: боль, энергия, головная боль, ЖКТ, кожа, онемение, головокружение, сон как ощущение. Каждый ОТДЕЛЬНЫЙ эпизод боли/симптома — новая строка с тем же Symptom_ID и текущим временем (для анализа связи с едой). Сначала вызови Читать_симптомы: если симптом уже отслеживается — используй ТОТ ЖЕ Symptom_ID и в Change укажи динамику (усилился/ослаб/без изменений/прошёл).",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Symptom_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [],
+          "value": {
+            "Symptom_ID": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Symptom_ID', `короткий слаг латиницей, напр. golovnaya-bol или bok-levyy-posle-edy; тот же, если продолжение`, 'string') }}",
+            "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd HH:mm') }}",
+            "Symptom": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Symptom', `что беспокоит, словами пациента + уточнения`, 'string') }}",
+            "System": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('System', `система организма: ЖКТ / нервная / ССС / ОДА / кожа / эндокринная / общее`, 'string') }}",
+            "Severity": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Severity', `1-5, насколько мешает жить`, 'string') }}",
+            "Status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Status', `active / monitoring / resolved`, 'string') }}",
+            "Change": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Change', `появился / усилился / ослаб / без изменений / прошёл`, 'string') }}",
+            "Domain": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Domain', `gastro / neuro / cardio / endo / musculo / derm / psych / general`, 'string') }}",
+            "Context": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Context', `что в питании/активности/лекарствах менялось в эти дни (если проверял трекеры/питание)`, 'string') }}",
+            "Hypothesis": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Hypothesis', `гипотеза(ы) для проверки у живого врача — НЕ диагноз`, 'string') }}",
+            "Notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Notes', `что рекомендовано, к какому специалисту направлен, срок наблюдения`, 'string') }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "01ae5d87-24d5-4389-a877-822fac8e89f7",
+      "name": "Log_Symptom",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        304
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Возвращает историю ранее записанных симптомов (лист Symptom_Log). Вызывай ПЕРЕД записью нового симптома — понять, новый он или продолжение уже отслеживаемого.",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Symptom_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "e54e2d05-1995-4b51-9ba6-2f333120a0ce",
+      "name": "Read_Symptoms",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        448
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "a2dd6730-f949-4e66-8a6e-8d65372c5333",
+      "name": "Analyze_Symptom_Food",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        304
+      ],
+      "parameters": {
+        "description": "Ассоциативный анализ: связывает записанные эпизоды одного симптома (по Symptom_ID) с тем, что пациент ел в 6 часов ДО каждого эпизода, сравнивает с обычным рационом. Возвращает кандидаты-нутриенты и продукты. Вызывай, когда у симптома в Symptom_Log НАКОПИЛОСЬ ≥3 эпизода и есть подозрение на пищевой триггер. Это НЕ доказательство — генератор гипотез для элиминационного теста.",
+        "workflowId": {
+          "__rl": true,
+          "value": "AnalyzeSympFood",
+          "mode": "list",
+          "cachedResultName": "Analyze_Symptom_Food"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "symptom_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('symptom_id', 'Symptom_ID из Symptom_Log, эпизоды которого анализируем', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "symptom_id",
+              "displayName": "symptom_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        }
+      },
+      "credentials": {}
+    }
+  ],
+  "connections": {
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Sanitizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ответ в Telegram1": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Red-Flag Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Profile": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Главврач": {
+      "main": [
+        [
+          {
+            "node": "User Profile",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "typing (doctor)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Sub-Agent: Nutrition Analyzer'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitizer": {
+      "main": [
+        [
+          {
+            "node": "Ответ в Telegram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_Patient_Medical_History": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add_Medical_Note": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Red-Flag Gate": {
+      "main": [
+        [
+          {
+            "node": "Emergency Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log_Symptom": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read_Symptoms": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze_Symptom_Food": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true,
+    "saveExecutionProgress": true,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "a3ed3e0b-2a86-48d1-bebf-d4d62ccee8a2",
+  "activeVersionId": "a3ed3e0b-2a86-48d1-bebf-d4d62ccee8a2",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T00:44:14.895Z",
+      "createdAt": "2026-09-03T00:44:14.895Z",
+      "role": "workflow:owner",
+      "workflowId": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-07T11:49:05.388Z",
+    "createdAt": "2026-09-07T11:49:05.388Z",
+    "versionId": "a3ed3e0b-2a86-48d1-bebf-d4d62ccee8a2",
+    "workflowId": "bd8a3b2e-0bdd-4337-9b98-24f7648c595b",
+    "nodes": [
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=СЕГОДНЯ: {{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd') }} (Владивосток). Все события в данных — прошлое. Никогда не указывай даты позже сегодняшней.\n\nТы — превентивный врач пациента, работаешь в доказательной парадигме (EBM). Ведёшь его медкарту и лист симптомов, анализируешь данные его гаджетов и питания. Ты НЕ ставишь диагнозы — ты формулируешь гипотезы для проверки у живого врача. Финал любой жалобы — либо «наблюдаем», либо «сходи к [специалисту] с этой выжимкой».\n\n## 🗣 СООБЩЕНИЕ ПАЦИЕНТА:\n{{ $json.user_message }}\n\n## 👤 КАРТА ПАЦИЕНТА\n- Имя: {{ $json.medical_record.User_ID }}\n- Хронические: {{ $json.medical_record.Chronic_Conditions }}\n- ОДА и неврология: {{ $json.medical_record['ОДА и неврология'] }}\n- Сон/НС: {{ $json.medical_record['Сон и нервная система (HRV)'] }}\n- ССС: {{ $json.medical_record['Сердечно-сосудистая система'] }}\n- Аллергии/реакции: новокаин — анафилаксия; пенициллин; фосфаты/сульфаты.\n\n## 🚨 КРАСНЫЕ ФЛАГИ — ПРОВЕРЯЙ ПЕРВЫМ ДЕЛОМ\nОтдельный код уже проверил сообщение по списку неотложных состояний. Но ты ОБЯЗАН оценить сам. Признаки неотложки: боль в груди с отдачей в руку/челюсть/лопатку + одышка/пот; внезапная односторонняя слабость/онемение, перекос лица, спутанная речь; «самая сильная головная боль в жизни» / как удар; рвота кровью или «кофейной гущей», чёрный стул; отёк горла/языка, трудно дышать или глотать; потеря сознания, впервые возникшие судороги; внезапная нестерпимая боль в животе/спине; лихорадка 38+ со спутанностью или ригидностью шеи.\nЕсли видишь любое — твой ВЕСЬ ответ: «🚨 Похоже на неотложное состояние. Немедленно к врачу или вызови скорую: 103 / 112. Уточняющих вопросов не задаю, чтобы не терять время. Как будешь в безопасности — напиши, что было, занесу в карту.» Инструменты не вызывай.\n\n## 🧠 АЛГОРИТМ\n\n### СЦЕНАРИЙ А: жалоба на СИМПТОМ / боль / самочувствие\n1. Красные флаги (см. выше). Нет — продолжай.\n2. Вызови `Read_Symptoms` — это новый симптом или продолжение уже отслеживаемого?\n3. Хватает ли данных для гипотезы? Если жалоба размытая — задай 1–2 ТОЧЕЧНЫХ уточняющих вопроса и остановись (ответ придёт следующим сообщением).\n4. Автономно подними контекст: `Get_Patient_Medical_History` (было ли раньше, что помогало), питание за последние 3 дня (Nutrition Analyzer), трекеры (сон/пульс/ВСР). Свяжи симптом с тем, что менялось в питании/активности/лекарствах в эти дни.\n4b. Если симптом ПОВТОРЯЮЩИЙСЯ и в Symptom_Log по его Symptom_ID уже ≥3 эпизода — вызови `Analyze_Symptom_Food`. Разбери кандидатов: назови 1–2 самых вероятных пищевых триггера, предложи элиминационный тест (убрать на 2 недели → вернуть, следить по эпизодам). Меньше 4 эпизодов — скажи «данных мало, продолжаем копить».\n5. Вызови `Log_Symptom` — структурная строка в лист симптомов (Symptom_ID тот же, если продолжение; в Change — динамика).\n6. Вызови `Add_Medical_Note` — короткая клиническая запись в медкарту (как сейчас).\n7. Ответ пациенту:\n   - Гипотезы (2–3), КАЖДАЯ помечена «гипотеза, не диагноз».\n   - Связь с его данными («вчера в 20:00 было X г жиров + алкоголь, сегодня боль в левом подреберье»).\n   - Что делать: по умолчанию — «наблюдаем N дней, при усилении — к врачу раньше». Режим (еда, поза, паузы), НЕ препараты и дозы.\n   - Если гипотеза серьёзная или симптом не первый раз — «подготовил выжимку, сходи к [терапевт/гастроэнтеролог/невролог/…]».\n\n### СЦЕНАРИЙ Б: прямой вопрос (можно ли добавку? как спал? что по анализу?)\n1. Уточняющих вопросов не нужно.\n2. Подними нужный инструмент, дай короткий экспертный ответ. Симптом не пишем.\n\n## ⚠️ ПРАВИЛА\n- НЕ ставь диагноз, не назначай препараты и дозы. Только гипотезы + режим + «к живому врачу с выжимкой».\n- Запрещены: долгие приветствия/прощания, вода, «я ознакомился с картой», «как ИИ я не могу». Говори как уверенный врач.\n- Формат — Telegram HTML: <b> <i> <u> <s> <code>. Без Markdown (**текст**).\n- НЕ выводи названия инструментов и их поля в чат. Вызывай программно (function call).\n- Никаких дат позже сегодняшней.\n",
+          "options": {
+            "passthroughBinaryImages": true
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          400,
+          -16
+        ],
+        "id": "54072cfd-2ece-4a85-922e-b265bc8e2ca5",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "model": "minimax/minimax-m3",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          176,
+          224
+        ],
+        "id": "8080efc1-3949-429d-8cad-fbf87fdb0211",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Главврач').first().json.message.chat.id }}",
+          "text": "={{ $json.output }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          944,
+          -16
+        ],
+        "id": "51523436-3900-4394-958e-3bf3b5222a87",
+        "name": "Ответ в Telegram1",
+        "webhookId": "5bcdc6de-9bfe-49b4-a645-b343e9f7d754",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Sub-Agent: AI Doctor — подготовка пакета для агента + ПОЛ красных флагов (Фаза 2).\n// ВАЖНО: в JS-regex \\w НЕ матчит кириллицу — во всех паттернах ниже вместо \\w используем [а-яёa-z0-9].\nconst sheetData = $input.first().json;\nconst triggerData = $('Главврач').first().json;\nconst binaryData = $('Главврач').first().binary;\nconst msg = triggerData.message?.caption || triggerData.message?.text || 'Посмотри на это фото.';\n\n// L = «буква/цифра» (кириллица + латиница). Строим паттерны через шаблонные строки.\nconst L = '[а-яёa-z0-9]';\nconst rx = (s) => new RegExp(s.replace(/\\\\W/g, L), 'i');\n\nconst RED_FLAGS = [\n  ['боль в груди с иррадиацией / одышка',\n    rx('(груд|за\\\\s*грудин)[^.!?]{0,70}(отда[еёт]|иррадиир|в\\\\s*(лев\\\\W*\\\\s*)?руку|в\\\\s*(нижн\\\\W*\\\\s*)?челюст|в\\\\s*лопатк|в\\\\s*шею)|дав(ит|ящ\\\\W*|ление)[^.!?]{0,45}груд[^.!?]{0,45}(одышк|воздух|пот\\\\W|тошнот|слабост)|жж[её]т?[^.!?]{0,25}груд[^.!?]{0,45}(одышк|рук|челюст|пот)')],\n  ['признаки инсульта',\n    rx('(онемел\\\\W*|отнял\\\\W*|отня\\\\W*|перестал\\\\W*\\\\s*(слушать|двигать|шевелить|работать))[^.!?]{0,45}(рук|ног|половин\\\\W*\\\\s*тела|лиц)|перекос\\\\W*[^.!?]{0,20}(лиц|рот)|(речь|говор\\\\W*)[^.!?]{0,25}(спутан|невнятн|заплет|пропал)|(резко|внезапно)[^.!?]{0,25}не\\\\s*могу\\\\s*(говорить|двигать)|двоится\\\\s*в\\\\s*глаз|(внезапн\\\\W*|резк\\\\W*)[^.!?]{0,25}(слепот|потер\\\\W*\\\\s*зрени)')],\n  ['громоподобная / worst-ever головная боль',\n    rx('(сам\\\\W*\\\\s*(сильн\\\\W*|жутк\\\\W*|невыносим\\\\W*|ужасн\\\\W*)[^.!?]{0,25}(головн\\\\W*\\\\s*боль|голова))|громоподобн\\\\W*[^.!?]{0,20}голов|(внезапн\\\\W*|резк\\\\W*)[^.!?]{0,25}(сильнейш\\\\W*|нестерпим\\\\W*|как\\\\s*удар)[^.!?]{0,20}голов|голов\\\\W*\\\\s*боль[^.!?]{0,35}(в\\\\s*жизни|никогда\\\\s*так|как\\\\s*удар|громоподоб)|(сильнейш|нестерпим)\\\\W*\\\\s*(головн\\\\W*\\\\s*боль|голов)')],\n  ['ЖКТ-кровотечение',\n    rx('кофейн\\\\W*\\\\s*гущ|рвот\\\\W*[^.!?]{0,25}(кровь|с\\\\s*кровью|бур\\\\W|ч[ёе]рн)|ч[ёе]рн\\\\W*\\\\s*(стул|кал)(?![^.!?]{0,20}(активирован|уголь|железо|висмут|черник|св[её]кл))|мелена|(кровь|ал\\\\W*\\\\s*кров)[^.!?]{0,25}(в\\\\s*стуле|в\\\\s*кале|из\\\\s*(зад|прям\\\\W*\\\\s*кишк)|при\\\\s*дефекац|обильн)')],\n  ['отёк гортани / удушье (анафилаксия)',\n    rx('от[ёек]\\\\W*[^.!?]{0,20}(гортан|язык\\\\W|горл|губ)|(трудно|тяжело|не\\\\s*могу|стало\\\\s*трудно)\\\\s*(дышать|глотать|вдохнуть|сделать\\\\s*вдох)|горло\\\\s*(сжим|перекр|отекл|распух|сдавл)|распух\\\\W*[^.!?]{0,15}(лицо|горло|язык|губ)|крапивниц\\\\W*[^.!?]{0,25}(вс[её]\\\\s*тело|от[её]к|дыхан|горло)')],\n  ['потеря сознания / судороги',\n    rx('потер\\\\W*\\\\s*сознани|(упал|потерял\\\\W*|отключил\\\\W*)[^.!?]{0,20}(в\\\\s*обморок|сознание|отруб)|(перв\\\\W*\\\\s*раз|впервые)[^.!?]{0,20}судорог|судорог\\\\W*[^.!?]{0,25}(не\\\\s*прекращ|вс[её]\\\\s*тело|минут)|эпи?приступ|припадок\\\\s*(с|со|без)\\\\s*судорог')],\n  ['внезапная нестерпимая боль в животе/боку/спине',\n    rx('(внезапн\\\\W*|резк\\\\W*|остр\\\\W*)[^.!?]{0,15}(сильнейш\\\\W*|нестерпим\\\\W*|острейш\\\\W*|кинжальн\\\\W*|невыносим\\\\W*)[^.!?]{0,20}бол\\\\W*[^.!?]{0,20}(живот|поясниц|спин|бок|подреберь)|бол\\\\W*[^.!?]{0,12}(как\\\\s*удар\\\\s*ножом|будто\\\\s*разрыв)')],\n  ['лихорадка + спутанность / ригидность шеи',\n    rx('(температур\\\\W*|жар|лихорадк)[^.!?]{0,20}(3[89]|4[012])[^.!?]{0,55}(спутан|брежу|бред\\\\b|не\\\\s*могу\\\\s*согнуть\\\\s*шею|ригидн|светобоязн|сыпь\\\\s*не\\\\s*исчез)|не\\\\s*могу\\\\s*согнуть\\\\s*шею[^.!?]{0,25}(температур|жар|свет|голов)')],\n];\n\nconst redFlag = { hit: false, matched: [] };\nfor (const [label, re] of RED_FLAGS) {\n  if (re.test(msg)) { redFlag.hit = true; redFlag.matched.push(label); }\n}\n\nconst result = {\n  json: {\n    medical_record: sheetData,\n    user_message: msg,\n    telegram_id: triggerData.message?.from?.id,\n    chat_id: triggerData.message?.chat?.id,\n    red_flag: redFlag,\n    today: new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10),\n  },\n};\nif (binaryData) result.binary = binaryData;\nreturn [result];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -16,
+          -16
+        ],
+        "id": "f69e1229-f25e-44e9-95ca-6709abb5ea14",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "sessionIdType": "customKey",
+          "sessionKey": "={{ $json.telegram_id }}",
+          "contextWindowLength": 10
+        },
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.3,
+        "position": [
+          240,
+          384
+        ],
+        "id": "a7fa97aa-f425-4b94-89fa-29bcf2ccb962",
+        "name": "Simple Memory"
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Используй этот инструмент для получения данных о принимаемых лекарствах и добавках, поездках и встречах из Google Calendar",
+          "operation": "getAll",
+          "calendar": {
+            "__rl": true,
+            "value": "vasukvladislav@gmail.com",
+            "mode": "list",
+            "cachedResultName": "vasukvladislav@gmail.com"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleCalendarTool",
+        "typeVersion": 1.3,
+        "position": [
+          352,
+          304
+        ],
+        "id": "efe51635-5674-4308-8773-a6fdb67e154e",
+        "name": "Get many events in Google Calendar",
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "PqacoYjKhCXLSGf8",
+            "name": "Google Calendar account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+            "mode": "list",
+            "cachedResultName": "User_Profile",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Лист1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s/edit#gid=0"
+          },
+          "filtersUI": {
+            "values": [
+              {
+                "lookupColumn": "Telegram_ID",
+                "lookupValue": "={{ $('Главврач').first().json.message.from.id.toString() }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -176,
+          -16
+        ],
+        "id": "94f2a3ce-1fab-461c-ae10-f85b0a6e88f3",
+        "name": "User Profile",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "inputSource": "passthrough"
+        },
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -384,
+          -16
+        ],
+        "id": "788b6413-0da8-4c92-aeb5-5f5a942a5419",
+        "name": "Главврач"
+      },
+      {
+        "parameters": {
+          "description": "Используй этот инструмент для получения анализа питания (нутрициологии) пациента. Возвращает данные о БЖУ, калориях и дефицитах.",
+          "workflowId": {
+            "__rl": true,
+            "value": "9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/9af54101-6759-4aee-bc0d-1b7d6ab8b73a",
+            "cachedResultName": "Sub-Agent: Nutrition Analyzer"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('date', ``, 'string') }}",
+              "userID": "={{ $json.medical_record.User_ID }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "date",
+                "displayName": "date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "userID",
+                "displayName": "userID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": false
+              },
+              {
+                "id": "Chat ID",
+                "displayName": "Chat ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string",
+                "removed": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+        "typeVersion": 2.2,
+        "position": [
+          640,
+          336
+        ],
+        "id": "8ae6ab18-4175-4799-9814-b8d862aadb22",
+        "name": "Call 'Sub-Agent: Nutrition Analyzer'"
+      },
+      {
+        "parameters": {
+          "jsCode": "let text = $json.output || \"\";\n\n// 1. Превращаем <br> и <p> в нормальные текстовые переносы\ntext = text.replace(/<br\\s*\\/?>/gi, '\\n');\ntext = text.replace(/<\\/?p>/gi, '\\n\\n');\n\n// 2. Спасаем жирный шрифт (Markdown в HTML)\ntext = text.replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>');\ntext = text.replace(/\\*/g, '');\n\n// 3. СПАСАЕМ МЕДИЦИНСКИЕ АНАЛИЗЫ (знаки < и >)\n// Если после < идет пробел или цифра - это точно математика, а не тег\ntext = text.replace(/<(?=\\s|[0-9])/g, '&lt;');\n// Аналогично для знака >\ntext = text.replace(/(?<=\\s|[0-9])>/g, '&gt;');\n\n// 4. Оставляем только разрешенные теги Телеграма\nconst allowedTags = \"b|strong|i|em|u|s|strike|del|a|code|pre\";\nconst sanitizeRegex = new RegExp(`<\\/?(?!(?:${allowedTags})\\\\b)[a-z0-9]+[^>]*>`, 'gi');\ntext = text.replace(sanitizeRegex, '');\n\n// 5. 🏗 АВТО-БАЛАНСИРОВЩИК ТЕГОВ (Лечит ошибку Unmatched end tag)\nconst stack =[];\nconst tagRegex = /<\\/?([a-z]+)[^>]*>/gi;\nlet match;\n\n// Проходим по всем тегам в тексте\nwhile ((match = tagRegex.exec(text)) !== null) {\n  const tag = match[1].toLowerCase();\n  const isClosing = match[0].startsWith('</');\n\n  if (!isClosing) {\n    // Если тег открылся - кладем его в \"память\"\n    stack.push(tag);\n  } else {\n    // Если тег закрылся - убираем его из памяти\n    const lastIndex = stack.lastIndexOf(tag);\n    if (lastIndex !== -1) {\n      stack.splice(lastIndex, 1); \n    }\n  }\n}\n\n// Все теги, которые остались в \"памяти\" - нейросеть забыла закрыть!\n// Аккуратно закрываем их в самом конце текста в обратном порядке\nfor (let i = stack.length - 1; i >= 0; i--) {\n  text += `</${stack[i]}>`;\n}\n\n// 6. Убираем лишние пустые строки\ntext = text.replace(/\\n{3,}/g, '\\n\\n');\n\nreturn { \n  json: { \n    ...$json,\n    output: text.trim() \n  } \n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          736,
+          -16
+        ],
+        "id": "8f7b4ae7-a948-4b89-87b1-bb1f4bac9d5f",
+        "name": "Sanitizer"
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Используй этот инструмент, ЕСЛИ пациент жалуется на обострение, боль или новые симптомы. Инструмент вернет историю прошлых обращений (Doctor Notes), прошлые триггеры и реакции на лечение. Обязательно сопоставь текущую жалобу с историей прошлых записей из этого инструмента.",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Doctor_Notes",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheetsTool",
+        "typeVersion": 4.7,
+        "position": [
+          800,
+          320
+        ],
+        "id": "7af95a32-b1c2-42f4-a7a2-a09a6d1f4bd1",
+        "name": "Get_Patient_Medical_History",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Вызывай эту функцию каждый раз, когда пациент сообщает о новых симптомах, реакциях на препараты или обострениях. Инструмент запишет эти данные напрямую в базу данных пациента.",
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Doctor_Notes",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w/edit#gid=0"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd') }}",
+              "Category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Category', ``, 'string') }}",
+              "Note": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Note', ``, 'string') }}",
+              "Trigger": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Trigger', ``, 'string') }}",
+              "Plan": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Plan', ``, 'string') }}",
+              "Doctor": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Doctor', ``, 'string') }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "Date",
+                "displayName": "Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Category",
+                "displayName": "Category",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Note",
+                "displayName": "Note",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Trigger",
+                "displayName": "Trigger",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Plan",
+                "displayName": "Plan",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Doctor",
+                "displayName": "Doctor",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheetsTool",
+        "typeVersion": 4.7,
+        "position": [
+          960,
+          304
+        ],
+        "id": "3d3dd8e5-b472-408d-b6e9-fc9cb682a88a",
+        "name": "Add_Medical_Note",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "sendChatAction",
+          "chatId": "={{ $json.chat_id || $json.message?.chat?.id }}"
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          -176,
+          128
+        ],
+        "id": "d56205cf-ba7f-4aa2-be02-beebed6d9dd1",
+        "name": "typing (doctor)",
+        "webhookId": "5f8caf03-3dd4-4e13-b105-7ec3e985458d",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "c0a49007-98df-4389-9dfc-d88fa73584d2",
+                "leftValue": "={{ $json.red_flag.hit }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "7281e71f-56d8-4fb8-9962-bc1480a119ba",
+        "name": "Red-Flag Gate",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          176,
+          -16
+        ]
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $json.chat_id }}",
+          "text": "={{ \"🚨 То, что ты описал, похоже на неотложное состояние (\" + $json.red_flag.matched.join(\", \") + \"). Не жди — сразу к врачу или вызови скорую: 103 / 112. Уточняющих вопросов не задаю, чтобы не терять время. Как будешь в безопасности — напиши, что было, занесу в карту.\" }}",
+          "additionalFields": {
+            "appendAttribution": false
+          }
+        },
+        "id": "99bc845b-3a3a-4587-babb-d495cd1ea8e7",
+        "name": "Emergency Reply",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          432,
+          -208
+        ],
+        "webhookId": "fdaee3dc-65b1-435c-a903-15e7f2b0270e",
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Записывает СТРУКТУРНУЮ строку симптома в лист Symptom_Log (отдельно от медкарты). Вызывай, когда пациент сообщает о физическом состоянии/самочувствии: боль, энергия, головная боль, ЖКТ, кожа, онемение, головокружение, сон как ощущение. Каждый ОТДЕЛЬНЫЙ эпизод боли/симптома — новая строка с тем же Symptom_ID и текущим временем (для анализа связи с едой). Сначала вызови Читать_симптомы: если симптом уже отслеживается — используй ТОТ ЖЕ Symptom_ID и в Change укажи динамику (усилился/ослаб/без изменений/прошёл).",
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Symptom_Log",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "matchingColumns": [],
+            "schema": [],
+            "value": {
+              "Symptom_ID": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Symptom_ID', `короткий слаг латиницей, напр. golovnaya-bol или bok-levyy-posle-edy; тот же, если продолжение`, 'string') }}",
+              "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy-MM-dd HH:mm') }}",
+              "Symptom": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Symptom', `что беспокоит, словами пациента + уточнения`, 'string') }}",
+              "System": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('System', `система организма: ЖКТ / нервная / ССС / ОДА / кожа / эндокринная / общее`, 'string') }}",
+              "Severity": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Severity', `1-5, насколько мешает жить`, 'string') }}",
+              "Status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Status', `active / monitoring / resolved`, 'string') }}",
+              "Change": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Change', `появился / усилился / ослаб / без изменений / прошёл`, 'string') }}",
+              "Domain": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Domain', `gastro / neuro / cardio / endo / musculo / derm / psych / general`, 'string') }}",
+              "Context": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Context', `что в питании/активности/лекарствах менялось в эти дни (если проверял трекеры/питание)`, 'string') }}",
+              "Hypothesis": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Hypothesis', `гипотеза(ы) для проверки у живого врача — НЕ диагноз`, 'string') }}",
+              "Notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Notes', `что рекомендовано, к какому специалисту направлен, срок наблюдения`, 'string') }}"
+            }
+          },
+          "options": {}
+        },
+        "id": "01ae5d87-24d5-4389-a877-822fac8e89f7",
+        "name": "Log_Symptom",
+        "type": "n8n-nodes-base.googleSheetsTool",
+        "typeVersion": 4.7,
+        "position": [
+          528,
+          304
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Возвращает историю ранее записанных симптомов (лист Symptom_Log). Вызывай ПЕРЕД записью нового симптома — понять, новый он или продолжение уже отслеживаемого.",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Symptom_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "id": "e54e2d05-1995-4b51-9ba6-2f333120a0ce",
+        "name": "Read_Symptoms",
+        "type": "n8n-nodes-base.googleSheetsTool",
+        "typeVersion": 4.7,
+        "position": [
+          432,
+          448
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "a2dd6730-f949-4e66-8a6e-8d65372c5333",
+        "name": "Analyze_Symptom_Food",
+        "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+        "typeVersion": 2.2,
+        "position": [
+          660,
+          304
+        ],
+        "parameters": {
+          "description": "Ассоциативный анализ: связывает записанные эпизоды одного симптома (по Symptom_ID) с тем, что пациент ел в 6 часов ДО каждого эпизода, сравнивает с обычным рационом. Возвращает кандидаты-нутриенты и продукты. Вызывай, когда у симптома в Symptom_Log НАКОПИЛОСЬ ≥3 эпизода и есть подозрение на пищевой триггер. Это НЕ доказательство — генератор гипотез для элиминационного теста.",
+          "workflowId": {
+            "__rl": true,
+            "value": "AnalyzeSympFood",
+            "mode": "list",
+            "cachedResultName": "Analyze_Symptom_Food"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "symptom_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('symptom_id', 'Symptom_ID из Symptom_Log, эпизоды которого анализируем', 'string') }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "symptom_id",
+                "displayName": "symptom_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              }
+            ]
+          }
+        },
+        "credentials": {}
+      }
+    ],
+    "connections": {
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Sanitizer",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ответ в Telegram1": {
+        "main": [
+          []
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Red-Flag Gate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simple Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get many events in Google Calendar": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "User Profile": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Главврач": {
+        "main": [
+          [
+            {
+              "node": "User Profile",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "typing (doctor)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Call 'Sub-Agent: Nutrition Analyzer'": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sanitizer": {
+        "main": [
+          [
+            {
+              "node": "Ответ в Telegram1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get_Patient_Medical_History": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Add_Medical_Note": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Red-Flag Gate": {
+        "main": [
+          [
+            {
+              "node": "Emergency Reply",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log_Symptom": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read_Symptoms": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Analyze_Symptom_Food": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: p3 food-symptom analysis)",
+    "name": "Patch a3ed3e0b — p3 food-symptom analysis",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
