@@ -1,0 +1,446 @@
+{
+  "updatedAt": "2026-08-24T03:27:46.001Z",
+  "createdAt": "2026-08-12T04:44:26.008Z",
+  "id": "e1DHZYjC1CTjceG9",
+  "name": "Monthly food report",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtHour": 12
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "c04b1541-2b6f-452b-b2c4-7f9927a1cc88",
+      "name": "Monthly"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list",
+          "cachedResultName": "day_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=742673642"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A1:AB500"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "e5df8b8b-85ed-4249-a940-03dc2c2e3e65",
+      "name": "Read day_sum",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: day_sum rows for previous calendar month\nfunction toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nconst now = DateTime.now();\nconst targetMonth = now.minus({ months: 1 });\nconst monthKey = targetMonth.toFormat('yyyy-MM');\n\nconst items = $input.all().map(i => i.json);\nconst rows = items.filter(r => (r['Date'] || '').toString().slice(0, 7) === monthKey);\n\nif (rows.length === 0) {\n  return [{ json: { warning: `Нет данных day_sum за ${monthKey}` } }];\n}\n\nconst exclude = ['User_ID', 'Date'];\nconst fieldSet = new Set();\nrows.forEach(r => Object.keys(r).forEach(k => { if (!exclude.includes(k)) fieldSet.add(k); }));\n\nconst sums = {}, counts = {};\nfieldSet.forEach(f => { sums[f] = 0; counts[f] = 0; });\n\nrows.forEach(r => {\n  fieldSet.forEach(f => {\n    const v = toNumber(r[f]);\n    if (v !== null) { sums[f] += v; counts[f] += 1; }\n  });\n});\n\nconst totalRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'total' };\nconst avgRow = { User_ID: 'Влад Васюк', Date: monthKey, 'Способ подсчета': 'average' };\n\nfieldSet.forEach(f => {\n  totalRow[f] = Math.round(sums[f] * 100) / 100;\n  avgRow[f] = counts[f] > 0 ? Math.round((sums[f] / counts[f]) * 100) / 100 : null;\n});\n\nreturn [{ json: totalRow }, { json: avgRow }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        0
+      ],
+      "id": "e73877c0-5137-4174-8736-d81fb464bce9",
+      "name": "Aggregate Month"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 445440424,
+          "mode": "list",
+          "cachedResultName": "month_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=445440424"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Способ подсчета",
+              "displayName": "Способ подсчета",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Calories",
+              "displayName": "Calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Proteins",
+              "displayName": "Proteins",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carbs",
+              "displayName": "Carbs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fats",
+              "displayName": "Fats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Магний",
+              "displayName": "Магний",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин D",
+              "displayName": "Витамин D",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Омега-3 (EPA/DHA)",
+              "displayName": "Омега-3 (EPA/DHA)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Селен",
+              "displayName": "Селен",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Йод",
+              "displayName": "Йод",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Калий",
+              "displayName": "Калий",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Железо",
+              "displayName": "Железо",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Кальций",
+              "displayName": "Кальций",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин B12",
+              "displayName": "Витамин B12",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин К",
+              "displayName": "Витамин К",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Витамин Е",
+              "displayName": "Витамин Е",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Цинк",
+              "displayName": "Цинк",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "365b1f63-fdee-434c-8487-54c84b056e4b",
+      "name": "Write month",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 445440424,
+          "mode": "list",
+          "cachedResultName": "month_sum",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU/edit#gid=445440424"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A1:AB500"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        0
+      ],
+      "id": "642cc0f9-3028-45b7-8b04-c22ec258afbf",
+      "name": "Read month_sum",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: all month_sum rows where Способ подсчета == 'average'\nfunction toNumber(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.').replace('%',''));\n  return isNaN(n) ? null : n;\n}\n\nconst DIRECTION = {\n  'Calories': 'neutral', 'Proteins': 'higher_better', 'Carbs': 'neutral', 'Fats': 'neutral',\n  'Магний': 'higher_better', 'Витамин D': 'higher_better', 'Омега-3 (EPA/DHA)': 'higher_better',\n  'Селен': 'higher_better', 'Йод': 'higher_better', 'Калий': 'higher_better', 'Железо': 'higher_better',\n  'Кальций': 'higher_better', 'Витамин B12': 'higher_better', 'Витамин К': 'higher_better',\n  'Витамин Е': 'higher_better', 'Цинк': 'higher_better', 'Клетчатка': 'higher_better',\n  'Холестерин': 'lower_better', 'Добавленный сахар': 'lower_better', 'Натрий': 'lower_better',\n  'Кофеин': 'neutral', 'Алкоголь, гр': 'lower_better', 'Насыщенные жиры': 'lower_better', 'Трансжиры': 'lower_better'\n};\n\nconst PCT_MODERATE = 10;\nconst PCT_STRONG = 25;\nconst MIN_ABS_FOR_PCT = 1; // не считать % на почти нулевых базах (напр. трансжиры 0.1г)\n\nconst items = $input.all().map(i => i.json);\nconst avgRows = items\n  .filter(r => (r['Способ подсчета'] || '').toString().trim() === 'average')\n  .sort((a, b) => (a.Date > b.Date ? 1 : -1));\n\nif (avgRows.length < 2) {\n  return [{ json: { warning: 'Недостаточно месяцев для тренда (нужно минимум 2)' } }];\n}\n\nconst prev = avgRows[avgRows.length - 2];\nconst curr = avgRows[avgRows.length - 1];\nconst exclude = ['User_ID', 'Date', 'Способ подсчета'];\nconst metrics = Object.keys(curr).filter(k => !exclude.includes(k));\n\nconst results = [];\nmetrics.forEach(m => {\n  const prevVal = toNumber(prev[m]);\n  const currVal = toNumber(curr[m]);\n  if (prevVal === null || currVal === null || Math.abs(prevVal) < MIN_ABS_FOR_PCT) return;\n\n  const pct = ((currVal - prevVal) / Math.abs(prevVal)) * 100;\n  const absPct = Math.abs(pct);\n  let severity = null;\n  if (absPct >= PCT_STRONG) severity = 'strong';\n  else if (absPct >= PCT_MODERATE) severity = 'moderate';\n  if (!severity) return;\n\n  const direction = DIRECTION[m] || 'neutral';\n  let interpretation = 'изменение';\n  if (direction === 'higher_better') interpretation = pct > 0 ? 'улучшение' : 'ухудшение';\n  if (direction === 'lower_better') interpretation = pct > 0 ? 'ухудшение' : 'улучшение';\n\n  results.push({\n    date_computed: DateTime.now().toISODate(),\n    period_month: curr.Date,\n    metric: m,\n    prev_month_avg: Math.round(prevVal * 100) / 100,\n    this_month_avg: Math.round(currVal * 100) / 100,\n    pct_change: Math.round(pct * 10) / 10,\n    severity, direction, interpretation\n  });\n});\n\nif (results.length === 0) {\n  return [{ json: { info: `Значимых изменений между ${prev.Date} и ${curr.Date} не найдено` } }];\n}\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "ae9870b8-06c2-480a-b068-95a4a20b0345",
+      "name": "Compute Monthly Trend"
+    }
+  ],
+  "connections": {
+    "Monthly": {
+      "main": [
+        [
+          {
+            "node": "Read day_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read day_sum": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Month",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Month": {
+      "main": [
+        [
+          {
+            "node": "Write month",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write month": {
+      "main": [
+        [
+          {
+            "node": "Read month_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Monthly Trend": {
+      "main": [
+        []
+      ]
+    },
+    "Read month_sum": {
+      "main": [
+        [
+          {
+            "node": "Compute Monthly Trend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": {
+    "node:Monthly": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "9ff77a0e-4419-47c4-bc78-4bbcf5c6b195",
+  "activeVersionId": null,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-08-12T04:44:26.016Z",
+      "createdAt": "2026-08-12T04:44:26.016Z",
+      "role": "workflow:owner",
+      "workflowId": "e1DHZYjC1CTjceG9",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": null,
+  "tags": []
+}
