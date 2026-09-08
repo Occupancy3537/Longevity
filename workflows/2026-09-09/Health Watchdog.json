@@ -1,0 +1,1616 @@
+{
+  "updatedAt": "2026-09-08T07:48:55.000Z",
+  "createdAt": "2026-09-07T22:13:08.563Z",
+  "id": "HealthWatchdog1",
+  "name": "Health Watchdog",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "b14ac558-e39d-427f-af57-4b775dc76299",
+      "name": "Daily 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "77e3efb7-ca02-4599-8a46-b05aba778a08",
+      "name": "Get Results",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        180,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list",
+          "cachedResultName": "phenoage"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Results",
+          "mode": "name"
+        },
+        "options": {
+          "rateLimitRetry": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5a28014a-f2fe-4993-b026-5b3dddf00cdb",
+      "name": "Get Markers",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        340,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list",
+          "cachedResultName": "phenoage"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Markers",
+          "mode": "name"
+        },
+        "options": {
+          "rateLimitRetry": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4c564021-af35-4893-8185-5989c56d3028",
+      "name": "Get Visits",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        500,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list",
+          "cachedResultName": "phenoage"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Visits",
+          "mode": "name"
+        },
+        "options": {
+          "rateLimitRetry": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "20a5af59-7bb2-4296-8d81-2f334634ffe1",
+      "name": "Get Symptom_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Symptom_Log",
+          "mode": "name"
+        },
+        "options": {
+          "rateLimitRetry": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "668f000f-7bdb-48a0-a0d3-74c9a2ff9ad7",
+      "name": "Get Investigations",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        820,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Investigations",
+          "mode": "name"
+        },
+        "options": {
+          "rateLimitRetry": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "49f1052b-f7a1-41f9-ae43-ea21189c450c",
+      "name": "Get day_sum",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        980,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list",
+          "cachedResultName": "day_sum"
+        },
+        "options": {
+          "rateLimitRetry": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "e3e8cfbd-78ab-4191-9858-7088de126b4a",
+      "name": "Get Daily_Trends",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1140,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends"
+        },
+        "options": {
+          "rateLimitRetry": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7b3e68c7-33c0-4587-909f-f55929f83e64",
+      "name": "Detect",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Health Watchdog — детект триггеров (Фаза 4b). Run Once for All Items.\n// Триггеры: (1) новая сдача крови → нужен разбор; (2) маркер вне референса → нудж;\n// (3) резкое ухудшение симптома → нудж. Ниже 1 открытого расследования — нуджи не шлём.\nfunction safeAll(n) { try { return $(n).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) { if (v == null || v === '') return null; const x = parseFloat(String(v).replace(',', '.').replace(/\\s/g, '')); return isNaN(x) ? null : x; }\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/); if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/); if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nconst DAY = 86400000;\nconst today = new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10);\nconst dAgo = d => new Date(Date.now() + 10 * 3600 * 1000 - d * DAY).toISOString().slice(0, 10);\n\nconst results = safeAll('Get Results');\nconst markers = safeAll('Get Markers');\nconst visits  = safeAll('Get Visits');\nconst symRows = safeAll('Get Symptom_Log');\nconst invRows = safeAll('Get Investigations');\nconst daySum  = safeAll('Get day_sum');\nconst daily   = safeAll('Get Daily_Trends');\nconst medsRows = safeAll('Get Meds');\n\nconst sd = $getWorkflowStaticData('global');\nsd.nudged = sd.nudged || {};\n\nconst markName = {}; markers.forEach(m => { if (m.Marker_ID) markName[m.Marker_ID] = m.Name; });\nconst vSorted = visits.filter(v => v.Date && v.Visit_ID).sort((a, b) => d10(a.Date).localeCompare(d10(b.Date)));\nconst newest = vSorted[vSorted.length - 1] || null;\nconst prev   = vSorted[vSorted.length - 2] || null;\nconst newestDate = newest ? d10(newest.Date) : null;\n\nfunction visitMarkers(vid) {\n  const o = {};\n  results.filter(r => r.Visit_ID === vid).forEach(r => {\n    const val = num(r.Value); if (val == null) return;\n    o[markName[r.Marker_ID] || r.Marker_ID] = { value: val, lo: num(r.Lab_Min), hi: num(r.Lab_Max), unit: r.Original_Unit || '' };\n  });\n  return o;\n}\nconst newestM = newest ? visitMarkers(newest.Visit_ID) : {};\nconst prevM   = prev ? visitMarkers(prev.Visit_ID) : {};\n\n// --- (1) новая сдача ---\nconst visitAgeDays = newestDate ? (Date.now() - new Date(newestDate + 'T12:00:00+10:00').getTime()) / DAY : 9999;\nconst alreadyReviewed = sd.lastReviewedVisit === (newest && newest.Visit_ID);\nconst recentEnough = visitAgeDays < 30;\nconst needs_lab_review = !!(newest && !alreadyReviewed && recentEnough && Object.keys(newestM).length >= 2);\n\n// --- хронические маркеры (конституция) из Patient_State — про них не нудить ---\nconst pstateRows = safeAll('Get Patient_State');\nconst chronicRx = pstateRows\n  .map(x => String(x.Contra_Other || '') + ' ' + String(x.Note || ''))\n  .join(' ').toLowerCase();\nfunction isChronicMarker(name) {\n  const n = name.toLowerCase();\n  // явно хронически низкие лейкоциты\n  if (/лейкоцит|wbc/.test(n) && /лейкоцит|конституц|хроническ.*низк/.test(chronicRx)) return true;\n  return false;\n}\n\n// --- (2) маркеры вне референса — ТОЛЬКО из свежей сдачи (≤45 дн). Ключ дедупа с Visit_ID (Opus 5). ---\nconst abnormal = [];\nif (visitAgeDays <= 45 && newest) {\n  for (const [name, m] of Object.entries(newestM)) {\n    if (isChronicMarker(name)) continue;\n    const base = { key: 'm:' + newest.Visit_ID + ':' + name, name, value: m.value };\n    if (m.lo != null && m.value < m.lo) abnormal.push({ ...base, ref: m.lo + '–' + (m.hi ?? '?'), flag: 'ниже нормы' });\n    else if (m.hi != null && m.value > m.hi) abnormal.push({ ...base, ref: (m.lo ?? '?') + '–' + m.hi, flag: 'выше нормы' });\n    // (2b) маркер ЗАМЕТНО ухудшился vs прошлая сдача, оставаясь в норме\n    else if (prevM[name] != null && prevM[name].value != null) {\n      const pv = prevM[name].value;\n      if (pv !== 0 && Math.abs(m.value - pv) / Math.abs(pv) >= 0.18) {\n        // ухудшение — движение к ближней границе референса\n        const towardHi = m.hi != null && (m.value - pv) > 0 && (m.hi - m.value) < (m.hi - pv);\n        const towardLo = m.lo != null && (m.value - pv) < 0 && (m.value - m.lo) < (pv - m.lo);\n        if (towardHi || towardLo) abnormal.push({ ...base, ref: (m.lo ?? '?') + '–' + (m.hi ?? '?'),\n          flag: 'сдвиг ' + pv + ' → ' + m.value + ' (в норме, но к границе)' });\n      }\n    }\n  }\n}\n\n// --- (2c) просроченный Lab_Plan ---\nconst labPlan = safeAll('Get Lab_Plan');\nconst overdueLab = labPlan\n  .filter(r => r.Test && !['done', 'paused', 'archived'].includes(String(r.Status || 'active').toLowerCase()))\n  .map(r => ({ test: r.Test, due: d10(r.Next_Due) }))\n  .filter(r => r.due && r.due.length === 10 && (new Date(today) - new Date(r.due)) / DAY >= 14)\n  .map(r => ({ key: 'lp:' + r.test + ':' + r.due, ...r,\n    overdue_days: Math.round((new Date(today) - new Date(r.due)) / DAY) }));\n\n// --- (3) резкое ухудшение симптома за 3 дня ---\nconst symAlerts = symRows\n  .filter(s => s.Symptom && String(s.Symptom_ID || '').toLowerCase() !== 'demo-format' && d10(s.Date) >= dAgo(3))\n  .filter(s => num(s.Severity) >= 4 || /усил|верн|появ/i.test(String(s.Change || '')))\n  .map(s => ({ key: 's:' + s.Symptom_ID + ':' + d10(s.Date), symptom: s.Symptom, severity: num(s.Severity), change: s.Change || '', id: s.Symptom_ID }));\n\n// --- открытое расследование? (TTL 30 дней — Opus 5: забытая строка не должна глушить проактив навсегда) ---\nconst openInvRows = invRows.filter(v => v.Inv_ID && String(v.Inv_ID).toLowerCase() !== 'demo-format'\n  && String(v.Status || '').toLowerCase() === 'open');\nconst activeInv = openInvRows.filter(v => {\n  const upd = d10(v.Updated || v.Opened);\n  return !upd || (new Date(today) - new Date(upd)) / DAY < 30;\n});\nconst open_investigation = activeInv.length > 0;\nconst stale_investigations = openInvRows.filter(v => !activeInv.includes(v)).map(v => v.Inv_ID);\n\n// --- нуджи только про новое ---\nconst new_abnormal   = abnormal.filter(a => !sd.nudged[a.key]);\nconst new_sym_alerts = symAlerts.filter(a => !sd.nudged[a.key]);\nconst new_overdue    = overdueLab.filter(a => !sd.nudged[a.key]);\nconst should_nudge = !open_investigation && (new_abnormal.length > 0 || new_sym_alerts.length > 0 || new_overdue.length > 0);\n\n// --- контекст периода для разбора анализов ---\nconst periodFrom = prev ? d10(prev.Date) : dAgo(120);\nfunction periodRows(rows, dateKey) { return rows.filter(r => { const d = d10(r[dateKey] || r.Date || r['Дата']); return d >= periodFrom && d <= (newestDate || today); }); }\nfunction avgOf(rows, key) { const v = rows.map(r => num(r[key])).filter(x => x != null); return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length * 10) / 10 : null; }\nconst ds = periodRows(daySum, 'Date');\nconst dt = periodRows(daily, 'Дата');\nconst nutrition_period = {\n  days: ds.length,\n  avg_added_sugar_g: avgOf(ds, 'Добавленный сахар') ?? avgOf(ds, 'Добавленный_сахар'),\n  avg_sat_fat_g: avgOf(ds, 'Насыщенные жиры') ?? avgOf(ds, 'Насыщенные_жиры'),\n  avg_fiber_g: avgOf(ds, 'Клетчатка'),\n  avg_kcal: avgOf(ds, 'Калории') ?? avgOf(ds, 'Всего_ккал'),\n};\nconst wellness_period = {\n  days: dt.length,\n  avg_hrv: avgOf(dt, 'ВСР_ночная'),\n  avg_rhr: avgOf(dt, 'Пульс_ночной_средний'),\n  avg_sleep_min: avgOf(dt, 'Чистый_сон_мин'),\n  avg_training_kcal: avgOf(dt, 'Тренировка_Ккал'),\n  meds_seen: [...new Set(dt.map(r => String(r['Лекарства_принимаемые'] || '')).filter(Boolean).join('\\n').split('\\n').map(x => x.trim()).filter(Boolean))].slice(0, 12),\n};\n\n// --- картотека препаратов (лист Meds) для разбора анализов ---\nconst medsCard = medsRows\n  .filter(m => m && (m.Name || m.Med_ID) && String(m.Med_ID || '').toLowerCase() !== 'demo-format')\n  .map(m => {\n    const st = d10(m.Started), sp = d10(m.Stopped);\n    return {\n      name: String(m.Name || m.Med_ID).trim(),\n      class: String(m.Class || '').trim() || null,\n      dose: String(m.Dose || '').trim() || null,\n      status: String(m.Status || '').trim().toLowerCase() || 'unknown',\n      started: /^\\d{4}-\\d{2}-\\d{2}$/.test(st) ? st : null,\n      stopped: /^\\d{4}-\\d{2}-\\d{2}$/.test(sp) ? sp : null,\n      reason: String(m.Reason || '').trim() || null,\n    };\n  });\nconst meds_active = medsCard.filter(m => ['active', 'prn', 'paused'].includes(m.status));\nconst meds_changed_near_visit = newestDate ? medsCard\n  .filter(m => {\n    const evt = m.stopped || m.started;\n    return evt && Math.abs(new Date(newestDate) - new Date(evt)) / DAY <= 45;\n  })\n  .map(m => ({ ...m, event: m.stopped ? ('курс завершён ' + m.stopped) : ('курс начат ' + m.started) })) : [];\nconst medications = { active: meds_active, changed_near_visit: meds_changed_near_visit };\n\nreturn [{\n  json: {\n    fire: needs_lab_review || should_nudge,\n    needs_lab_review, should_nudge, open_investigation,\n    newest_visit: newest ? { id: newest.Visit_ID, date: newestDate } : null,\n    newest_markers: newestM, prev_visit_date: prev ? d10(prev.Date) : null, prev_markers: prevM,\n    abnormal, new_abnormal, new_sym_alerts, new_overdue,\n    stale_investigations,\n    period: { from: periodFrom, to: newestDate || today },\n    nutrition_period, wellness_period, medications,\n    today,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "98e4b27c-857f-4972-961f-5588682ef036",
+      "name": "Fire?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1460,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9a98a4cb-1701-4b1a-8b75-8fe47f379371",
+              "leftValue": "={{ $json.fire }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "a1d568f1-73e0-4bcb-8353-e5d430bc1f65",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        -40
+      ],
+      "parameters": {
+        "jsCode": "\nconst d = $json;\nconst parts = [];\nparts.push('СЕГОДНЯ: ' + d.today + '. Ты формируешь короткое уведомление пациенту в Telegram от лица его превентивного врача. НЕ ставь диагноз — только наблюдения и гипотезы для обсуждения с живым врачом. Тон спокойный, без нагнетания.');\nif (d.needs_lab_review) {\n  parts.push('\\n=== РАЗБОР СВЕЖЕЙ СДАЧИ КРОВИ (' + d.newest_visit.date + ', предыдущая ' + (d.prev_visit_date||'нет') + ') ===');\n  parts.push('Свежие маркеры: ' + JSON.stringify(d.newest_markers));\n  parts.push('Предыдущие маркеры: ' + JSON.stringify(d.prev_markers));\n  parts.push('Период между сдачами — питание: ' + JSON.stringify(d.nutrition_period) + '; самочувствие/нагрузка: ' + JSON.stringify(d.wellness_period));\n  const med = d.medications || { active: [], changed_near_visit: [] };\n  parts.push('Препараты: сейчас по картотеке — ' + (med.active.length ? JSON.stringify(med.active) : 'ничего') + '. Курсы, начатые/завершённые в пределах 45 дн от сдачи — ' + (med.changed_near_visit.length ? JSON.stringify(med.changed_near_visit) : 'нет') + '. ОБЯЗАТЕЛЬНО проверь: не объясняется ли сдвиг маркера стартом или окончанием курса (влияние на печёночные пробы, липиды, глюкозу, электролиты, B12/гомоцистеин и т.п.).');\n  parts.push('Вне лабораторной нормы или заметный сдвиг: ' + (d.abnormal.length ? JSON.stringify(d.abnormal) : 'нет'));\n  parts.push('Задача: 1) назови 2-4 маркера, которые ЗАМЕТНО сдвинулись (не всё); 2) для каждого — вероятная связь с изменениями в питании/нагрузке/лекарствах за период; 3) что вне нормы и насколько ново; 4) 2-3 гипотезы для обсуждения с врачом. Нет сдвигов — скажи одной фразой.');\n}\nif (d.new_abnormal && d.new_abnormal.length) {\n  parts.push('\\n=== НОВЫЕ ОТКЛОНЕНИЯ (блок «🔬 Заметил:») ===');\n  parts.push(d.new_abnormal.map(a=>a.name+' '+a.value+' ('+a.flag+(a.ref?', норма '+a.ref:'')+')').join('; '));\n}\nif (d.new_overdue && d.new_overdue.length) {\n  parts.push('\\n=== ПРОСРОЧЕННЫЕ АНАЛИЗЫ (блок «📋 По плану анализов:») ===');\n  parts.push(d.new_overdue.map(a=>a.test+' — просрочен на '+a.overdue_days+' дн (был на '+a.due+')').join('; '));\n}\nif (d.new_sym_alerts && d.new_sym_alerts.length) {\n  parts.push('\\n=== СИМПТОМ УСИЛИЛСЯ (блок «⚠️ По симптому:») ===');\n  parts.push(d.new_sym_alerts.map(a=>a.symptom+' (тяжесть '+a.severity+', '+a.change+')').join('; '));\n}\nif ((d.new_abnormal&&d.new_abnormal.length) || (d.new_sym_alerts&&d.new_sym_alerts.length) || (d.new_overdue&&d.new_overdue.length)) {\n  parts.push('\\nВ конце блоков про отклонения/симптомы/анализы добавь: «Если хочешь — напиши мне, разберём спокойно, нужно ли к врачу.»');\n}\nif (d.stale_investigations && d.stale_investigations.length) {\n  parts.push('\\n(служебное, покажи мелким шрифтом в самом конце: расследования без обновления >30 дн — ' + d.stale_investigations.join(', ') + ' — считаю приостановленными.)');\n}\nparts.push('\\nФормат: готовый текст для Telegram, ≤1400 знаков, теги <b> <i> допустимы, без Markdown. Начни с «🩺 <b>Разбор от системы</b>» если есть разбор анализов, иначе сразу с первого блока.');\nreturn [{ json: { prompt: parts.join('\\n') } }];\n"
+      }
+    },
+    {
+      "id": "057aa7c7-eb52-426b-81db-2eeced8b84c9",
+      "name": "Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        160
+      ],
+      "parameters": {
+        "model": "google/gemini-3.8-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "id": "f5060379-fc35-4ff4-89f3-2a5c13afc5d7",
+      "name": "LLM",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        1780,
+        -40
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}"
+      }
+    },
+    {
+      "id": "4068b81f-83e7-4182-bb53-4f3ede77cfe5",
+      "name": "Mark SD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1940,
+        -40
+      ],
+      "parameters": {
+        "jsCode": "\nconst d = $('Detect').first().json;\nconst llm = String($('LLM').first().json.text || $('LLM').first().json.output || $('LLM').first().json.response || '').trim();\nconst sd = $getWorkflowStaticData('global');\nsd.nudged = sd.nudged || {};\nconst today = d.today;\n// помечаем ТОЛЬКО после успешной отправки (эта нода стоит после Send)\nif (d.needs_lab_review && d.newest_visit) sd.lastReviewedVisit = d.newest_visit.id;\n(d.new_abnormal||[]).forEach(a => { sd.nudged[a.key] = today; });\n(d.new_sym_alerts||[]).forEach(a => { sd.nudged[a.key] = today; });\n(d.new_overdue||[]).forEach(a => { sd.nudged[a.key] = today; });\nreturn [{ json: { save_note: d.needs_lab_review, note_date: today,\n  note_text: d.needs_lab_review ? ('Автоматический разбор свежей сдачи (' + (d.newest_visit&&d.newest_visit.date) + '). ' + llm.replace(/<[^>]+>/g,'')).slice(0,1500) : '' } }];\n"
+      }
+    },
+    {
+      "id": "794dd5f2-210e-4ab7-9e31-c79eabeecbdd",
+      "name": "Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2100,
+        -40
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $(\"LLM\").first().json.text || $(\"LLM\").first().json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "id": "b6430d5f-a79f-413e-9857-a6db34ed610c",
+      "name": "Note?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2260,
+        -40
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "91753d4a-ba1c-496c-88ff-1e96978d3300",
+              "leftValue": "={{ $json.save_note }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "a20be622-1113-4db1-b171-247349d3d76b",
+      "name": "Save Note",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2420,
+        -80
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Doctor_Notes"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [],
+          "value": {
+            "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd') }}",
+            "Category": "Разбор анализов (система)",
+            "Note": "={{ $json.note_text }}",
+            "Trigger": "новая сдача крови",
+            "Plan": "обсудить с лечащим врачом",
+            "Doctor": "AI-watchdog"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Patient_State",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1300,
+        100
+      ],
+      "id": "d8b2117a-66e0-41c6-89ec-1e46d4eaa078",
+      "name": "Get Patient_State",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lab_Plan",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1460,
+        100
+      ],
+      "id": "b5bd85d2-08b9-4cb5-aa48-354e0e4bb125",
+      "name": "Get Lab_Plan",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Meds",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1640,
+        100
+      ],
+      "id": "5099a52c-194b-4860-a21f-94defda6ac71",
+      "name": "Get Meds",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Daily 09:00": {
+      "main": [
+        [
+          {
+            "node": "Get Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Results": {
+      "main": [
+        [
+          {
+            "node": "Get Markers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Markers": {
+      "main": [
+        [
+          {
+            "node": "Get Visits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Visits": {
+      "main": [
+        [
+          {
+            "node": "Get Symptom_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Symptom_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Investigations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Investigations": {
+      "main": [
+        [
+          {
+            "node": "Get day_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get day_sum": {
+      "main": [
+        [
+          {
+            "node": "Get Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Get Patient_State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect": {
+      "main": [
+        [
+          {
+            "node": "Fire?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fire?": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark SD": {
+      "main": [
+        [
+          {
+            "node": "Note?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send": {
+      "main": [
+        [
+          {
+            "node": "Mark SD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Note?": {
+      "main": [
+        [
+          {
+            "node": "Save Note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Get Patient_State": {
+      "main": [
+        [
+          {
+            "node": "Get Lab_Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Lab_Plan": {
+      "main": [
+        [
+          {
+            "node": "Get Meds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meds": {
+      "main": [
+        [
+          {
+            "node": "Detect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": {
+    "node:Daily 09:00": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "nudged": {
+        "s:bol-levoe-podrebere-posle-edy:2026-09-07": "2026-09-08"
+      }
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "bff86da5-e464-4ba8-aae5-a0e9f4ed6219",
+  "activeVersionId": "bff86da5-e464-4ba8-aae5-a0e9f4ed6219",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-07T22:13:08.563Z",
+      "createdAt": "2026-09-07T22:13:08.563Z",
+      "role": "workflow:owner",
+      "workflowId": "HealthWatchdog1",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-08T07:48:47.535Z",
+    "createdAt": "2026-09-08T07:48:47.535Z",
+    "versionId": "bff86da5-e464-4ba8-aae5-a0e9f4ed6219",
+    "workflowId": "HealthWatchdog1",
+    "nodes": [
+      {
+        "id": "b14ac558-e39d-427f-af57-4b775dc76299",
+        "name": "Daily 09:00",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "triggerAtHour": 9
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "77e3efb7-ca02-4599-8a46-b05aba778a08",
+        "name": "Get Results",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          180,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list",
+            "cachedResultName": "phenoage"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Results",
+            "mode": "name"
+          },
+          "options": {
+            "rateLimitRetry": true
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "5a28014a-f2fe-4993-b026-5b3dddf00cdb",
+        "name": "Get Markers",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          340,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list",
+            "cachedResultName": "phenoage"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Markers",
+            "mode": "name"
+          },
+          "options": {
+            "rateLimitRetry": true
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "4c564021-af35-4893-8185-5989c56d3028",
+        "name": "Get Visits",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          500,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+            "mode": "list",
+            "cachedResultName": "phenoage"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Visits",
+            "mode": "name"
+          },
+          "options": {
+            "rateLimitRetry": true
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "20a5af59-7bb2-4296-8d81-2f334634ffe1",
+        "name": "Get Symptom_Log",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          660,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Symptom_Log",
+            "mode": "name"
+          },
+          "options": {
+            "rateLimitRetry": true
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "668f000f-7bdb-48a0-a0d3-74c9a2ff9ad7",
+        "name": "Get Investigations",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          820,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Investigations",
+            "mode": "name"
+          },
+          "options": {
+            "rateLimitRetry": true
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "49f1052b-f7a1-41f9-ae43-ea21189c450c",
+        "name": "Get day_sum",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          980,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 742673642,
+            "mode": "list",
+            "cachedResultName": "day_sum"
+          },
+          "options": {
+            "rateLimitRetry": true
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "e3e8cfbd-78ab-4191-9858-7088de126b4a",
+        "name": "Get Daily_Trends",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1140,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends"
+          },
+          "options": {
+            "rateLimitRetry": true
+          }
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "7b3e68c7-33c0-4587-909f-f55929f83e64",
+        "name": "Detect",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1300,
+          0
+        ],
+        "parameters": {
+          "jsCode": "// Health Watchdog — детект триггеров (Фаза 4b). Run Once for All Items.\n// Триггеры: (1) новая сдача крови → нужен разбор; (2) маркер вне референса → нудж;\n// (3) резкое ухудшение симптома → нудж. Ниже 1 открытого расследования — нуджи не шлём.\nfunction safeAll(n) { try { return $(n).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) { if (v == null || v === '') return null; const x = parseFloat(String(v).replace(',', '.').replace(/\\s/g, '')); return isNaN(x) ? null : x; }\nfunction d10(v) {\n  let s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/); if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/); if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nconst DAY = 86400000;\nconst today = new Date(Date.now() + 10 * 3600 * 1000).toISOString().slice(0, 10);\nconst dAgo = d => new Date(Date.now() + 10 * 3600 * 1000 - d * DAY).toISOString().slice(0, 10);\n\nconst results = safeAll('Get Results');\nconst markers = safeAll('Get Markers');\nconst visits  = safeAll('Get Visits');\nconst symRows = safeAll('Get Symptom_Log');\nconst invRows = safeAll('Get Investigations');\nconst daySum  = safeAll('Get day_sum');\nconst daily   = safeAll('Get Daily_Trends');\nconst medsRows = safeAll('Get Meds');\n\nconst sd = $getWorkflowStaticData('global');\nsd.nudged = sd.nudged || {};\n\nconst markName = {}; markers.forEach(m => { if (m.Marker_ID) markName[m.Marker_ID] = m.Name; });\nconst vSorted = visits.filter(v => v.Date && v.Visit_ID).sort((a, b) => d10(a.Date).localeCompare(d10(b.Date)));\nconst newest = vSorted[vSorted.length - 1] || null;\nconst prev   = vSorted[vSorted.length - 2] || null;\nconst newestDate = newest ? d10(newest.Date) : null;\n\nfunction visitMarkers(vid) {\n  const o = {};\n  results.filter(r => r.Visit_ID === vid).forEach(r => {\n    const val = num(r.Value); if (val == null) return;\n    o[markName[r.Marker_ID] || r.Marker_ID] = { value: val, lo: num(r.Lab_Min), hi: num(r.Lab_Max), unit: r.Original_Unit || '' };\n  });\n  return o;\n}\nconst newestM = newest ? visitMarkers(newest.Visit_ID) : {};\nconst prevM   = prev ? visitMarkers(prev.Visit_ID) : {};\n\n// --- (1) новая сдача ---\nconst visitAgeDays = newestDate ? (Date.now() - new Date(newestDate + 'T12:00:00+10:00').getTime()) / DAY : 9999;\nconst alreadyReviewed = sd.lastReviewedVisit === (newest && newest.Visit_ID);\nconst recentEnough = visitAgeDays < 30;\nconst needs_lab_review = !!(newest && !alreadyReviewed && recentEnough && Object.keys(newestM).length >= 2);\n\n// --- хронические маркеры (конституция) из Patient_State — про них не нудить ---\nconst pstateRows = safeAll('Get Patient_State');\nconst chronicRx = pstateRows\n  .map(x => String(x.Contra_Other || '') + ' ' + String(x.Note || ''))\n  .join(' ').toLowerCase();\nfunction isChronicMarker(name) {\n  const n = name.toLowerCase();\n  // явно хронически низкие лейкоциты\n  if (/лейкоцит|wbc/.test(n) && /лейкоцит|конституц|хроническ.*низк/.test(chronicRx)) return true;\n  return false;\n}\n\n// --- (2) маркеры вне референса — ТОЛЬКО из свежей сдачи (≤45 дн). Ключ дедупа с Visit_ID (Opus 5). ---\nconst abnormal = [];\nif (visitAgeDays <= 45 && newest) {\n  for (const [name, m] of Object.entries(newestM)) {\n    if (isChronicMarker(name)) continue;\n    const base = { key: 'm:' + newest.Visit_ID + ':' + name, name, value: m.value };\n    if (m.lo != null && m.value < m.lo) abnormal.push({ ...base, ref: m.lo + '–' + (m.hi ?? '?'), flag: 'ниже нормы' });\n    else if (m.hi != null && m.value > m.hi) abnormal.push({ ...base, ref: (m.lo ?? '?') + '–' + m.hi, flag: 'выше нормы' });\n    // (2b) маркер ЗАМЕТНО ухудшился vs прошлая сдача, оставаясь в норме\n    else if (prevM[name] != null && prevM[name].value != null) {\n      const pv = prevM[name].value;\n      if (pv !== 0 && Math.abs(m.value - pv) / Math.abs(pv) >= 0.18) {\n        // ухудшение — движение к ближней границе референса\n        const towardHi = m.hi != null && (m.value - pv) > 0 && (m.hi - m.value) < (m.hi - pv);\n        const towardLo = m.lo != null && (m.value - pv) < 0 && (m.value - m.lo) < (pv - m.lo);\n        if (towardHi || towardLo) abnormal.push({ ...base, ref: (m.lo ?? '?') + '–' + (m.hi ?? '?'),\n          flag: 'сдвиг ' + pv + ' → ' + m.value + ' (в норме, но к границе)' });\n      }\n    }\n  }\n}\n\n// --- (2c) просроченный Lab_Plan ---\nconst labPlan = safeAll('Get Lab_Plan');\nconst overdueLab = labPlan\n  .filter(r => r.Test && !['done', 'paused', 'archived'].includes(String(r.Status || 'active').toLowerCase()))\n  .map(r => ({ test: r.Test, due: d10(r.Next_Due) }))\n  .filter(r => r.due && r.due.length === 10 && (new Date(today) - new Date(r.due)) / DAY >= 14)\n  .map(r => ({ key: 'lp:' + r.test + ':' + r.due, ...r,\n    overdue_days: Math.round((new Date(today) - new Date(r.due)) / DAY) }));\n\n// --- (3) резкое ухудшение симптома за 3 дня ---\nconst symAlerts = symRows\n  .filter(s => s.Symptom && String(s.Symptom_ID || '').toLowerCase() !== 'demo-format' && d10(s.Date) >= dAgo(3))\n  .filter(s => num(s.Severity) >= 4 || /усил|верн|появ/i.test(String(s.Change || '')))\n  .map(s => ({ key: 's:' + s.Symptom_ID + ':' + d10(s.Date), symptom: s.Symptom, severity: num(s.Severity), change: s.Change || '', id: s.Symptom_ID }));\n\n// --- открытое расследование? (TTL 30 дней — Opus 5: забытая строка не должна глушить проактив навсегда) ---\nconst openInvRows = invRows.filter(v => v.Inv_ID && String(v.Inv_ID).toLowerCase() !== 'demo-format'\n  && String(v.Status || '').toLowerCase() === 'open');\nconst activeInv = openInvRows.filter(v => {\n  const upd = d10(v.Updated || v.Opened);\n  return !upd || (new Date(today) - new Date(upd)) / DAY < 30;\n});\nconst open_investigation = activeInv.length > 0;\nconst stale_investigations = openInvRows.filter(v => !activeInv.includes(v)).map(v => v.Inv_ID);\n\n// --- нуджи только про новое ---\nconst new_abnormal   = abnormal.filter(a => !sd.nudged[a.key]);\nconst new_sym_alerts = symAlerts.filter(a => !sd.nudged[a.key]);\nconst new_overdue    = overdueLab.filter(a => !sd.nudged[a.key]);\nconst should_nudge = !open_investigation && (new_abnormal.length > 0 || new_sym_alerts.length > 0 || new_overdue.length > 0);\n\n// --- контекст периода для разбора анализов ---\nconst periodFrom = prev ? d10(prev.Date) : dAgo(120);\nfunction periodRows(rows, dateKey) { return rows.filter(r => { const d = d10(r[dateKey] || r.Date || r['Дата']); return d >= periodFrom && d <= (newestDate || today); }); }\nfunction avgOf(rows, key) { const v = rows.map(r => num(r[key])).filter(x => x != null); return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length * 10) / 10 : null; }\nconst ds = periodRows(daySum, 'Date');\nconst dt = periodRows(daily, 'Дата');\nconst nutrition_period = {\n  days: ds.length,\n  avg_added_sugar_g: avgOf(ds, 'Добавленный сахар') ?? avgOf(ds, 'Добавленный_сахар'),\n  avg_sat_fat_g: avgOf(ds, 'Насыщенные жиры') ?? avgOf(ds, 'Насыщенные_жиры'),\n  avg_fiber_g: avgOf(ds, 'Клетчатка'),\n  avg_kcal: avgOf(ds, 'Калории') ?? avgOf(ds, 'Всего_ккал'),\n};\nconst wellness_period = {\n  days: dt.length,\n  avg_hrv: avgOf(dt, 'ВСР_ночная'),\n  avg_rhr: avgOf(dt, 'Пульс_ночной_средний'),\n  avg_sleep_min: avgOf(dt, 'Чистый_сон_мин'),\n  avg_training_kcal: avgOf(dt, 'Тренировка_Ккал'),\n  meds_seen: [...new Set(dt.map(r => String(r['Лекарства_принимаемые'] || '')).filter(Boolean).join('\\n').split('\\n').map(x => x.trim()).filter(Boolean))].slice(0, 12),\n};\n\n// --- картотека препаратов (лист Meds) для разбора анализов ---\nconst medsCard = medsRows\n  .filter(m => m && (m.Name || m.Med_ID) && String(m.Med_ID || '').toLowerCase() !== 'demo-format')\n  .map(m => {\n    const st = d10(m.Started), sp = d10(m.Stopped);\n    return {\n      name: String(m.Name || m.Med_ID).trim(),\n      class: String(m.Class || '').trim() || null,\n      dose: String(m.Dose || '').trim() || null,\n      status: String(m.Status || '').trim().toLowerCase() || 'unknown',\n      started: /^\\d{4}-\\d{2}-\\d{2}$/.test(st) ? st : null,\n      stopped: /^\\d{4}-\\d{2}-\\d{2}$/.test(sp) ? sp : null,\n      reason: String(m.Reason || '').trim() || null,\n    };\n  });\nconst meds_active = medsCard.filter(m => ['active', 'prn', 'paused'].includes(m.status));\nconst meds_changed_near_visit = newestDate ? medsCard\n  .filter(m => {\n    const evt = m.stopped || m.started;\n    return evt && Math.abs(new Date(newestDate) - new Date(evt)) / DAY <= 45;\n  })\n  .map(m => ({ ...m, event: m.stopped ? ('курс завершён ' + m.stopped) : ('курс начат ' + m.started) })) : [];\nconst medications = { active: meds_active, changed_near_visit: meds_changed_near_visit };\n\nreturn [{\n  json: {\n    fire: needs_lab_review || should_nudge,\n    needs_lab_review, should_nudge, open_investigation,\n    newest_visit: newest ? { id: newest.Visit_ID, date: newestDate } : null,\n    newest_markers: newestM, prev_visit_date: prev ? d10(prev.Date) : null, prev_markers: prevM,\n    abnormal, new_abnormal, new_sym_alerts, new_overdue,\n    stale_investigations,\n    period: { from: periodFrom, to: newestDate || today },\n    nutrition_period, wellness_period, medications,\n    today,\n  },\n}];\n"
+        }
+      },
+      {
+        "id": "98e4b27c-857f-4972-961f-5588682ef036",
+        "name": "Fire?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1460,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "9a98a4cb-1701-4b1a-8b75-8fe47f379371",
+                "leftValue": "={{ $json.fire }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        }
+      },
+      {
+        "id": "a1d568f1-73e0-4bcb-8353-e5d430bc1f65",
+        "name": "Build Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1620,
+          -40
+        ],
+        "parameters": {
+          "jsCode": "\nconst d = $json;\nconst parts = [];\nparts.push('СЕГОДНЯ: ' + d.today + '. Ты формируешь короткое уведомление пациенту в Telegram от лица его превентивного врача. НЕ ставь диагноз — только наблюдения и гипотезы для обсуждения с живым врачом. Тон спокойный, без нагнетания.');\nif (d.needs_lab_review) {\n  parts.push('\\n=== РАЗБОР СВЕЖЕЙ СДАЧИ КРОВИ (' + d.newest_visit.date + ', предыдущая ' + (d.prev_visit_date||'нет') + ') ===');\n  parts.push('Свежие маркеры: ' + JSON.stringify(d.newest_markers));\n  parts.push('Предыдущие маркеры: ' + JSON.stringify(d.prev_markers));\n  parts.push('Период между сдачами — питание: ' + JSON.stringify(d.nutrition_period) + '; самочувствие/нагрузка: ' + JSON.stringify(d.wellness_period));\n  const med = d.medications || { active: [], changed_near_visit: [] };\n  parts.push('Препараты: сейчас по картотеке — ' + (med.active.length ? JSON.stringify(med.active) : 'ничего') + '. Курсы, начатые/завершённые в пределах 45 дн от сдачи — ' + (med.changed_near_visit.length ? JSON.stringify(med.changed_near_visit) : 'нет') + '. ОБЯЗАТЕЛЬНО проверь: не объясняется ли сдвиг маркера стартом или окончанием курса (влияние на печёночные пробы, липиды, глюкозу, электролиты, B12/гомоцистеин и т.п.).');\n  parts.push('Вне лабораторной нормы или заметный сдвиг: ' + (d.abnormal.length ? JSON.stringify(d.abnormal) : 'нет'));\n  parts.push('Задача: 1) назови 2-4 маркера, которые ЗАМЕТНО сдвинулись (не всё); 2) для каждого — вероятная связь с изменениями в питании/нагрузке/лекарствах за период; 3) что вне нормы и насколько ново; 4) 2-3 гипотезы для обсуждения с врачом. Нет сдвигов — скажи одной фразой.');\n}\nif (d.new_abnormal && d.new_abnormal.length) {\n  parts.push('\\n=== НОВЫЕ ОТКЛОНЕНИЯ (блок «🔬 Заметил:») ===');\n  parts.push(d.new_abnormal.map(a=>a.name+' '+a.value+' ('+a.flag+(a.ref?', норма '+a.ref:'')+')').join('; '));\n}\nif (d.new_overdue && d.new_overdue.length) {\n  parts.push('\\n=== ПРОСРОЧЕННЫЕ АНАЛИЗЫ (блок «📋 По плану анализов:») ===');\n  parts.push(d.new_overdue.map(a=>a.test+' — просрочен на '+a.overdue_days+' дн (был на '+a.due+')').join('; '));\n}\nif (d.new_sym_alerts && d.new_sym_alerts.length) {\n  parts.push('\\n=== СИМПТОМ УСИЛИЛСЯ (блок «⚠️ По симптому:») ===');\n  parts.push(d.new_sym_alerts.map(a=>a.symptom+' (тяжесть '+a.severity+', '+a.change+')').join('; '));\n}\nif ((d.new_abnormal&&d.new_abnormal.length) || (d.new_sym_alerts&&d.new_sym_alerts.length) || (d.new_overdue&&d.new_overdue.length)) {\n  parts.push('\\nВ конце блоков про отклонения/симптомы/анализы добавь: «Если хочешь — напиши мне, разберём спокойно, нужно ли к врачу.»');\n}\nif (d.stale_investigations && d.stale_investigations.length) {\n  parts.push('\\n(служебное, покажи мелким шрифтом в самом конце: расследования без обновления >30 дн — ' + d.stale_investigations.join(', ') + ' — считаю приостановленными.)');\n}\nparts.push('\\nФормат: готовый текст для Telegram, ≤1400 знаков, теги <b> <i> допустимы, без Markdown. Начни с «🩺 <b>Разбор от системы</b>» если есть разбор анализов, иначе сразу с первого блока.');\nreturn [{ json: { prompt: parts.join('\\n') } }];\n"
+        }
+      },
+      {
+        "id": "057aa7c7-eb52-426b-81db-2eeced8b84c9",
+        "name": "Model",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          1620,
+          160
+        ],
+        "parameters": {
+          "model": "google/gemini-3.8-flash",
+          "options": {
+            "temperature": 0.2
+          }
+        },
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        }
+      },
+      {
+        "id": "f5060379-fc35-4ff4-89f3-2a5c13afc5d7",
+        "name": "LLM",
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.4,
+        "position": [
+          1780,
+          -40
+        ],
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json.prompt }}"
+        }
+      },
+      {
+        "id": "4068b81f-83e7-4182-bb53-4f3ede77cfe5",
+        "name": "Mark SD",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1940,
+          -40
+        ],
+        "parameters": {
+          "jsCode": "\nconst d = $('Detect').first().json;\nconst llm = String($('LLM').first().json.text || $('LLM').first().json.output || $('LLM').first().json.response || '').trim();\nconst sd = $getWorkflowStaticData('global');\nsd.nudged = sd.nudged || {};\nconst today = d.today;\n// помечаем ТОЛЬКО после успешной отправки (эта нода стоит после Send)\nif (d.needs_lab_review && d.newest_visit) sd.lastReviewedVisit = d.newest_visit.id;\n(d.new_abnormal||[]).forEach(a => { sd.nudged[a.key] = today; });\n(d.new_sym_alerts||[]).forEach(a => { sd.nudged[a.key] = today; });\n(d.new_overdue||[]).forEach(a => { sd.nudged[a.key] = today; });\nreturn [{ json: { save_note: d.needs_lab_review, note_date: today,\n  note_text: d.needs_lab_review ? ('Автоматический разбор свежей сдачи (' + (d.newest_visit&&d.newest_visit.date) + '). ' + llm.replace(/<[^>]+>/g,'')).slice(0,1500) : '' } }];\n"
+        }
+      },
+      {
+        "id": "794dd5f2-210e-4ab7-9e31-c79eabeecbdd",
+        "name": "Send",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          2100,
+          -40
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $(\"LLM\").first().json.text || $(\"LLM\").first().json.output }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "id": "b6430d5f-a79f-413e-9857-a6db34ed610c",
+        "name": "Note?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2260,
+          -40
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "91753d4a-ba1c-496c-88ff-1e96978d3300",
+                "leftValue": "={{ $json.save_note }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        }
+      },
+      {
+        "id": "a20be622-1113-4db1-b171-247349d3d76b",
+        "name": "Save Note",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          2420,
+          -80
+        ],
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Doctor_Notes"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "matchingColumns": [],
+            "schema": [],
+            "value": {
+              "Date": "={{ $now.setZone('Asia/Vladivostok').toFormat('yyyy.MM.dd') }}",
+              "Category": "Разбор анализов (система)",
+              "Note": "={{ $json.note_text }}",
+              "Trigger": "новая сдача крови",
+              "Plan": "обсудить с лечащим врачом",
+              "Doctor": "AI-watchdog"
+            }
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Patient_State",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1300,
+          100
+        ],
+        "id": "d8b2117a-66e0-41c6-89ec-1e46d4eaa078",
+        "name": "Get Patient_State",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Lab_Plan",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1460,
+          100
+        ],
+        "id": "b5bd85d2-08b9-4cb5-aa48-354e0e4bb125",
+        "name": "Get Lab_Plan",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Meds",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1640,
+          100
+        ],
+        "id": "5099a52c-194b-4860-a21f-94defda6ac71",
+        "name": "Get Meds",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      }
+    ],
+    "connections": {
+      "Daily 09:00": {
+        "main": [
+          [
+            {
+              "node": "Get Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Results": {
+        "main": [
+          [
+            {
+              "node": "Get Markers",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Markers": {
+        "main": [
+          [
+            {
+              "node": "Get Visits",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Visits": {
+        "main": [
+          [
+            {
+              "node": "Get Symptom_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Symptom_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Investigations",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Investigations": {
+        "main": [
+          [
+            {
+              "node": "Get day_sum",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get day_sum": {
+        "main": [
+          [
+            {
+              "node": "Get Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Get Patient_State",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Detect": {
+        "main": [
+          [
+            {
+              "node": "Fire?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fire?": {
+        "main": [
+          [
+            {
+              "node": "Build Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Build Prompt": {
+        "main": [
+          [
+            {
+              "node": "LLM",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "LLM",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "LLM": {
+        "main": [
+          [
+            {
+              "node": "Send",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark SD": {
+        "main": [
+          [
+            {
+              "node": "Note?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send": {
+        "main": [
+          [
+            {
+              "node": "Mark SD",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Note?": {
+        "main": [
+          [
+            {
+              "node": "Save Note",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Get Patient_State": {
+        "main": [
+          [
+            {
+              "node": "Get Lab_Plan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Lab_Plan": {
+        "main": [
+          [
+            {
+              "node": "Get Meds",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Meds": {
+        "main": [
+          [
+            {
+              "node": "Detect",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: g6b: watchdog reads Meds for lab review)",
+    "name": "Patch bff86da5 — g6b: watchdog reads Meds for lab review",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
