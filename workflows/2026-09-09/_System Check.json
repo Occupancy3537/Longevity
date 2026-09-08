@@ -1,0 +1,391 @@
+{
+  "updatedAt": "2026-09-08T04:50:09.000Z",
+  "createdAt": "2026-09-08T01:21:30.044Z",
+  "id": "SystemCheck01",
+  "name": "_System Check",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "79abac9e-fee0-452c-aceb-8863e6262705",
+      "name": "Daily 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b1ad8725-9e33-43a5-a867-15c512bd6975",
+      "name": "Get Daily_Trends",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "74322fa1-241b-4b0a-a0a7-ff8cf8ff8bff",
+      "name": "Get day_sum",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        380,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list",
+          "cachedResultName": "day_sum"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "9079fe9b-9289-4146-8844-30e05df773be",
+      "name": "Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst problems = [];\nconst notes = [];\nconst now = Date.now();\nconst B = 'https://144.31.194.174.nip.io/webhook/';\n\n// 1) кэш-вебхуки: отвечают + не устарели\nconst WH = [\n  ['today-dashboard',  '?token=td_92Wl74Z7rw', 3],\n  ['health-dashboard', '?token=hd_7Kx92mQr4T', 3],\n  ['bioage-dashboard', '?token=ba_9Fw3nZp7Kd', 27],\n  ['weekly-nutrients', '', 30],\n  ['recipes', '', 30],\n];\nfor (const [path, q, maxH] of WH) {\n  try {\n    const res = await this.helpers.httpRequest({ method: 'GET', url: B + path + q, timeout: 20000, json: true });\n    if (res && res.error) { problems.push(path + ': error=' + res.error); continue; }\n    const ua = res && (res.updated_at || res.computed_at);\n    if (ua && /^\\d{4}-\\d{2}-\\d{2}T\\d/.test(String(ua))) {\n      const ageH = (now - new Date(ua).getTime()) / 3600000;\n      if (ageH > maxH) problems.push(path + ': кэш устарел на ' + Math.round(ageH) + 'ч (порог ' + maxH + 'ч)');\n    } else {\n      problems.push(path + ': ответ без метки времени (updated_at/computed_at)');\n    }\n  } catch (e) { problems.push(path + ': не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n}\n// виджет-страница: живость\ntry {\n  const html = await this.helpers.httpRequest({ method: 'GET', url: B + 'dashboard?token=79TytaFim5VByE', timeout: 20000 });\n  if (!/<!DOCTYPE|<html/i.test(String(html))) problems.push('dashboard (виджет): не отдаёт HTML');\n} catch (e) { problems.push('dashboard (виджет): не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n\n// 2) дыры в Daily_Trends и day_sum за последние 5 дней (без вчера).\n// ВАЖНО: пустой ответ Sheets-ноды = сбой чтения (лимит квоты), а НЕ отсутствие данных —\n// в этом случае проверку пропускаем с пометкой, ложную тревогу не поднимаем.\nfunction d10(v){ return String(v==null?'':v).trim().slice(0,10); }\nfunction isDate(x){ return /^\\d{4}-\\d{2}-\\d{2}$/.test(x); }\nconst dtDates = $('Get Daily_Trends').all().map(i => d10(i.json['Дата'] || i.json['Date'])).filter(isDate);\nconst dsDates = $('Get day_sum').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate);\nconst dtSet = new Set(dtDates), dsSet = new Set(dsDates);\nconst days5 = [];\nfor (let k = 2; k <= 6; k++) days5.push(new Date(now + 10*3600000 - k*86400000).toISOString().slice(0, 10));\n\nif (dtSet.size === 0) notes.push('Daily_Trends не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dtSet.has(d)); if (m.length) problems.push('Daily_Trends нет строк за: ' + m.join(', ') + ' (Garmin-пайплайн?)'); }\n\nif (dsSet.size === 0) notes.push('day_sum не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dsSet.has(d)); if (m.length) problems.push('day_sum нет строк за: ' + m.join(', ') + ' (лог еды?)'); }\n\n// 3) фикстуры safety-гейта — регрессия логики фильтра нагрузки\nconst LOAD_RX = /интенсив|интервал|бег|присед|штанг|отжим|планк|скручиван|ротац|растяж|йог|лфк|силов|берпи|подтяг/i;\nconst gateBlocks = (title, why, contra) => contra ? LOAD_RX.test(title + ' ' + why) : false;\nconst fx = [\n  ['Растяжка с ротацией корпуса', 'снять напряжение', true,  true],\n  ['Интервальный бег 3р/нед',     'vo2max',            true,  true],\n  ['Убрать сахар после 20:00',    'глюкоза',           true,  false],\n  ['Ходьба 30 мин',               'движение',          true,  false],\n  ['Силовая на всё тело',         'мышцы',             false, false],\n];\nconst fxFail = fx.filter(([t, w, c, exp]) => gateBlocks(t, w, c) !== exp);\nif (fxFail.length) problems.push('ФИКСТУРА ГЕЙТА СЛОМАНА: ' + fxFail.map(f => f[0]).join('; '));\n\n// 4) итог\nconst ts = new Date(now + 10*3600000).toISOString().slice(0, 16).replace('T', ' ');\nlet msg;\nif (problems.length) {\n  msg = '\\u26a0\\ufe0f <b>Система: проблемы (' + ts + ' ВЛ)</b>\\n\\n\\u2022 ' + problems.join('\\n\\u2022 ');\n  if (notes.length) msg += '\\n\\n<i>' + notes.join('; ') + '</i>';\n} else if (notes.length) {\n  msg = '\\u2705 Система в норме (' + ts + ' ВЛ), но: ' + notes.join('; ') + '.';\n} else {\n  msg = '\\u2705 Система в норме (' + ts + ' ВЛ). 6 вебхуков живы, кэши свежие, Daily_Trends/day_sum без дыр за 5 дней, фикстуры гейта ок.';\n}\nreturn [{ json: { message: msg, has_problems: problems.length > 0, problems, notes } }];\n"
+      }
+    },
+    {
+      "id": "08cd2c14-839c-4df1-a440-3ec1ff7d7e92",
+      "name": "Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        740,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 08:00": {
+      "main": [
+        [
+          {
+            "node": "Get Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Get day_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get day_sum": {
+      "main": [
+        [
+          {
+            "node": "Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": {
+    "node:Daily 08:00": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "fefe194f-d9b6-4276-a797-7790bf412cee",
+  "activeVersionId": "fefe194f-d9b6-4276-a797-7790bf412cee",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-08T01:21:30.044Z",
+      "createdAt": "2026-09-08T01:21:30.044Z",
+      "role": "workflow:owner",
+      "workflowId": "SystemCheck01",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-08T04:50:00.505Z",
+    "createdAt": "2026-09-08T04:50:00.505Z",
+    "versionId": "fefe194f-d9b6-4276-a797-7790bf412cee",
+    "workflowId": "SystemCheck01",
+    "nodes": [
+      {
+        "id": "79abac9e-fee0-452c-aceb-8863e6262705",
+        "name": "Daily 08:00",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "triggerAtHour": 8
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "b1ad8725-9e33-43a5-a867-15c512bd6975",
+        "name": "Get Daily_Trends",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          200,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "id": "74322fa1-241b-4b0a-a0a7-ff8cf8ff8bff",
+        "name": "Get day_sum",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          380,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 742673642,
+            "mode": "list",
+            "cachedResultName": "day_sum"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "id": "9079fe9b-9289-4146-8844-30e05df773be",
+        "name": "Check",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          560,
+          0
+        ],
+        "parameters": {
+          "jsCode": "\nconst problems = [];\nconst notes = [];\nconst now = Date.now();\nconst B = 'https://144.31.194.174.nip.io/webhook/';\n\n// 1) кэш-вебхуки: отвечают + не устарели\nconst WH = [\n  ['today-dashboard',  '?token=td_92Wl74Z7rw', 3],\n  ['health-dashboard', '?token=hd_7Kx92mQr4T', 3],\n  ['bioage-dashboard', '?token=ba_9Fw3nZp7Kd', 27],\n  ['weekly-nutrients', '', 30],\n  ['recipes', '', 30],\n];\nfor (const [path, q, maxH] of WH) {\n  try {\n    const res = await this.helpers.httpRequest({ method: 'GET', url: B + path + q, timeout: 20000, json: true });\n    if (res && res.error) { problems.push(path + ': error=' + res.error); continue; }\n    const ua = res && (res.updated_at || res.computed_at);\n    if (ua && /^\\d{4}-\\d{2}-\\d{2}T\\d/.test(String(ua))) {\n      const ageH = (now - new Date(ua).getTime()) / 3600000;\n      if (ageH > maxH) problems.push(path + ': кэш устарел на ' + Math.round(ageH) + 'ч (порог ' + maxH + 'ч)');\n    } else {\n      problems.push(path + ': ответ без метки времени (updated_at/computed_at)');\n    }\n  } catch (e) { problems.push(path + ': не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n}\n// виджет-страница: живость\ntry {\n  const html = await this.helpers.httpRequest({ method: 'GET', url: B + 'dashboard?token=79TytaFim5VByE', timeout: 20000 });\n  if (!/<!DOCTYPE|<html/i.test(String(html))) problems.push('dashboard (виджет): не отдаёт HTML');\n} catch (e) { problems.push('dashboard (виджет): не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n\n// 2) дыры в Daily_Trends и day_sum за последние 5 дней (без вчера).\n// ВАЖНО: пустой ответ Sheets-ноды = сбой чтения (лимит квоты), а НЕ отсутствие данных —\n// в этом случае проверку пропускаем с пометкой, ложную тревогу не поднимаем.\nfunction d10(v){ return String(v==null?'':v).trim().slice(0,10); }\nfunction isDate(x){ return /^\\d{4}-\\d{2}-\\d{2}$/.test(x); }\nconst dtDates = $('Get Daily_Trends').all().map(i => d10(i.json['Дата'] || i.json['Date'])).filter(isDate);\nconst dsDates = $('Get day_sum').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate);\nconst dtSet = new Set(dtDates), dsSet = new Set(dsDates);\nconst days5 = [];\nfor (let k = 2; k <= 6; k++) days5.push(new Date(now + 10*3600000 - k*86400000).toISOString().slice(0, 10));\n\nif (dtSet.size === 0) notes.push('Daily_Trends не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dtSet.has(d)); if (m.length) problems.push('Daily_Trends нет строк за: ' + m.join(', ') + ' (Garmin-пайплайн?)'); }\n\nif (dsSet.size === 0) notes.push('day_sum не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dsSet.has(d)); if (m.length) problems.push('day_sum нет строк за: ' + m.join(', ') + ' (лог еды?)'); }\n\n// 3) фикстуры safety-гейта — регрессия логики фильтра нагрузки\nconst LOAD_RX = /интенсив|интервал|бег|присед|штанг|отжим|планк|скручиван|ротац|растяж|йог|лфк|силов|берпи|подтяг/i;\nconst gateBlocks = (title, why, contra) => contra ? LOAD_RX.test(title + ' ' + why) : false;\nconst fx = [\n  ['Растяжка с ротацией корпуса', 'снять напряжение', true,  true],\n  ['Интервальный бег 3р/нед',     'vo2max',            true,  true],\n  ['Убрать сахар после 20:00',    'глюкоза',           true,  false],\n  ['Ходьба 30 мин',               'движение',          true,  false],\n  ['Силовая на всё тело',         'мышцы',             false, false],\n];\nconst fxFail = fx.filter(([t, w, c, exp]) => gateBlocks(t, w, c) !== exp);\nif (fxFail.length) problems.push('ФИКСТУРА ГЕЙТА СЛОМАНА: ' + fxFail.map(f => f[0]).join('; '));\n\n// 4) итог\nconst ts = new Date(now + 10*3600000).toISOString().slice(0, 16).replace('T', ' ');\nlet msg;\nif (problems.length) {\n  msg = '\\u26a0\\ufe0f <b>Система: проблемы (' + ts + ' ВЛ)</b>\\n\\n\\u2022 ' + problems.join('\\n\\u2022 ');\n  if (notes.length) msg += '\\n\\n<i>' + notes.join('; ') + '</i>';\n} else if (notes.length) {\n  msg = '\\u2705 Система в норме (' + ts + ' ВЛ), но: ' + notes.join('; ') + '.';\n} else {\n  msg = '\\u2705 Система в норме (' + ts + ' ВЛ). 6 вебхуков живы, кэши свежие, Daily_Trends/day_sum без дыр за 5 дней, фикстуры гейта ок.';\n}\nreturn [{ json: { message: msg, has_problems: problems.length > 0, problems, notes } }];\n"
+        }
+      },
+      {
+        "id": "08cd2c14-839c-4df1-a440-3ec1ff7d7e92",
+        "name": "Send",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          740,
+          0
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $json.message }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Daily 08:00": {
+        "main": [
+          [
+            {
+              "node": "Get Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Get day_sum",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get day_sum": {
+        "main": [
+          [
+            {
+              "node": "Check",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check": {
+        "main": [
+          [
+            {
+              "node": "Send",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: system check alerts → Hermes Agent bot)",
+    "name": "Patch fefe194f — system check alerts → Hermes Agent bot",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
