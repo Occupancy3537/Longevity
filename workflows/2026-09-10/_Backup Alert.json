@@ -1,0 +1,371 @@
+{
+  "updatedAt": "2026-09-09T01:37:32.000Z",
+  "createdAt": "2026-09-08T09:57:23.500Z",
+  "id": "BackupAlert01",
+  "name": "_Backup Alert",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "6af38c25-558c-4b36-ba8f-9d2a825faea8",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "7d062f75-eb9f-4911-9a72-ac1a6b1d65b1",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "backup-status",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "08d5d377-4f16-44f3-a25f-0ba363c5381c",
+      "name": "Daily 07:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        160
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a97f2e9b-364d-4acc-8c25-5886381d0822",
+      "name": "Assess",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        80
+      ],
+      "parameters": {
+        "jsCode": "\nconst sd = $getWorkflowStaticData('global');\nsd.backup = sd.backup || {};\nconst now = Date.now();\nconst src = $json.__src || ($json.headers ? 'webhook' : 'schedule');\nlet alert = '';\n\nif (src === 'webhook') {\n  const b = $json.body || $json;\n  const __bt = b.token;\n  if (__bt !== '4bu6zMq9CxzhxA1b4WcB') return [{ json: { alert: '', has_alert: false } }];\n  sd.backup = { ts: now, result: String(b.result||'?'), detail: String(b.detail||''), stamp: String(b.ts||'') };\n  if (sd.backup.result === 'failed') {\n    alert = '⚠️ <b>Ночной бэкап: СБОЙ</b>\\n\\nЭтап(ы): ' + (sd.backup.detail || 'неизвестно') + '\\nВремя: ' + sd.backup.stamp + ' UTC\\n\\nЛог: nightly_backup.log на VPS.';\n  } else if (sd.backup.result === 'partial') {\n    alert = 'ℹ️ <b>Бэкап: один провайдер не сработал</b>\\n\\n' + (sd.backup.detail||'') + ' · ' + sd.backup.stamp + ' UTC.\\nБэкап цел на остальных облаках. Проверь авторизацию rclone, если повторится.';\n  } else if (sd.backup.result !== 'ok') {\n    alert = '⚠️ Бэкап вернул статус «' + sd.backup.result + '» — ' + (sd.backup.detail||'') ;\n  }\n} else {\n  const ageH = sd.backup.ts ? (now - sd.backup.ts) / 3600000 : 999;\n  if (ageH > 26) {\n    alert = '⚠️ <b>Ночной бэкап не отработал</b>\\n\\nПоследний пинг: ' + (sd.backup.stamp || 'никогда') + ' (' + Math.round(ageH) + 'ч назад).\\nПроверь крон и nightly_backup.log.';\n  } else if (sd.backup.result === 'failed') {\n    alert = '⚠️ <b>Ночной бэкап: последний прогон со сбоем</b>\\n\\n' + (sd.backup.detail||'') + ' · ' + (sd.backup.stamp||'');\n  }\n}\nreturn [{ json: { alert, has_alert: !!alert, backup_state: sd.backup } }];\n"
+      }
+    },
+    {
+      "id": "5b601a16-d30b-46ec-ac48-0b3db4c8cdc3",
+      "name": "Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "aa7c4da6-cf53-4d95-b0e9-1ef2565d3584",
+              "leftValue": "={{ $json.has_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "4316041d-4a60-4522-a5fa-36e1b1e90291",
+      "name": "Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        40
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $json.alert }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Assess",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 07:00 UTC": {
+      "main": [
+        [
+          {
+            "node": "Assess",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assess": {
+      "main": [
+        [
+          {
+            "node": "Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert?": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": {
+    "node:Daily 07:00 UTC": {
+      "recurrenceRules": [
+        0
+      ]
+    },
+    "global": {
+      "backup": {
+        "ts": 1788919304046,
+        "result": "ok",
+        "detail": "",
+        "stamp": "20260909_020001"
+      }
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "cc564ded-e685-4564-86e4-91a324316fa4",
+  "activeVersionId": "cc564ded-e685-4564-86e4-91a324316fa4",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-09-08T09:57:23.500Z",
+      "createdAt": "2026-09-08T09:57:23.500Z",
+      "role": "workflow:owner",
+      "workflowId": "BackupAlert01",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-09T01:37:26.361Z",
+    "createdAt": "2026-09-09T01:37:26.361Z",
+    "versionId": "cc564ded-e685-4564-86e4-91a324316fa4",
+    "workflowId": "BackupAlert01",
+    "nodes": [
+      {
+        "id": "6af38c25-558c-4b36-ba8f-9d2a825faea8",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "webhookId": "7d062f75-eb9f-4911-9a72-ac1a6b1d65b1",
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "backup-status",
+          "responseMode": "onReceived",
+          "options": {}
+        }
+      },
+      {
+        "id": "08d5d377-4f16-44f3-a25f-0ba363c5381c",
+        "name": "Daily 07:00 UTC",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          160
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 24,
+                "triggerAtHour": 9
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "a97f2e9b-364d-4acc-8c25-5886381d0822",
+        "name": "Assess",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          240,
+          80
+        ],
+        "parameters": {
+          "jsCode": "\nconst sd = $getWorkflowStaticData('global');\nsd.backup = sd.backup || {};\nconst now = Date.now();\nconst src = $json.__src || ($json.headers ? 'webhook' : 'schedule');\nlet alert = '';\n\nif (src === 'webhook') {\n  const b = $json.body || $json;\n  const __bt = b.token;\n  if (__bt !== '4bu6zMq9CxzhxA1b4WcB') return [{ json: { alert: '', has_alert: false } }];\n  sd.backup = { ts: now, result: String(b.result||'?'), detail: String(b.detail||''), stamp: String(b.ts||'') };\n  if (sd.backup.result === 'failed') {\n    alert = '⚠️ <b>Ночной бэкап: СБОЙ</b>\\n\\nЭтап(ы): ' + (sd.backup.detail || 'неизвестно') + '\\nВремя: ' + sd.backup.stamp + ' UTC\\n\\nЛог: nightly_backup.log на VPS.';\n  } else if (sd.backup.result === 'partial') {\n    alert = 'ℹ️ <b>Бэкап: один провайдер не сработал</b>\\n\\n' + (sd.backup.detail||'') + ' · ' + sd.backup.stamp + ' UTC.\\nБэкап цел на остальных облаках. Проверь авторизацию rclone, если повторится.';\n  } else if (sd.backup.result !== 'ok') {\n    alert = '⚠️ Бэкап вернул статус «' + sd.backup.result + '» — ' + (sd.backup.detail||'') ;\n  }\n} else {\n  const ageH = sd.backup.ts ? (now - sd.backup.ts) / 3600000 : 999;\n  if (ageH > 26) {\n    alert = '⚠️ <b>Ночной бэкап не отработал</b>\\n\\nПоследний пинг: ' + (sd.backup.stamp || 'никогда') + ' (' + Math.round(ageH) + 'ч назад).\\nПроверь крон и nightly_backup.log.';\n  } else if (sd.backup.result === 'failed') {\n    alert = '⚠️ <b>Ночной бэкап: последний прогон со сбоем</b>\\n\\n' + (sd.backup.detail||'') + ' · ' + (sd.backup.stamp||'');\n  }\n}\nreturn [{ json: { alert, has_alert: !!alert, backup_state: sd.backup } }];\n"
+        }
+      },
+      {
+        "id": "5b601a16-d30b-46ec-ac48-0b3db4c8cdc3",
+        "name": "Alert?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          480,
+          80
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "aa7c4da6-cf53-4d95-b0e9-1ef2565d3584",
+                "leftValue": "={{ $json.has_alert }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        }
+      },
+      {
+        "id": "4316041d-4a60-4522-a5fa-36e1b1e90291",
+        "name": "Send",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          720,
+          40
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $json.alert }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Assess",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Daily 07:00 UTC": {
+        "main": [
+          [
+            {
+              "node": "Assess",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Assess": {
+        "main": [
+          [
+            {
+              "node": "Alert?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Alert?": {
+        "main": [
+          [
+            {
+              "node": "Send",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: internal webhook tokens)",
+    "name": "Patch cc564ded — internal webhook tokens",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
