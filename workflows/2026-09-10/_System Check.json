@@ -1,0 +1,567 @@
+{
+  "updatedAt": "2026-09-09T01:25:44.000Z",
+  "createdAt": "2026-09-08T01:21:30.044Z",
+  "id": "SystemCheck01",
+  "name": "_System Check",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "79abac9e-fee0-452c-aceb-8863e6262705",
+      "name": "Daily 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b1ad8725-9e33-43a5-a867-15c512bd6975",
+      "name": "Get Daily_Trends",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1616801477,
+          "mode": "list",
+          "cachedResultName": "Daily_Trends"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "74322fa1-241b-4b0a-a0a7-ff8cf8ff8bff",
+      "name": "Get day_sum",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        380,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742673642,
+          "mode": "list",
+          "cachedResultName": "day_sum"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "9079fe9b-9289-4146-8844-30e05df773be",
+      "name": "Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst problems = [];\nconst notes = [];\nconst now = Date.now();\nconst B = 'https://144.31.194.174.nip.io/webhook/';\nconst API = 'https://144.31.194.174.nip.io/api/v1/';\n// n8n API key (label n8n_year). Уже лежит в user_api_keys; вынесено сюда для проверки active.\n// TODO: перевести в n8n-credential при ротации ключей (ревью Opus 5 — приватность).\nconst N8N_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiNGE3MWNhZi03ZjVkLTQ1YjEtODE4MC03MTU4YTZkODA2OTciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZGYwOTYwODUtNzM5Zi00NWI1LWFmNWQtZGI5YjIxMzgwM2U0IiwiaWF0IjoxNzg3NjE5Mzg0LCJleHAiOjE4MTkxMTYwMDB9.EB9Nla8jN5J7ZfXITC3okLsLlUQM5o9-uY7ZgTayHwk';\n\n// 1) кэш-вебхуки: отвечают + не устарели. Ответ today-dashboard сохраняем для проверки гейта (§3).\nconst WH = [\n  ['today-dashboard',  '?token=blS1Chm38kO5wab2zPVC', 4],\n  ['health-dashboard', '?token=JI45FVfyUJgD7gfkAJJN', 3],\n  ['bioage-dashboard', '?token=HbcQb4XNeqMFwMtnOQhx', 27],\n  ['weekly-nutrients', '', 30],\n  ['recipes', '', 30],\n];\nlet todayCache = null;\nfor (const [path, q, maxH] of WH) {\n  try {\n    const res = await this.helpers.httpRequest({ method: 'GET', url: B + path + q, timeout: 20000, json: true });\n    if (path === 'today-dashboard') todayCache = res;\n    if (res && res.error) { problems.push(path + ': error=' + res.error); continue; }\n    const ua = res && (res.updated_at || res.computed_at);\n    if (ua && /^\\d{4}-\\d{2}-\\d{2}T\\d/.test(String(ua))) {\n      const ageH = (now - new Date(ua).getTime()) / 3600000;\n      if (ageH > maxH) problems.push(path + ': кэш устарел на ' + Math.round(ageH) + 'ч (порог ' + maxH + 'ч)');\n    } else {\n      problems.push(path + ': ответ без метки времени (updated_at/computed_at)');\n    }\n  } catch (e) { problems.push(path + ': не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n}\ntry {\n  const html = await this.helpers.httpRequest({ method: 'GET', url: B + 'dashboard?token=wFSIRB6DO4l6ZrUSlJR5', timeout: 20000 });\n  if (!/<!DOCTYPE|<html/i.test(String(html))) problems.push('dashboard (виджет): не отдаёт HTML');\n} catch (e) { problems.push('dashboard (виджет): не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n\n// 2) дыры в Daily_Trends и day_sum за 5 дней. Пустой ответ Sheets-ноды = сбой чтения, не отсутствие данных.\nfunction d10(v){ return String(v==null?'':v).trim().slice(0,10); }\nfunction isDate(x){ return /^\\d{4}-\\d{2}-\\d{2}$/.test(x); }\nconst dtDates = $('Get Daily_Trends').all().map(i => d10(i.json['Дата'] || i.json['Date'])).filter(isDate);\nconst dsDates = $('Get day_sum').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate);\nconst dtSet = new Set(dtDates), dsSet = new Set(dsDates);\nconst days5 = [];\nfor (let k = 2; k <= 6; k++) days5.push(new Date(now + 10*3600000 - k*86400000).toISOString().slice(0, 10));\nif (dtSet.size === 0) notes.push('Daily_Trends не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dtSet.has(d)); if (m.length) problems.push('Daily_Trends нет строк за: ' + m.join(', ') + ' (Garmin-пайплайн?)'); }\nif (dsSet.size === 0) notes.push('day_sum не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dsSet.has(d)); if (m.length) problems.push('day_sum нет строк за: ' + m.join(', ') + ' (лог еды?)'); }\n\n// 2b) A3 — расширенная проверка дыр + дублей.\nconst mealDates = $('Get Meals').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate);\nconst mealSet = new Set(mealDates);\nif (mealSet.size === 0) notes.push('Meals не прочитан — проверка дыр пропущена');\nelse { const m = days5.filter(d => !mealSet.has(d)); if (m.length) problems.push('Meals нет записей за: ' + m.join(', ') + ' (лог еды не пишется?)'); }\n\n// Recommendations_Log: еженедельный советник — не должно быть тишины > 8 дней.\nconst recDates = $('Get Recommendations_Log').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate).sort();\nif (recDates.length) {\n  const ageDays = (new Date(now + 10*3600000 - 0) - new Date(recDates[recDates.length - 1])) / 86400000;\n  if (ageDays > 8) problems.push('Recommendations_Log: последняя запись ' + recDates[recDates.length - 1] + ' (' + Math.round(ageDays) + ' дн назад) — советник не отработал?');\n}\n\n// Дубли по дате в листах, где 1 строка = 1 день (Daily_Trends, day_sum).\nfunction dupsByDate(rows, key1, key2) {\n  const cnt = {};\n  rows.map(i => d10(i.json[key1] || i.json[key2])).filter(isDate).forEach(d => cnt[d] = (cnt[d] || 0) + 1);\n  return Object.entries(cnt).filter(([, c]) => c > 1).map(([d, c]) => d + '×' + c);\n}\nconst dtDup = dtSet.size ? dupsByDate($('Get Daily_Trends').all(), 'Дата', 'Date') : [];\nconst dsDup = dsSet.size ? dupsByDate($('Get day_sum').all(), 'Date', 'Дата') : [];\nif (dtDup.length) problems.push('🔴 Daily_Trends ДУБЛИ по дате: ' + dtDup.slice(0, 6).join(', '));\nif (dsDup.length) problems.push('🔴 day_sum ДУБЛИ по дате: ' + dsDup.slice(0, 6).join(', '));\n\n// 3) safety-гейт — проверяем РЕАЛЬНЫЙ вывод боевого loadGate, а не копию логики.\n// Инвариант: у этого пациента активная грыжа L5/S1 в Patient_State → гейт ОБЯЗАН быть blocked.\n// Если today-dashboard отдаёт blocked=false — это регрессия loadGate (fail-open).\ntry {\n  const g = todayCache && todayCache.decision && todayCache.decision.gate;\n  if (!g) {\n    notes.push('гейт: today-dashboard не отдал decision.gate — проверка пропущена');\n  } else if (g.blocked !== true) {\n    problems.push('🔴 ГЕЙТ НАГРУЗКИ ОТКРЫТ (blocked=' + g.blocked + ', source=' + (g.source || '?')\n      + '). При активной грыже L5/S1 это регрессия loadGate — проверь today_build.js / bc.');\n  } else if (!/ходьб|плаван/i.test(String(todayCache.decision.verdict || ''))) {\n    problems.push('гейт blocked, но verdict «' + todayCache.decision.verdict + '» не про ходьбу/плавание — проверь');\n  }\n} catch (e) { notes.push('гейт: проверка не удалась (' + String(e.message).slice(0, 50) + ')'); }\n\n// 4) активность воркфлоу — критичные ДОЛЖНЫ быть active. Снятие _Error Handler = тихая смерть оповещения.\nconst EXPECTED_ACTIVE = [\n  '_Error Handler', '_System Check', '_Backup Alert',\n  'Health Watchdog', 'Weekly AI Advisor', 'Anamnesis Collector', 'Reports',\n  '🚨Capitan', 'Sub-Agent: AI Doctor', 'Sub-Agent: Registrar',\n  'today-dashboard (cache)', 'health-dashboard (cache)', 'bioage-dashboard (cache)',\n  'Dashboard Cached', 'PhenoAge Calc',\n];\ntry {\n  const wf = await this.helpers.httpRequest({ method: 'GET', url: API + 'workflows?limit=250', json: true,\n    headers: { 'X-N8N-API-KEY': N8N_KEY }, timeout: 20000 });\n  const activeNames = new Set((wf.data || []).filter(w => w.active).map(w => w.name));\n  const missing = EXPECTED_ACTIVE.filter(n => !activeNames.has(n));\n  if (missing.length) problems.push('🔴 НЕ АКТИВНЫ критичные воркфлоу: ' + missing.join(', '));\n} catch (e) {\n  notes.push('проверка active-воркфлоу не удалась (' + String(e.message).slice(0, 50) + ') — n8n API?');\n}\n\n// 5) статус ночного бэкапа (файл пишет nightly_backup.sh; читаем через рейт-лимит-безопасный путь)\n// (само оповещение о бэкапе делает _Backup Alert; здесь — только в утренней сводке для полноты.)\n\n// 6) итог\nconst ts = new Date(now + 10*3600000).toISOString().slice(0, 16).replace('T', ' ');\nlet msg;\nif (problems.length) {\n  msg = '⚠️ <b>Система: проблемы (' + ts + ' ВЛ)</b>\\n\\n• ' + problems.join('\\n• ');\n  if (notes.length) msg += '\\n\\n<i>' + notes.join('; ') + '</i>';\n} else if (notes.length) {\n  msg = '✅ Система в норме (' + ts + ' ВЛ), но: ' + notes.join('; ') + '.';\n} else {\n  msg = '✅ Система в норме (' + ts + ' ВЛ). Вебхуки живы, кэши свежие, Daily_Trends/day_sum/Meals без дыр и дублей за 5 дней, советник свежий, гейт blocked (грыжа), критичные воркфлоу active.';\n}\nreturn [{ json: { message: msg, has_problems: problems.length > 0, problems, notes } }];\n"
+      }
+    },
+    {
+      "id": "08cd2c14-839c-4df1-a440-3ec1ff7d7e92",
+      "name": "Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        740,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      }
+    },
+    {
+      "id": "b4fafb1c-f8b8-4a0c-a30d-40a3fc4521bb",
+      "name": "Get Meals",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        420,
+        140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "46272f5f-c8d1-4ae7-ab43-1ab2fce6bc63",
+      "name": "Get Recommendations_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        420,
+        260
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2040028605,
+          "mode": "list",
+          "cachedResultName": "Recommendations_Log"
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Daily 08:00": {
+      "main": [
+        [
+          {
+            "node": "Get Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Get day_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get day_sum": {
+      "main": [
+        [
+          {
+            "node": "Get Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meals": {
+      "main": [
+        [
+          {
+            "node": "Get Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": {
+    "node:Daily 08:00": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "0becd5d7-0b17-4e89-88f3-ab22f2f22ecc",
+  "activeVersionId": "0becd5d7-0b17-4e89-88f3-ab22f2f22ecc",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-08T01:21:30.044Z",
+      "createdAt": "2026-09-08T01:21:30.044Z",
+      "role": "workflow:owner",
+      "workflowId": "SystemCheck01",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-09T01:25:37.884Z",
+    "createdAt": "2026-09-09T01:25:37.884Z",
+    "versionId": "0becd5d7-0b17-4e89-88f3-ab22f2f22ecc",
+    "workflowId": "SystemCheck01",
+    "nodes": [
+      {
+        "id": "79abac9e-fee0-452c-aceb-8863e6262705",
+        "name": "Daily 08:00",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "triggerAtHour": 8
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "b1ad8725-9e33-43a5-a867-15c512bd6975",
+        "name": "Get Daily_Trends",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          200,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 1616801477,
+            "mode": "list",
+            "cachedResultName": "Daily_Trends"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "id": "74322fa1-241b-4b0a-a0a7-ff8cf8ff8bff",
+        "name": "Get day_sum",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          380,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 742673642,
+            "mode": "list",
+            "cachedResultName": "day_sum"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "id": "9079fe9b-9289-4146-8844-30e05df773be",
+        "name": "Check",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          560,
+          0
+        ],
+        "parameters": {
+          "jsCode": "\nconst problems = [];\nconst notes = [];\nconst now = Date.now();\nconst B = 'https://144.31.194.174.nip.io/webhook/';\nconst API = 'https://144.31.194.174.nip.io/api/v1/';\n// n8n API key (label n8n_year). Уже лежит в user_api_keys; вынесено сюда для проверки active.\n// TODO: перевести в n8n-credential при ротации ключей (ревью Opus 5 — приватность).\nconst N8N_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiNGE3MWNhZi03ZjVkLTQ1YjEtODE4MC03MTU4YTZkODA2OTciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZGYwOTYwODUtNzM5Zi00NWI1LWFmNWQtZGI5YjIxMzgwM2U0IiwiaWF0IjoxNzg3NjE5Mzg0LCJleHAiOjE4MTkxMTYwMDB9.EB9Nla8jN5J7ZfXITC3okLsLlUQM5o9-uY7ZgTayHwk';\n\n// 1) кэш-вебхуки: отвечают + не устарели. Ответ today-dashboard сохраняем для проверки гейта (§3).\nconst WH = [\n  ['today-dashboard',  '?token=blS1Chm38kO5wab2zPVC', 4],\n  ['health-dashboard', '?token=JI45FVfyUJgD7gfkAJJN', 3],\n  ['bioage-dashboard', '?token=HbcQb4XNeqMFwMtnOQhx', 27],\n  ['weekly-nutrients', '', 30],\n  ['recipes', '', 30],\n];\nlet todayCache = null;\nfor (const [path, q, maxH] of WH) {\n  try {\n    const res = await this.helpers.httpRequest({ method: 'GET', url: B + path + q, timeout: 20000, json: true });\n    if (path === 'today-dashboard') todayCache = res;\n    if (res && res.error) { problems.push(path + ': error=' + res.error); continue; }\n    const ua = res && (res.updated_at || res.computed_at);\n    if (ua && /^\\d{4}-\\d{2}-\\d{2}T\\d/.test(String(ua))) {\n      const ageH = (now - new Date(ua).getTime()) / 3600000;\n      if (ageH > maxH) problems.push(path + ': кэш устарел на ' + Math.round(ageH) + 'ч (порог ' + maxH + 'ч)');\n    } else {\n      problems.push(path + ': ответ без метки времени (updated_at/computed_at)');\n    }\n  } catch (e) { problems.push(path + ': не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n}\ntry {\n  const html = await this.helpers.httpRequest({ method: 'GET', url: B + 'dashboard?token=wFSIRB6DO4l6ZrUSlJR5', timeout: 20000 });\n  if (!/<!DOCTYPE|<html/i.test(String(html))) problems.push('dashboard (виджет): не отдаёт HTML');\n} catch (e) { problems.push('dashboard (виджет): не отвечает (' + String(e.message).slice(0, 60) + ')'); }\n\n// 2) дыры в Daily_Trends и day_sum за 5 дней. Пустой ответ Sheets-ноды = сбой чтения, не отсутствие данных.\nfunction d10(v){ return String(v==null?'':v).trim().slice(0,10); }\nfunction isDate(x){ return /^\\d{4}-\\d{2}-\\d{2}$/.test(x); }\nconst dtDates = $('Get Daily_Trends').all().map(i => d10(i.json['Дата'] || i.json['Date'])).filter(isDate);\nconst dsDates = $('Get day_sum').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate);\nconst dtSet = new Set(dtDates), dsSet = new Set(dsDates);\nconst days5 = [];\nfor (let k = 2; k <= 6; k++) days5.push(new Date(now + 10*3600000 - k*86400000).toISOString().slice(0, 10));\nif (dtSet.size === 0) notes.push('Daily_Trends не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dtSet.has(d)); if (m.length) problems.push('Daily_Trends нет строк за: ' + m.join(', ') + ' (Garmin-пайплайн?)'); }\nif (dsSet.size === 0) notes.push('day_sum не прочитан (лимит Google Sheets?) — проверка дыр пропущена');\nelse { const m = days5.filter(d => !dsSet.has(d)); if (m.length) problems.push('day_sum нет строк за: ' + m.join(', ') + ' (лог еды?)'); }\n\n// 2b) A3 — расширенная проверка дыр + дублей.\nconst mealDates = $('Get Meals').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate);\nconst mealSet = new Set(mealDates);\nif (mealSet.size === 0) notes.push('Meals не прочитан — проверка дыр пропущена');\nelse { const m = days5.filter(d => !mealSet.has(d)); if (m.length) problems.push('Meals нет записей за: ' + m.join(', ') + ' (лог еды не пишется?)'); }\n\n// Recommendations_Log: еженедельный советник — не должно быть тишины > 8 дней.\nconst recDates = $('Get Recommendations_Log').all().map(i => d10(i.json['Date'] || i.json['Дата'])).filter(isDate).sort();\nif (recDates.length) {\n  const ageDays = (new Date(now + 10*3600000 - 0) - new Date(recDates[recDates.length - 1])) / 86400000;\n  if (ageDays > 8) problems.push('Recommendations_Log: последняя запись ' + recDates[recDates.length - 1] + ' (' + Math.round(ageDays) + ' дн назад) — советник не отработал?');\n}\n\n// Дубли по дате в листах, где 1 строка = 1 день (Daily_Trends, day_sum).\nfunction dupsByDate(rows, key1, key2) {\n  const cnt = {};\n  rows.map(i => d10(i.json[key1] || i.json[key2])).filter(isDate).forEach(d => cnt[d] = (cnt[d] || 0) + 1);\n  return Object.entries(cnt).filter(([, c]) => c > 1).map(([d, c]) => d + '×' + c);\n}\nconst dtDup = dtSet.size ? dupsByDate($('Get Daily_Trends').all(), 'Дата', 'Date') : [];\nconst dsDup = dsSet.size ? dupsByDate($('Get day_sum').all(), 'Date', 'Дата') : [];\nif (dtDup.length) problems.push('🔴 Daily_Trends ДУБЛИ по дате: ' + dtDup.slice(0, 6).join(', '));\nif (dsDup.length) problems.push('🔴 day_sum ДУБЛИ по дате: ' + dsDup.slice(0, 6).join(', '));\n\n// 3) safety-гейт — проверяем РЕАЛЬНЫЙ вывод боевого loadGate, а не копию логики.\n// Инвариант: у этого пациента активная грыжа L5/S1 в Patient_State → гейт ОБЯЗАН быть blocked.\n// Если today-dashboard отдаёт blocked=false — это регрессия loadGate (fail-open).\ntry {\n  const g = todayCache && todayCache.decision && todayCache.decision.gate;\n  if (!g) {\n    notes.push('гейт: today-dashboard не отдал decision.gate — проверка пропущена');\n  } else if (g.blocked !== true) {\n    problems.push('🔴 ГЕЙТ НАГРУЗКИ ОТКРЫТ (blocked=' + g.blocked + ', source=' + (g.source || '?')\n      + '). При активной грыже L5/S1 это регрессия loadGate — проверь today_build.js / bc.');\n  } else if (!/ходьб|плаван/i.test(String(todayCache.decision.verdict || ''))) {\n    problems.push('гейт blocked, но verdict «' + todayCache.decision.verdict + '» не про ходьбу/плавание — проверь');\n  }\n} catch (e) { notes.push('гейт: проверка не удалась (' + String(e.message).slice(0, 50) + ')'); }\n\n// 4) активность воркфлоу — критичные ДОЛЖНЫ быть active. Снятие _Error Handler = тихая смерть оповещения.\nconst EXPECTED_ACTIVE = [\n  '_Error Handler', '_System Check', '_Backup Alert',\n  'Health Watchdog', 'Weekly AI Advisor', 'Anamnesis Collector', 'Reports',\n  '🚨Capitan', 'Sub-Agent: AI Doctor', 'Sub-Agent: Registrar',\n  'today-dashboard (cache)', 'health-dashboard (cache)', 'bioage-dashboard (cache)',\n  'Dashboard Cached', 'PhenoAge Calc',\n];\ntry {\n  const wf = await this.helpers.httpRequest({ method: 'GET', url: API + 'workflows?limit=250', json: true,\n    headers: { 'X-N8N-API-KEY': N8N_KEY }, timeout: 20000 });\n  const activeNames = new Set((wf.data || []).filter(w => w.active).map(w => w.name));\n  const missing = EXPECTED_ACTIVE.filter(n => !activeNames.has(n));\n  if (missing.length) problems.push('🔴 НЕ АКТИВНЫ критичные воркфлоу: ' + missing.join(', '));\n} catch (e) {\n  notes.push('проверка active-воркфлоу не удалась (' + String(e.message).slice(0, 50) + ') — n8n API?');\n}\n\n// 5) статус ночного бэкапа (файл пишет nightly_backup.sh; читаем через рейт-лимит-безопасный путь)\n// (само оповещение о бэкапе делает _Backup Alert; здесь — только в утренней сводке для полноты.)\n\n// 6) итог\nconst ts = new Date(now + 10*3600000).toISOString().slice(0, 16).replace('T', ' ');\nlet msg;\nif (problems.length) {\n  msg = '⚠️ <b>Система: проблемы (' + ts + ' ВЛ)</b>\\n\\n• ' + problems.join('\\n• ');\n  if (notes.length) msg += '\\n\\n<i>' + notes.join('; ') + '</i>';\n} else if (notes.length) {\n  msg = '✅ Система в норме (' + ts + ' ВЛ), но: ' + notes.join('; ') + '.';\n} else {\n  msg = '✅ Система в норме (' + ts + ' ВЛ). Вебхуки живы, кэши свежие, Daily_Trends/day_sum/Meals без дыр и дублей за 5 дней, советник свежий, гейт blocked (грыжа), критичные воркфлоу active.';\n}\nreturn [{ json: { message: msg, has_problems: problems.length > 0, problems, notes } }];\n"
+        }
+      },
+      {
+        "id": "08cd2c14-839c-4df1-a440-3ec1ff7d7e92",
+        "name": "Send",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          740,
+          0
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $json.message }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        }
+      },
+      {
+        "id": "b4fafb1c-f8b8-4a0c-a30d-40a3fc4521bb",
+        "name": "Get Meals",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          420,
+          140
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true,
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "46272f5f-c8d1-4ae7-ab43-1ab2fce6bc63",
+        "name": "Get Recommendations_Log",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          420,
+          260
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true,
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 2040028605,
+            "mode": "list",
+            "cachedResultName": "Recommendations_Log"
+          },
+          "options": {}
+        }
+      }
+    ],
+    "connections": {
+      "Daily 08:00": {
+        "main": [
+          [
+            {
+              "node": "Get Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Get day_sum",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get day_sum": {
+        "main": [
+          [
+            {
+              "node": "Get Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check": {
+        "main": [
+          [
+            {
+              "node": "Send",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Meals": {
+        "main": [
+          [
+            {
+              "node": "Get Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Check",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: token rotation)",
+    "name": "Patch 0becd5d7 — token rotation",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
