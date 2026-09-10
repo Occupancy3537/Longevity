@@ -1,0 +1,633 @@
+{
+  "updatedAt": "2026-09-10T11:48:23.000Z",
+  "createdAt": "2026-09-10T11:07:46.598Z",
+  "id": "DietQualTagger1",
+  "name": "Diet Quality Tagger",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "25e4f71a-cedf-41f4-ae43-102b19e6e7ad",
+      "name": "Every 10 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ff6cdde2-948e-46b8-82a6-bccfdc4ab9fb",
+      "name": "Get Meals",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "3d2c77c1-d9ad-4d2f-9627-904e0d2a0f10",
+      "name": "Pick Untagged",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const rows = $('Get Meals').all().map(i => i.json)\n  .filter(r => r && r.Entry_ID && String(r.Meal_description || '').trim()\n    && (r.NOVA === undefined || r.NOVA === null || String(r.NOVA).trim() === ''));\nrows.sort((a, b) => Number(b.Entry_ID) - Number(a.Entry_ID));\nreturn rows.slice(0, 8).map(r => ({ json: { Entry_ID: r.Entry_ID, Meal_description: String(r.Meal_description).trim() } }));"
+      }
+    },
+    {
+      "id": "4f4c26a5-bb83-4a19-8ec1-d5bc19754f19",
+      "name": "Any?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f84051a3-1fee-4cc5-bcf3-10e8071af4e5",
+              "leftValue": "={{ $json.Entry_ID }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "36d3a9f2-dcd8-46f5-85b0-eb9e83289038",
+      "name": "Build Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const RULES = [\n  'NOVA — доминирующая группа переработки по доле калорий блюда: 1 необработанные/минимально обработанные (свежие, сушёные, мороженые овощи, фрукты, крупы, бобовые, орехи, яйца, молоко, мясо, рыба, натуральный йогурт без добавок); 2 кулинарные ингредиенты (растит. и слив. масло, сахар, мёд, соль); 3 обработанные (хлеб, сыр, консервы, соленья, копчёности, свежая выпечка); 4 ультра-обработанные (снеки, газировка и сладкие напитки, колбаса/сосиски, кондитерка и печенье, готовые блюда, фастфуд, сухие завтраки, всё с длинным составом и промышленными добавками). Смешанное блюдо -> группа, дающая больше калорий.',\n  'veg_g — овощи БЕЗ картофеля (г). fruit_g — фрукты и ягоды (г), сок НЕ считать. wholegrain_g — цельнозерновые (цельнозерновой хлеб, овсянка, гречка, бурый рис, киноа, перловка); белый хлеб/рис/макароны/манка = 0. legume_nut_g — бобовые + орехи + семена (г). redmeat_g — красное (говядина, свинина, баранина) + переработанное мясо (колбаса, сосиски, бекон, ветчина) (г). ssb_ml — сладкие напитки + фруктовый сок (мл). pufa_g — полиненасыщенные жиры (омега-6 + растительная омега-3 ALA, БЕЗ EPA/DHA), г, оценка.',\n  'Если в описании нет количества — оцени по типичной порции. Все числа без единиц измерения.',\n  'plants — строка: перечисли ВСЕ разные виды растений в блюде через запятую, включая травы и специи (напр. \"овёс, банан, корица\"). Пустая строка, если растений нет.',\n].join('\\n- ');\nreturn $input.all().map(it => ({ json: {\n  Entry_ID: it.json.Entry_ID,\n  prompt: 'Классифицируй приём пищи для индексов качества рациона. Описание блюда:\\n\"' + it.json.Meal_description + '\"\\n\\n'\n    + 'Верни ТОЛЬКО JSON, без markdown и текста вокруг:\\n'\n    + '{\"NOVA\":1,\"veg_g\":0,\"fruit_g\":0,\"wholegrain_g\":0,\"legume_nut_g\":0,\"redmeat_g\":0,\"ssb_ml\":0,\"pufa_g\":0,\"plants\":\"\"}\\n\\n'\n    + 'Правила:\\n- ' + RULES,\n} }));"
+      }
+    },
+    {
+      "id": "a7278184-0dc0-4c75-a4d1-653e6186a741",
+      "name": "Parse Tags",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const outs = $input.all();\nconst srcs = $('Build Prompts').all();\nconst num = v => { const n = Number(v); return isFinite(n) ? Math.round(n * 10) / 10 : 0; };\nconst res = [];\nouts.forEach((o, i) => {\n  const eid = srcs[i] && srcs[i].json.Entry_ID;\n  if (!eid) return;\n  let raw = '';\n  try { raw = String(o.json.choices[0].message.content || '').trim(); } catch (e) {}\n  let j = null;\n  try { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); if (s >= 0 && e > s) j = JSON.parse(raw.slice(s, e + 1)); } catch (err) {}\n  if (!j || j.NOVA == null) return;\n  const nova = Math.max(1, Math.min(4, Math.round(Number(j.NOVA) || 1)));\n  res.push({ json: {\n    Entry_ID: eid, NOVA: nova,\n    veg_g: num(j.veg_g), fruit_g: num(j.fruit_g), wholegrain_g: num(j.wholegrain_g),\n    legume_nut_g: num(j.legume_nut_g), redmeat_g: num(j.redmeat_g), ssb_ml: num(j.ssb_ml),\n    'ПНЖ': num(j.pufa_g), plants: String(j.plants || '').trim().slice(0, 300),\n  } });\n});\nreturn res;"
+      }
+    },
+    {
+      "id": "c9f1eb8d-2b22-4ef2-a659-e87a4ce94dd3",
+      "name": "Write Tags",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Entry_ID"
+          ],
+          "schema": [],
+          "value": {
+            "Entry_ID": "={{ $json.Entry_ID }}",
+            "NOVA": "={{ $json.NOVA }}",
+            "veg_g": "={{ $json.veg_g }}",
+            "fruit_g": "={{ $json.fruit_g }}",
+            "wholegrain_g": "={{ $json.wholegrain_g }}",
+            "legume_nut_g": "={{ $json.legume_nut_g }}",
+            "redmeat_g": "={{ $json.redmeat_g }}",
+            "ssb_ml": "={{ $json.ssb_ml }}",
+            "ПНЖ": "={{ $json['ПНЖ'] }}",
+            "plants": "={{ $json.plants }}"
+          },
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "79bc84ce-839a-4a5d-8ac8-1addcc8b4e86",
+      "name": "OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'google/gemini-3.1-flash-lite', temperature: 0.1, max_tokens: 220, messages: [{ role: 'user', content: $json.prompt }] }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "iXcyPObjuU33HaLs",
+          "name": "OpenRouter account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Every 10 min": {
+      "main": [
+        [
+          {
+            "node": "Get Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meals": {
+      "main": [
+        [
+          {
+            "node": "Pick Untagged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Untagged": {
+      "main": [
+        [
+          {
+            "node": "Any?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any?": {
+      "main": [
+        [
+          {
+            "node": "Build Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Prompts": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Tags": {
+      "main": [
+        [
+          {
+            "node": "Write Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Tags": {
+      "main": [
+        []
+      ]
+    },
+    "OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "Parse Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "node:Every 10 min": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "lock": 0
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "09669147-3da2-4de9-b5ea-ebf5f86dcf02",
+  "activeVersionId": "09669147-3da2-4de9-b5ea-ebf5f86dcf02",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-10T11:07:46.598Z",
+      "createdAt": "2026-09-10T11:07:46.598Z",
+      "role": "workflow:owner",
+      "workflowId": "DietQualTagger1",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-10T11:48:16.692Z",
+    "createdAt": "2026-09-10T11:48:16.692Z",
+    "versionId": "09669147-3da2-4de9-b5ea-ebf5f86dcf02",
+    "workflowId": "DietQualTagger1",
+    "nodes": [
+      {
+        "id": "25e4f71a-cedf-41f4-ae43-102b19e6e7ad",
+        "name": "Every 10 min",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "ff6cdde2-948e-46b8-82a6-bccfdc4ab9fb",
+        "name": "Get Meals",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          200,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "stopWorkflow"
+      },
+      {
+        "id": "3d2c77c1-d9ad-4d2f-9627-904e0d2a0f10",
+        "name": "Pick Untagged",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          400,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const rows = $('Get Meals').all().map(i => i.json)\n  .filter(r => r && r.Entry_ID && String(r.Meal_description || '').trim()\n    && (r.NOVA === undefined || r.NOVA === null || String(r.NOVA).trim() === ''));\nrows.sort((a, b) => Number(b.Entry_ID) - Number(a.Entry_ID));\nreturn rows.slice(0, 8).map(r => ({ json: { Entry_ID: r.Entry_ID, Meal_description: String(r.Meal_description).trim() } }));"
+        }
+      },
+      {
+        "id": "4f4c26a5-bb83-4a19-8ec1-d5bc19754f19",
+        "name": "Any?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          600,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "f84051a3-1fee-4cc5-bcf3-10e8071af4e5",
+                "leftValue": "={{ $json.Entry_ID }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "exists",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        }
+      },
+      {
+        "id": "36d3a9f2-dcd8-46f5-85b0-eb9e83289038",
+        "name": "Build Prompts",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          800,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const RULES = [\n  'NOVA — доминирующая группа переработки по доле калорий блюда: 1 необработанные/минимально обработанные (свежие, сушёные, мороженые овощи, фрукты, крупы, бобовые, орехи, яйца, молоко, мясо, рыба, натуральный йогурт без добавок); 2 кулинарные ингредиенты (растит. и слив. масло, сахар, мёд, соль); 3 обработанные (хлеб, сыр, консервы, соленья, копчёности, свежая выпечка); 4 ультра-обработанные (снеки, газировка и сладкие напитки, колбаса/сосиски, кондитерка и печенье, готовые блюда, фастфуд, сухие завтраки, всё с длинным составом и промышленными добавками). Смешанное блюдо -> группа, дающая больше калорий.',\n  'veg_g — овощи БЕЗ картофеля (г). fruit_g — фрукты и ягоды (г), сок НЕ считать. wholegrain_g — цельнозерновые (цельнозерновой хлеб, овсянка, гречка, бурый рис, киноа, перловка); белый хлеб/рис/макароны/манка = 0. legume_nut_g — бобовые + орехи + семена (г). redmeat_g — красное (говядина, свинина, баранина) + переработанное мясо (колбаса, сосиски, бекон, ветчина) (г). ssb_ml — сладкие напитки + фруктовый сок (мл). pufa_g — полиненасыщенные жиры (омега-6 + растительная омега-3 ALA, БЕЗ EPA/DHA), г, оценка.',\n  'Если в описании нет количества — оцени по типичной порции. Все числа без единиц измерения.',\n  'plants — строка: перечисли ВСЕ разные виды растений в блюде через запятую, включая травы и специи (напр. \"овёс, банан, корица\"). Пустая строка, если растений нет.',\n].join('\\n- ');\nreturn $input.all().map(it => ({ json: {\n  Entry_ID: it.json.Entry_ID,\n  prompt: 'Классифицируй приём пищи для индексов качества рациона. Описание блюда:\\n\"' + it.json.Meal_description + '\"\\n\\n'\n    + 'Верни ТОЛЬКО JSON, без markdown и текста вокруг:\\n'\n    + '{\"NOVA\":1,\"veg_g\":0,\"fruit_g\":0,\"wholegrain_g\":0,\"legume_nut_g\":0,\"redmeat_g\":0,\"ssb_ml\":0,\"pufa_g\":0,\"plants\":\"\"}\\n\\n'\n    + 'Правила:\\n- ' + RULES,\n} }));"
+        }
+      },
+      {
+        "id": "a7278184-0dc0-4c75-a4d1-653e6186a741",
+        "name": "Parse Tags",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1200,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const outs = $input.all();\nconst srcs = $('Build Prompts').all();\nconst num = v => { const n = Number(v); return isFinite(n) ? Math.round(n * 10) / 10 : 0; };\nconst res = [];\nouts.forEach((o, i) => {\n  const eid = srcs[i] && srcs[i].json.Entry_ID;\n  if (!eid) return;\n  let raw = '';\n  try { raw = String(o.json.choices[0].message.content || '').trim(); } catch (e) {}\n  let j = null;\n  try { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); if (s >= 0 && e > s) j = JSON.parse(raw.slice(s, e + 1)); } catch (err) {}\n  if (!j || j.NOVA == null) return;\n  const nova = Math.max(1, Math.min(4, Math.round(Number(j.NOVA) || 1)));\n  res.push({ json: {\n    Entry_ID: eid, NOVA: nova,\n    veg_g: num(j.veg_g), fruit_g: num(j.fruit_g), wholegrain_g: num(j.wholegrain_g),\n    legume_nut_g: num(j.legume_nut_g), redmeat_g: num(j.redmeat_g), ssb_ml: num(j.ssb_ml),\n    'ПНЖ': num(j.pufa_g), plants: String(j.plants || '').trim().slice(0, 300),\n  } });\n});\nreturn res;"
+        }
+      },
+      {
+        "id": "c9f1eb8d-2b22-4ef2-a659-e87a4ce94dd3",
+        "name": "Write Tags",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1400,
+          0
+        ],
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "matchingColumns": [
+              "Entry_ID"
+            ],
+            "schema": [],
+            "value": {
+              "Entry_ID": "={{ $json.Entry_ID }}",
+              "NOVA": "={{ $json.NOVA }}",
+              "veg_g": "={{ $json.veg_g }}",
+              "fruit_g": "={{ $json.fruit_g }}",
+              "wholegrain_g": "={{ $json.wholegrain_g }}",
+              "legume_nut_g": "={{ $json.legume_nut_g }}",
+              "redmeat_g": "={{ $json.redmeat_g }}",
+              "ssb_ml": "={{ $json.ssb_ml }}",
+              "ПНЖ": "={{ $json['ПНЖ'] }}",
+              "plants": "={{ $json.plants }}"
+            },
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "79bc84ce-839a-4a5d-8ac8-1addcc8b4e86",
+        "name": "OpenRouter",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          980,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://openrouter.ai/api/v1/chat/completions",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "openRouterApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ model: 'google/gemini-3.1-flash-lite', temperature: 0.1, max_tokens: 220, messages: [{ role: 'user', content: $json.prompt }] }) }}",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "credentials": {
+          "openRouterApi": {
+            "id": "iXcyPObjuU33HaLs",
+            "name": "OpenRouter account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    ],
+    "connections": {
+      "Every 10 min": {
+        "main": [
+          [
+            {
+              "node": "Get Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Meals": {
+        "main": [
+          [
+            {
+              "node": "Pick Untagged",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pick Untagged": {
+        "main": [
+          [
+            {
+              "node": "Any?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Any?": {
+        "main": [
+          [
+            {
+              "node": "Build Prompts",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Build Prompts": {
+        "main": [
+          [
+            {
+              "node": "OpenRouter",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Tags": {
+        "main": [
+          [
+            {
+              "node": "Write Tags",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write Tags": {
+        "main": [
+          []
+        ]
+      },
+      "OpenRouter": {
+        "main": [
+          [
+            {
+              "node": "Parse Tags",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: tagger: throttle CAP8 cron15)",
+    "name": "Patch 09669147 — tagger: throttle CAP8 cron15",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
