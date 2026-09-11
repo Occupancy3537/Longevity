@@ -1,0 +1,1418 @@
+{
+  "updatedAt": "2026-09-11T02:07:02.000Z",
+  "createdAt": "2026-09-06T03:47:47.882Z",
+  "id": "dAcQUJG3Z7Z74SyO",
+  "name": "today-dashboard (cache)",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1100,
+        -40
+      ],
+      "id": "8db98b4a-6a82-46d1-a161-447216985150",
+      "name": "Every 10 min"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Daily_Trends",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -920,
+        -40
+      ],
+      "id": "6c99b3b9-5090-43ea-aef1-535c2e1c69e1",
+      "name": "Get Daily_Trends",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Meals",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -745,
+        -40
+      ],
+      "id": "cc132887-dee5-441d-b699-775edc42b473",
+      "name": "Get Meals",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Nutrient_Targets",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -570,
+        -40
+      ],
+      "id": "066f03bd-3351-4379-96ba-583ea6d6c72b",
+      "name": "Get Nutrient_Targets",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Doctor_Notes",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -395,
+        -40
+      ],
+      "id": "7b537a33-1b51-4660-8818-246ab4dbb893",
+      "name": "Get Doctor_Notes",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Recommendations_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -220,
+        -40
+      ],
+      "id": "af16c2ff-0f53-4478-9e8f-3375925cec82",
+      "name": "Get Recommendations_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM health.phenoage_log ORDER BY \"date\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -45,
+        -40
+      ],
+      "id": "239557ad-0f97-4b0e-a8c0-b82465ac109f",
+      "name": "Get PhenoAge_Log",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Action_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        130,
+        -40
+      ],
+      "id": "2aea8f82-1ff7-4691-b9fa-e4f866106006",
+      "name": "Get Action_Log",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Patient_State",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        305,
+        -40
+      ],
+      "id": "84668b1b-29fc-48ae-a99d-0dfd9896e08b",
+      "name": "Get Patient_State",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Лист1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        -40
+      ],
+      "id": "4f529b5f-0bc6-4189-9d1d-149bca030e96",
+      "name": "Get User_Profile",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// today-dashboard — вкладка «Сегодня». Экран решений, а не сводка новостей.\n// Источники: Get Daily_Trends, Get Meals, Get Nutrient_Targets, Get Doctor_Notes,\n//            Get Recommendations_Log, Get PhenoAge_Log, Get Action_Log.\n// Порядок блоков: сверху то, на что влияешь прямо сейчас; хроника и лаборатория — внизу.\n// Run Once for All Items.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace('%', '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction dkey(v) { return String(v == null ? '' : v).slice(0, 10); }\nfunction d10(v) {\n  const s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nfunction r1(x) { return x == null ? null : Math.round(x * 10) / 10; }\nfunction mean(a) { const x = a.filter(v => v != null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; }\n\nconst daily   = safeAll('Get Daily_Trends');\nconst meals   = safeAll('Get Meals');\nconst targets = safeAll('Get Nutrient_Targets');\nconst notes   = safeAll('Get Doctor_Notes');\nconst recs    = safeAll('Get Recommendations_Log');\nconst pheno   = safeAll('Get PhenoAge_Log');\nconst acts    = safeAll('Get Action_Log');       // может не существовать — нода с onError:continue\nconst pstate  = safeAll('Get Patient_State');    // карта хронических состояний (Этап 1)\nconst profRows= safeAll('Get User_Profile');\nconst profile = profRows[0] || {};\n\n// ---------- время ----------\nconst nowVl   = new Date(Date.now() + 10 * 3600 * 1000);          // Владивосток = UTC+10\nconst todayISO = nowVl.toISOString().slice(0, 10);\nconst nowMin  = nowVl.getUTCHours() * 60 + nowVl.getUTCMinutes();\nfunction hhmm(min) {\n  const m = ((min % 1440) + 1440) % 1440;\n  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');\n}\n\nconst rows = daily.filter(r => r['Дата']).sort((a, b) => dkey(a['Дата']).localeCompare(dkey(b['Дата'])));\n// последняя строка НЕ ПОЗЖЕ сегодня — строки с будущей датой (заглушки под новые колонки,\n// приходящие данные) не должны становиться источником «Решения дня».\nconst pastRows = rows.filter(r => dkey(r['Дата']) <= todayISO);\nconst last = pastRows[pastRows.length - 1] || rows[rows.length - 1] || {};\nconst lastDate = dkey(last['Дата']) || todayISO;\n\n// =====================================================================\n// 1. РЕШЕНИЕ ДНЯ — нагрузка или восстановление\n// =====================================================================\n// Базовая линия ВСР за 30 дней (как в детекторе аномалий: окно ДО текущего дня)\nfunction baseline(col, days) {\n  const from = new Date(new Date(lastDate + 'T00:00:00Z').getTime() - days * 86400000).toISOString().slice(0, 10);\n  const v = rows.filter(r => dkey(r['Дата']) >= from && dkey(r['Дата']) < lastDate).map(r => num(r[col]));\n  return mean(v);\n}\nconst bb      = num(last['Восстановление_BodyBattery']);\nconst hrv     = num(last['ВСР_ночная']);\nconst hrvBase = baseline('ВСР_ночная', 30);\nconst hrvDelta = (hrv != null && hrvBase != null) ? hrv - hrvBase : null;\n\n// Нагрузка: ACWR берём у Garmin — он считает его сам (dailyAcuteChronicWorkloadRatio +\n// acwrStatus LOW/OPTIMAL/HIGH, поля ACWR_Garmin / ACWR_Status, Этап 5). В старых строках\n// Daily_Trends этих полей ещё нет → откат на самодельный расчёт (7д/28д по калориям тренировок).\nfunction loadMean(days) {\n  const from = new Date(new Date(lastDate + 'T00:00:00Z').getTime() - days * 86400000).toISOString().slice(0, 10);\n  return mean(rows.filter(r => dkey(r['Дата']) > from).map(r => num(r['Тренировка_Ккал']) || 0));\n}\nconst acwrGarmin  = num(last['ACWR_Garmin']);\nconst acwrStatusG = String(last['ACWR_Status'] || '').trim().toUpperCase() || null;\nlet acwr, acwrSource;\nif (acwrGarmin != null) {\n  acwr = acwrGarmin;\n  acwrSource = 'garmin';\n} else {\n  const acute = loadMean(7), chronic = loadMean(28);\n  acwr = (acute != null && chronic) ? Math.round((acute / chronic) * 100) / 100 : null;\n  acwrSource = acwr != null ? 'self' : null;\n}\n// «перегруз»: Garmin говорит HIGH, либо (на самодельном ACWR) отношение > 1.5\nconst loadHigh = acwrStatusG ? acwrStatusG === 'HIGH' : (acwr != null && acwr > 1.5);\n\n// ---------------------------------------------------------------------\n// ГЕЙТ БЕЗОПАСНОСТИ (Этап 1). Fail-safe: нет данных о снятии → ограничение действует.\n// Авторитетный источник — Patient_State; если пуст/недоступен — читаем профиль.\n// Возвращает медицинский потолок нагрузки, который НЕЛЬЗЯ превысить,\n// что бы ни показывали Body Battery / ВСР.\n// Уровни: 0 отдых · 1 ходьба · 2 +плавание · 3 умеренная аэробика · 4 интенсив\n// ---------------------------------------------------------------------\nconst HERNIA_RX = /грыж|радикулопат|протру[зи]|экструз|модик|modic|корешк/i;\nfunction loadGate() {\n  const active = pstate.filter(x =>\n    String(x.Status || '').toLowerCase() === 'active' &&\n    String(x.Contra_Load || '').trim());\n  if (active.length) {\n    const x = active.sort((a, b) => String(b.Confirmed_Date).localeCompare(String(a.Confirmed_Date)))[0];\n    const swim = /плаван/i.test(x.Allowed || '');\n    return {\n      cap: swim ? 2 : 1, blocked: true, condition: x.Condition,\n      contra: x.Contra_Load, allowed: x.Allowed || '', provokers: x.Provokers || '',\n      review_due: x.Review_Due || null,\n      source: (x.Source || 'карта пациента') + (x.Confirmed_Date ? ' от ' + x.Confirmed_Date : ''),\n    };\n  }\n  const oda = String(profile['ОДА и неврология'] || profile['ОДА и неврология '] || '');\n  const profHernia = HERNIA_RX.test(oda) && !/ремисси|снят|полн(ое|ая) восстановлен|разрешена нагрузка/i.test(oda);\n  const profSwim = profHernia && /плаван|бассейн/i.test(oda);\n\n  // A6 fail-safe (ревью Opus 5, 2026-09-09): Patient_State ЗАСИЖЕН строкой про грыжу\n  // (_setup helper sheets, state_id=hernia_l5s1). 0 строк там = чтение НЕ ПРОШЛО (rate-limit),\n  // а НЕ «ограничений нет». Это верно НЕЗАВИСИМО от того, прочитался ли профиль.\n  if (pstate.length === 0) {\n    return {\n      cap: profSwim ? 2 : 1, blocked: true, degraded: true,\n      condition: profHernia\n        ? 'Грыжа/радикулопатия — Patient_State не прочитан, профиль подтверждает'\n        : 'Карта пациента не прочитана (Patient_State пуст)',\n      contra: 'осевая нагрузка, подъём тяжестей, скручивания, бег, прыжки, интервалы',\n      allowed: 'ходьба' + (profSwim ? ', плавание' : ''),\n      provokers: '', review_due: null,\n      source: '⚠️ PATIENT_STATE НЕ ПРОЧИТАН' + (profHernia ? ' (профиль подтверждает грыжу)' : ''),\n    };\n  }\n\n  // Patient_State прочитан, активных ограничений нет — но профиль страхует (belt-and-suspenders).\n  if (profHernia) {\n    return {\n      cap: profSwim ? 2 : 1, blocked: true,\n      condition: 'Грыжа/радикулопатия (из профиля; в Patient_State активных ограничений нет)',\n      contra: 'осевая нагрузка, подъём тяжестей, скручивания, бег/прыжки/интенсив',\n      allowed: 'ходьба' + (profSwim ? ', плавание' : ''),\n      provokers: '', review_due: null,\n      source: 'User_Profile (Patient_State без активных ограничений)',\n    };\n  }\n\n  return { cap: 4, blocked: false, condition: null, contra: null, allowed: '', provokers: '', review_due: null, source: null };\n}\nconst gate = loadGate();\n\nconst reasons = [];\nif (bb != null) reasons.push({ label: 'Body Battery', value: bb, judgment: bb >= 70 ? 'good' : bb >= 40 ? 'neutral' : 'bad' });\nif (hrvDelta != null) reasons.push({\n  label: 'ВСР к базе', value: (hrvDelta > 0 ? '+' : '') + r1(hrvDelta) + ' мс',\n  judgment: Math.abs(hrvDelta) < 6 ? 'neutral' : hrvDelta > 0 ? 'good' : 'bad',\n});\nif (acwr != null) reasons.push({\n  label: acwrSource === 'garmin' ? 'ACWR (Garmin)' : 'Нагрузка 7д/28д',\n  value: acwrStatusG ? `${acwr} · ${acwrStatusG}` : acwr,\n  judgment: loadHigh ? 'bad' : (acwrStatusG === 'LOW' || acwr < 0.8) ? 'neutral' : 'good',\n});\n\n// физиологическая готовность (по восстановлению) -> потолок 1..4\nlet readiness = 0;\nif (bb != null) {\n  const hrvBad = hrvDelta != null && hrvDelta <= -6;\n  readiness = (bb >= 70 && !hrvBad && !loadHigh) ? 4 : (bb >= 40 && !loadHigh) ? 3 : 1;\n}\n// Нет свежих данных Garmin (часы не синхронизировались / пропущен ночной прогон / строка-заглушка).\n// Фаза 1.2: без данных о восстановлении — потолок «ходьба и плавание», не собираем вердикт из нулей.\nconst noGarminToday = bb == null && hrv == null && num(last['Чистый_сон_мин']) == null;\n\n// финальный потолок — минимум из медицинского и физиологического\nlet finalCap;\nif (noGarminToday) finalCap = Math.min(gate.blocked ? gate.cap : 2, 2);\nelse if (bb == null) finalCap = gate.blocked ? gate.cap : 0;\nelse finalCap = Math.min(gate.cap, readiness);\nconst CAP_LABEL = { 0: 'нет данных', 1: 'только ходьба', 2: 'ходьба и плавание', 3: 'умеренная аэробика', 4: 'можно интенсив' };\nconst verdict = CAP_LABEL[finalCap];\n\nlet verdictNote;\nif (noGarminToday) {\n  verdictNote = gate.blocked\n    ? `Нет свежих данных Garmin + ${gate.condition}. Режим: ${verdict}, ничего сверх, пока часы не синхронизируются.`\n    : 'Нет свежих данных Garmin (часы не синхронизировались?). Режим: ходьба и плавание, пока данные не появятся — вердикт по восстановлению не строим.';\n} else if (bb == null && !gate.blocked) {\n  verdictNote = 'Не хватает данных Garmin за сегодня — держись лёгкой активности.';\n} else if (gate.blocked && gate.cap <= readiness) {\n  // медицинское ограничение — главная причина\n  verdictNote = `${gate.condition}: ${gate.contra}. По восстановлению запас ${readiness >= 4 ? 'полный' : readiness >= 3 ? 'средний' : 'низкий'}, но это не отменяет ограничение по спине.`;\n} else if (finalCap >= 4) {\n  verdictNote = 'Резерв восстановления есть, ВСР не просела, нагрузка не накоплена. Ограничений по здоровью нет.';\n} else if (finalCap === 3) {\n  verdictNote = (hrvDelta != null && hrvDelta <= -6)\n    ? 'ВСР ниже твоей базы — аэробная работа без ударных интервалов.'\n    : 'Резерв средний: аэробная работа без интенсива.';\n} else {\n  verdictNote = loadHigh\n    ? 'Накоплена нагрузка — сегодня разгрузочный день.'\n    : 'Низкий резерв восстановления — сегодня только лёгкая активность.';\n}\n\nconst decision = {\n  verdict, note: verdictNote, reasons,\n  gate: {\n    blocked: gate.blocked, condition: gate.condition, contra: gate.contra,\n    allowed: gate.allowed, provokers: gate.provokers,\n    review_due: gate.review_due, source: gate.source, degraded: !!gate.degraded,\n  },\n  readiness_cap: readiness, medical_cap: gate.cap, final_cap: finalCap,\n  no_garmin_today: noGarminToday,\n  acwr, acwr_status: acwrStatusG, acwr_source: acwrSource, load_high: loadHigh,\n  garmin_device: last['Garmin_устройство'] || null,\n  training_status: last['Training_Status'] || null,\n  // старые поля — для совместимости с текущим фронтендом\n  caution: gate.blocked ? `${gate.condition}. Разрешено: ${gate.allowed || 'ходьба'}` : null,\n  limit: gate.blocked ? gate.contra : null,\n};\n\n// =====================================================================\n// 2. ОКНА ДНЯ\n// =====================================================================\n// Целевой отбой: если советник дал действие со временем — берём его, иначе 23:30.\nfunction parseActions(txt) {\n  const m = String(txt || '').match(/<<<ACTIONS\\s*([\\s\\S]*?)\\s*ACTIONS>>>/);\n  if (!m) return null;\n  try { const o = JSON.parse(m[1].trim()); return (o && Array.isArray(o.actions)) ? o : null; } catch (e) { return null; }\n}\nconst recSorted = recs.filter(r => r.Recommendation_Text && dkey(r.Date) <= todayISO)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)));\nconst latestRec = recSorted[0] || null;\nconst latestParsed = latestRec ? parseActions(latestRec.Recommendation_Text) : null;\nconst latestActions = latestParsed ? latestParsed.actions : [];\n\nlet bedMin = 23 * 60 + 30;\nfor (const a of latestActions) {\n  const m = String(a.title || '').match(/(\\d{1,2})[:.](\\d{2})/);\n  if (m && /отбо|спат|лож|сон/i.test(a.title)) { bedMin = (+m[1]) * 60 + (+m[2]); break; }\n}\nconst coffeeMin = bedMin - 8 * 60;   // кофеин: период полувыведения ~5–6 ч\nconst mealMin   = bedMin - 3 * 60;   // последняя еда за 3 ч до сна\n\n// ВАЖНО: обратный отсчёт здесь НЕ считаем — это кэш, значение протухнет к моменту просмотра.\n// Бэкенд отдаёт только целевое время, «сколько осталось» считает браузер при отрисовке.\nfunction windowOf(key, label, targetMin, hint) {\n  return { key, label, until: hhmm(targetMin), target_min: targetMin, hint };\n}\nconst windows = [\n  windowOf('coffee', 'Последний кофе', coffeeMin, 'за 8 ч до отбоя'),\n  windowOf('meal', 'Последняя еда', mealMin, 'за 3 ч до отбоя'),\n  windowOf('bed', 'Отбой', bedMin, latestActions.some(a => /отбо|спат/i.test(a.title || '')) ? 'из плана советника' : 'цель по умолчанию'),\n];\n\n// серии: сколько ночей подряд сон в целевой зоне 7–9 ч\nconst SLEEP_MIN_OK = 420, SLEEP_MAX_OK = 540;\nlet sleepStreak = 0;\nfor (let i = rows.length - 1; i >= 0; i--) {\n  const v = num(rows[i]['Чистый_сон_мин']);\n  if (v != null && v >= SLEEP_MIN_OK && v <= SLEEP_MAX_OK) sleepStreak++; else break;\n}\nconst streaks = [];\nif (sleepStreak > 0) streaks.push({ label: 'Сон в зоне 7–9 ч', count: sleepStreak, unit: 'ночей' });\n\n// =====================================================================\n// 3. БЮДЖЕТ ДНЯ — сколько ещё можно / сколько добрать\n// =====================================================================\nfunction parseTargetNum(v) {\n  if (v == null) return null;\n  const s = String(v).trim();\n  if (/^не\\s/i.test(s)) return null;\n  const m = s.match(/-?\\d+(?:[.,]\\d+)?/);\n  return m ? parseFloat(m[0].replace(',', '.')) : null;\n}\nconst todayMeals = meals.filter(m => m.Date && dkey(m.Date) === todayISO);\nfunction sumCol(col) {\n  return todayMeals.reduce((s, m) => s + (num(m[col]) || 0), 0);\n}\n// что показываем в бюджете: лимиты, которые легко пробить, и цели, которые обычно недобираются\nconst BUDGET_KEYS = ['Насыщенные жиры', 'Добавленный сахар', 'Натрий', 'Кофеин', 'Клетчатка', 'Витамин D', 'Кальций'];\nconst budget = [];\nfor (const t of targets) {\n  const name = t['Нутриент'];\n  if (!BUDGET_KEYS.includes(name)) continue;\n  const col = t['Колонка_в_Meals'];\n  if (!col) continue;\n  const isLimit = String(t['Категория'] || '').includes('Риск избытка');\n  const rda = parseTargetNum(t['Норма_RDA_AI']);\n  const ul  = parseTargetNum(t['Верхний_предел_UL']);\n  const cap = isLimit ? ul : rda;\n  if (!cap) continue;\n  const consumed = Math.round(sumCol(col) * 100) / 100;\n  const pct = Math.round((consumed / cap) * 100);\n  budget.push({\n    label: name, unit: t['Единица'] || '', kind: isLimit ? 'limit' : 'goal',\n    consumed, cap, pct,\n    remaining: Math.round((cap - consumed) * 100) / 100,\n    status: isLimit ? (pct > 100 ? 'over' : pct >= 80 ? 'close' : 'ok')\n                    : (pct >= 100 ? 'done' : pct >= 60 ? 'partial' : 'low'),\n  });\n}\nbudget.sort((a, b) => (a.kind === b.kind ? b.pct - a.pct : a.kind === 'limit' ? -1 : 1));\n\n// протеин/калории за сегодня — из тех же Meals\nconst kcalToday = Math.round(sumCol('Calories'));\nconst protToday = Math.round(sumCol('Proteins'));\n\n// =====================================================================\n// 4. ПЛАН НЕДЕЛИ + отметки выполнения\n// =====================================================================\n// Без отметки «сделал» замер эффекта в «Что сработало» measures совпадение, а не эффект.\nfunction actionId(issued, title) {\n  return (issued || '') + '|' + String(title || '').slice(0, 60).replace(/\\s+/g, ' ').trim();\n}\nconst doneMap = {};\nacts.forEach(a => {\n  if (a.Action_ID) doneMap[String(a.Action_ID)] = String(a.Done || '').toLowerCase() === 'да'\n    || String(a.Done || '').toLowerCase() === 'true' || a.Done === true;\n});\nconst issued = latestRec ? dkey(latestRec.Date) : null;\n// Блокировка гейтом — по ТИПУ действия из машинного блока советника (Фаза 1), не по regex.\n// Fail-safe: нет type / other + нагрузочно звучит → тоже блок.\nconst LOAD_RX = /интенсив|интервал|hiit|бег|пробеж|прыж|присед|становая|штанг|турник|подтяг|отжим|планк|скручиван|макгил|ротац|наклон|подним|тяж(?:есть|ести|[её]л|\\b)|спринт|силов|кроссфит|бадминтон|берпи|выпад|растяж|мобилити|йог|лфк|упражнен|качат|тренаж|скакалк|степ[- ]?аэроб|ударн|отягощ|гантел|гир(?:я|ю|ей)|планер/i;\nconst allowedLC = String(gate.allowed || '').toLowerCase();\nconst gAllowWalk = /ходьб|walk|прогул/.test(allowedLC);\nconst gAllowSwim = /плаван|бассейн|swim/.test(allowedLC);\nfunction actionConflicts(a) {\n  if (!gate.blocked) return false;\n  const t = String(a.type || '').toLowerCase();\n  if (t === 'load_high' || t === 'load_low') return true;\n  if (t === 'walk') return !gAllowWalk;\n  if (t === 'swim') return !gAllowSwim;\n  // Opus 5: regex по ВСЕМ типам (не только other/unknown) — type-метку ставит та же LLM.\n  if (LOAD_RX.test(String(a.title) + ' ' + String(a.why))) return true;\n  if (gate.degraded && (!t || t === 'unknown')) return true;   // карта недоступна → режем сомнительное\n  return false;\n}\nconst plan = {\n  date: issued,\n  actions: latestActions.map(a => {\n    const conflicts = actionConflicts(a);\n    return {\n      id: actionId(issued, a.title),\n      title: a.title, why: a.why || '', expect: a.expect || '',\n      priority: a.priority || 'средний', metric: a.metric || null, type: a.type || null,\n      done: !!doneMap[actionId(issued, a.title)],\n      blocked_by_gate: conflicts,\n      gate_note: conflicts ? `Противоречит ограничению: ${gate.condition}. Разрешено только: ${gate.allowed || 'ходьба'}` : null,\n    };\n  }),\n};\n\n// =====================================================================\n// 5. ДЛЯ ДОЛГОЛЕТИЯ — что из сегодняшнего реально двигает биовозраст\n// =====================================================================\nconst phenoValid = pheno.filter(p => num(p.phenoage) != null && dkey(p.date))\n  .sort((a, b) => dkey(b.date).localeCompare(dkey(a.date)));\nconst ph = phenoValid[0] || null;\nconst longevity = ph ? {\n  phenoage: num(ph.phenoage), chrono_age: num(ph.chrono_age), delta: num(ph.delta),\n  computed: dkey(ph.date),\n  // Честно: PhenoAge считается по крови. Сон и стресс за один день туда не попадают —\n  // попадает то, что системно меняет воспаление, обмен и картину крови.\n  affects_today: [\n    { what: 'Насыщенные жиры и сахар', how: 'через воспаление и липиды — попадает в СРБ и обмен', weight: 'да' },\n    { what: 'Регулярная нагрузка', how: 'через обмен глюкозы и состав крови', weight: 'да' },\n    { what: 'Сон и стресс за один день', how: 'на PhenoAge напрямую не влияют — это про самочувствие', weight: 'нет' },\n  ],\n} : null;\n\n// =====================================================================\n// 6. СПОКОЙНО — что проверено и в норме\n// =====================================================================\nconst quiet = [];\nconst REF = { 'SpO2_ночь_среднее': [95, 100], 'Дыхание_ночь_среднее': [12, 20] };\nfor (const [col, [lo, hi]] of Object.entries(REF)) {\n  const v = num(last[col]);\n  if (v != null && v >= lo && v <= hi) quiet.push(col === 'SpO2_ночь_среднее' ? 'SpO2' : 'дыхание');\n}\nif (num(last['Пульс_ночной_средний']) != null) {\n  const rb = baseline('Пульс_ночной_средний', 30);\n  const rv = num(last['Пульс_ночной_средний']);\n  if (rb != null && Math.abs(rv - rb) < 3) quiet.push('пульс покоя');\n}\nif (num(last['Стресс_дневной_средний']) != null) {\n  const sb = baseline('Стресс_дневной_средний', 30);\n  const sv = num(last['Стресс_дневной_средний']);\n  if (sb != null && sv - sb < 6) quiet.push('стресс');\n}\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  date: todayISO,\n  now_local: hhmm(nowMin),\n  data_date: lastDate,\n  decision, windows, streaks,\n  budget, kcal_today: kcalToday, protein_today: protToday, meals_today: todayMeals.length,\n  plan, longevity, quiet,\n};\n\nconst sd = $getWorkflowStaticData('global');\n\n// A6 (ревью Opus 5): алерт на СНЯТИЕ гейта нагрузки. Снятие мед-ограничения обязано быть шумным —\n// сейчас оно бесшумное, независимо от причины (снял руками / сбой чтения / regex промахнулся).\nlet gate_transition_alert = '';\ntry {\n  const prevBlocked = !!(sd.todayDashboard && sd.todayDashboard.decision\n    && sd.todayDashboard.decision.gate && sd.todayDashboard.decision.gate.blocked);\n  const nowBlocked = !!(result.decision && result.decision.gate && result.decision.gate.blocked);\n  if (prevBlocked && !nowBlocked) {\n    gate_transition_alert = '🟢➡️ <b>Гейт нагрузки СНЯТ</b>\\n\\nВчера было ограничение по спине, сегодня — нет. '\n      + 'Источник сейчас: ' + ((result.decision.gate.source) || 'нет')\n      + '.\\n\\nЕсли ты это НЕ менял намеренно — проверь лист Patient_State (возможно, не прочитался или перезаписан).';\n  }\n  if (nowBlocked && !prevBlocked && sd.todayDashboard) {\n    gate_transition_alert = 'ℹ️ Гейт нагрузки снова активен (источник: ' + ((result.decision.gate.source) || '?') + ').';\n  }\n} catch (e) { /* нет прошлого снимка — не алертим */ }\nresult.gate_transition_alert = gate_transition_alert;\n\nsd.todayDashboard = result;\nreturn [{ json: result }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        655,
+        -40
+      ],
+      "id": "49ac0ceb-1ad7-4c9b-bad7-1ec751540c62",
+      "name": "Build Today JSON"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "today-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1100,
+        220
+      ],
+      "id": "96a05c6d-6768-43d6-9eff-1294b627b685",
+      "name": "Webhook",
+      "webhookId": "ede01975-5d65-4c99-b4fc-2b26067e2af1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const token = ($input.first().json.query || {}).token;\nif (token !== 'blS1Chm38kO5wab2zPVC') return [{ json: { error: 'forbidden' } }];\nconst sd = $getWorkflowStaticData('global');\nif (!sd.todayDashboard) return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до 10 минут.' } }];\nreturn [{ json: sd.todayDashboard }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        220
+      ],
+      "id": "dfcd9ec3-904a-472b-8488-2a52c473ce37",
+      "name": "Read Static Data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "content-type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -700,
+        220
+      ],
+      "id": "7e3d99ee-d87f-415c-bbc2-91c7bb22135e",
+      "name": "Respond"
+    },
+    {
+      "id": "af512ae0-c428-481c-80c0-ef91c008c7ea",
+      "name": "Gate Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        860,
+        -40
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "42c77fc2-f884-4469-9223-009746679a3a",
+              "leftValue": "={{ $json.gate_transition_alert }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9a4bc3ed-2ca3-4487-a29a-1873a20076df",
+      "name": "Send Gate Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1060,
+        -60
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $json.gate_transition_alert }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 10 min": {
+      "main": [
+        [
+          {
+            "node": "Get Daily_Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily_Trends": {
+      "main": [
+        [
+          {
+            "node": "Get Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meals": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrient_Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrient_Targets": {
+      "main": [
+        [
+          {
+            "node": "Get Doctor_Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Doctor_Notes": {
+      "main": [
+        [
+          {
+            "node": "Get Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Get PhenoAge_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PhenoAge_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Action_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Action_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Patient_State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient_State": {
+      "main": [
+        [
+          {
+            "node": "Get User_Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User_Profile": {
+      "main": [
+        [
+          {
+            "node": "Build Today JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Static Data": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Today JSON": {
+      "main": [
+        [
+          {
+            "node": "Gate Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate Alert?": {
+      "main": [
+        [
+          {
+            "node": "Send Gate Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "node:Every 10 min": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "todayDashboard": {
+        "updated_at": "2026-09-11T16:00:08.625Z",
+        "date": "2026-09-12",
+        "now_local": "02:00",
+        "data_date": "2026-09-11",
+        "decision": {
+          "verdict": "ходьба и плавание",
+          "note": "Низкий резерв восстановления — сегодня только лёгкая активность.",
+          "reasons": [
+            {
+              "label": "ВСР к базе",
+              "value": "-5.3 мс",
+              "judgment": "neutral"
+            },
+            {
+              "label": "ACWR (Garmin)",
+              "value": "0.3 · LOW",
+              "judgment": "neutral"
+            }
+          ],
+          "gate": {
+            "blocked": true,
+            "condition": "Грыжа L5/S1, радикулопатия, изменения Modic-1",
+            "contra": "подъём >2 кг; осевая нагрузка; скручивания; статические удержания; бег, прыжки, интервалы; длительное сидение без опоры; любая нагрузка выше ходьбы и плавания",
+            "allowed": "ходьба до 30 мин; плавание (рекомендовано нейрохирургом); смена позы; паузы при сидении каждые 35-40 мин",
+            "provokers": "подъём >2 кг; неудобный стул; тряская дорога; сидение 30-60 мин",
+            "review_due": "2026-10-06",
+            "source": "МРТ пояснично-крестцового отдела от 2026-06-26",
+            "degraded": false
+          },
+          "readiness_cap": 0,
+          "medical_cap": 2,
+          "final_cap": 2,
+          "no_garmin_today": false,
+          "acwr": 0.3,
+          "acwr_status": "LOW",
+          "acwr_source": "garmin",
+          "load_high": false,
+          "garmin_device": "Forerunner 255",
+          "training_status": "RECOVERY_1",
+          "caution": "Грыжа L5/S1, радикулопатия, изменения Modic-1. Разрешено: ходьба до 30 мин; плавание (рекомендовано нейрохирургом); смена позы; паузы при сидении каждые 35-40 мин",
+          "limit": "подъём >2 кг; осевая нагрузка; скручивания; статические удержания; бег, прыжки, интервалы; длительное сидение без опоры; любая нагрузка выше ходьбы и плавания"
+        },
+        "windows": [
+          {
+            "key": "coffee",
+            "label": "Последний кофе",
+            "until": "15:30",
+            "target_min": 930,
+            "hint": "за 8 ч до отбоя"
+          },
+          {
+            "key": "meal",
+            "label": "Последняя еда",
+            "until": "20:30",
+            "target_min": 1230,
+            "hint": "за 3 ч до отбоя"
+          },
+          {
+            "key": "bed",
+            "label": "Отбой",
+            "until": "23:30",
+            "target_min": 1410,
+            "hint": "цель по умолчанию"
+          }
+        ],
+        "streaks": [
+          {
+            "label": "Сон в зоне 7–9 ч",
+            "count": 9,
+            "unit": "ночей"
+          }
+        ],
+        "budget": [
+          {
+            "label": "Добавленный сахар",
+            "unit": "г",
+            "kind": "limit",
+            "consumed": 0,
+            "cap": 50,
+            "pct": 0,
+            "remaining": 50,
+            "status": "ok"
+          },
+          {
+            "label": "Натрий",
+            "unit": "мг",
+            "kind": "limit",
+            "consumed": 0,
+            "cap": 2800,
+            "pct": 0,
+            "remaining": 2800,
+            "status": "ok"
+          },
+          {
+            "label": "Кофеин",
+            "unit": "мг",
+            "kind": "limit",
+            "consumed": 0,
+            "cap": 400,
+            "pct": 0,
+            "remaining": 400,
+            "status": "ok"
+          },
+          {
+            "label": "Насыщенные жиры",
+            "unit": "г",
+            "kind": "limit",
+            "consumed": 0,
+            "cap": 27,
+            "pct": 0,
+            "remaining": 27,
+            "status": "ok"
+          },
+          {
+            "label": "Витамин D",
+            "unit": "мкг",
+            "kind": "goal",
+            "consumed": 0,
+            "cap": 15,
+            "pct": 0,
+            "remaining": 15,
+            "status": "low"
+          },
+          {
+            "label": "Кальций",
+            "unit": "мг",
+            "kind": "goal",
+            "consumed": 0,
+            "cap": 1000,
+            "pct": 0,
+            "remaining": 1000,
+            "status": "low"
+          },
+          {
+            "label": "Клетчатка",
+            "unit": "г",
+            "kind": "goal",
+            "consumed": 0,
+            "cap": 38,
+            "pct": 0,
+            "remaining": 38,
+            "status": "low"
+          }
+        ],
+        "kcal_today": 0,
+        "protein_today": 0,
+        "meals_today": 0,
+        "plan": {
+          "date": "2026-09-06",
+          "actions": [
+            {
+              "id": "2026-09-06|Стабилизировать суточный шаг до 12-13 тысяч без резких скачк",
+              "title": "Стабилизировать суточный шаг до 12-13 тысяч без резких скачков",
+              "why": "Коэффициент нагрузки 0.5 и скачки до 18.5к шагов перегружают L5/S1 после отмены нейротропных препаратов",
+              "expect": "Снижение осевой нагрузки на позвоночник и стабилизация тонуса",
+              "priority": "высокий",
+              "metric": "steps",
+              "type": null,
+              "done": true,
+              "blocked_by_gate": false,
+              "gate_note": null
+            },
+            {
+              "id": "2026-09-06|Снизить суточное потребление насыщенных жиров до нормы",
+              "title": "Снизить суточное потребление насыщенных жиров до нормы",
+              "why": "Избыток 31.2 г жиров нагружает желчевыводящие пути при повышенном прямом билирубине 6.9",
+              "expect": "Облегчение желчеоттока и нормализация липидного баланса",
+              "priority": "средний",
+              "metric": null,
+              "type": null,
+              "done": true,
+              "blocked_by_gate": false,
+              "gate_note": null
+            }
+          ]
+        },
+        "longevity": {
+          "phenoage": 36,
+          "chrono_age": 44.1,
+          "delta": -8.1,
+          "computed": "2026-09-07",
+          "affects_today": [
+            {
+              "what": "Насыщенные жиры и сахар",
+              "how": "через воспаление и липиды — попадает в СРБ и обмен",
+              "weight": "да"
+            },
+            {
+              "what": "Регулярная нагрузка",
+              "how": "через обмен глюкозы и состав крови",
+              "weight": "да"
+            },
+            {
+              "what": "Сон и стресс за один день",
+              "how": "на PhenoAge напрямую не влияют — это про самочувствие",
+              "weight": "нет"
+            }
+          ]
+        },
+        "quiet": [
+          "SpO2",
+          "дыхание",
+          "пульс покоя",
+          "стресс"
+        ],
+        "gate_transition_alert": ""
+      }
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "6ab7f1b7-cd34-455e-b08d-1cc75e3b7a02",
+  "activeVersionId": "6ab7f1b7-cd34-455e-b08d-1cc75e3b7a02",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-09-06T03:47:47.892Z",
+      "createdAt": "2026-09-06T03:47:47.892Z",
+      "role": "workflow:owner",
+      "workflowId": "dAcQUJG3Z7Z74SyO",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-11T02:06:55.510Z",
+    "createdAt": "2026-09-11T02:06:55.510Z",
+    "versionId": "6ab7f1b7-cd34-455e-b08d-1cc75e3b7a02",
+    "workflowId": "dAcQUJG3Z7Z74SyO",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -1100,
+          -40
+        ],
+        "id": "8db98b4a-6a82-46d1-a161-447216985150",
+        "name": "Every 10 min"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Daily_Trends",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -920,
+          -40
+        ],
+        "id": "6c99b3b9-5090-43ea-aef1-535c2e1c69e1",
+        "name": "Get Daily_Trends",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Meals",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -745,
+          -40
+        ],
+        "id": "cc132887-dee5-441d-b699-775edc42b473",
+        "name": "Get Meals",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Nutrient_Targets",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -570,
+          -40
+        ],
+        "id": "066f03bd-3351-4379-96ba-583ea6d6c72b",
+        "name": "Get Nutrient_Targets",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Doctor_Notes",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -395,
+          -40
+        ],
+        "id": "7b537a33-1b51-4660-8818-246ab4dbb893",
+        "name": "Get Doctor_Notes",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Recommendations_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -220,
+          -40
+        ],
+        "id": "af16c2ff-0f53-4478-9e8f-3375925cec82",
+        "name": "Get Recommendations_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT * FROM health.phenoage_log ORDER BY \"date\"",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -45,
+          -40
+        ],
+        "id": "239557ad-0f97-4b0e-a8c0-b82465ac109f",
+        "name": "Get PhenoAge_Log",
+        "executeOnce": true,
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Action_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          130,
+          -40
+        ],
+        "id": "2aea8f82-1ff7-4691-b9fa-e4f866106006",
+        "name": "Get Action_Log",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Patient_State",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          305,
+          -40
+        ],
+        "id": "84668b1b-29fc-48ae-a99d-0dfd9896e08b",
+        "name": "Get Patient_State",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1BhKOP8WCVdUnS-m7be0NoZ5putdXirGZH7ICY92h0-s",
+            "mode": "list"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Лист1",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          480,
+          -40
+        ],
+        "id": "4f529b5f-0bc6-4189-9d1d-149bca030e96",
+        "name": "Get User_Profile",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// today-dashboard — вкладка «Сегодня». Экран решений, а не сводка новостей.\n// Источники: Get Daily_Trends, Get Meals, Get Nutrient_Targets, Get Doctor_Notes,\n//            Get Recommendations_Log, Get PhenoAge_Log, Get Action_Log.\n// Порядок блоков: сверху то, на что влияешь прямо сейчас; хроника и лаборатория — внизу.\n// Run Once for All Items.\n\nfunction safeAll(name) { try { return $(name).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v === null || v === undefined || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace('%', '').replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\nfunction dkey(v) { return String(v == null ? '' : v).slice(0, 10); }\nfunction d10(v) {\n  const s = String(v == null ? '' : v).trim();\n  let m = s.match(/^(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})/);\n  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');\n  m = s.match(/^(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})/);\n  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');\n  return s.slice(0, 10);\n}\nfunction r1(x) { return x == null ? null : Math.round(x * 10) / 10; }\nfunction mean(a) { const x = a.filter(v => v != null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; }\n\nconst daily   = safeAll('Get Daily_Trends');\nconst meals   = safeAll('Get Meals');\nconst targets = safeAll('Get Nutrient_Targets');\nconst notes   = safeAll('Get Doctor_Notes');\nconst recs    = safeAll('Get Recommendations_Log');\nconst pheno   = safeAll('Get PhenoAge_Log');\nconst acts    = safeAll('Get Action_Log');       // может не существовать — нода с onError:continue\nconst pstate  = safeAll('Get Patient_State');    // карта хронических состояний (Этап 1)\nconst profRows= safeAll('Get User_Profile');\nconst profile = profRows[0] || {};\n\n// ---------- время ----------\nconst nowVl   = new Date(Date.now() + 10 * 3600 * 1000);          // Владивосток = UTC+10\nconst todayISO = nowVl.toISOString().slice(0, 10);\nconst nowMin  = nowVl.getUTCHours() * 60 + nowVl.getUTCMinutes();\nfunction hhmm(min) {\n  const m = ((min % 1440) + 1440) % 1440;\n  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');\n}\n\nconst rows = daily.filter(r => r['Дата']).sort((a, b) => dkey(a['Дата']).localeCompare(dkey(b['Дата'])));\n// последняя строка НЕ ПОЗЖЕ сегодня — строки с будущей датой (заглушки под новые колонки,\n// приходящие данные) не должны становиться источником «Решения дня».\nconst pastRows = rows.filter(r => dkey(r['Дата']) <= todayISO);\nconst last = pastRows[pastRows.length - 1] || rows[rows.length - 1] || {};\nconst lastDate = dkey(last['Дата']) || todayISO;\n\n// =====================================================================\n// 1. РЕШЕНИЕ ДНЯ — нагрузка или восстановление\n// =====================================================================\n// Базовая линия ВСР за 30 дней (как в детекторе аномалий: окно ДО текущего дня)\nfunction baseline(col, days) {\n  const from = new Date(new Date(lastDate + 'T00:00:00Z').getTime() - days * 86400000).toISOString().slice(0, 10);\n  const v = rows.filter(r => dkey(r['Дата']) >= from && dkey(r['Дата']) < lastDate).map(r => num(r[col]));\n  return mean(v);\n}\nconst bb      = num(last['Восстановление_BodyBattery']);\nconst hrv     = num(last['ВСР_ночная']);\nconst hrvBase = baseline('ВСР_ночная', 30);\nconst hrvDelta = (hrv != null && hrvBase != null) ? hrv - hrvBase : null;\n\n// Нагрузка: ACWR берём у Garmin — он считает его сам (dailyAcuteChronicWorkloadRatio +\n// acwrStatus LOW/OPTIMAL/HIGH, поля ACWR_Garmin / ACWR_Status, Этап 5). В старых строках\n// Daily_Trends этих полей ещё нет → откат на самодельный расчёт (7д/28д по калориям тренировок).\nfunction loadMean(days) {\n  const from = new Date(new Date(lastDate + 'T00:00:00Z').getTime() - days * 86400000).toISOString().slice(0, 10);\n  return mean(rows.filter(r => dkey(r['Дата']) > from).map(r => num(r['Тренировка_Ккал']) || 0));\n}\nconst acwrGarmin  = num(last['ACWR_Garmin']);\nconst acwrStatusG = String(last['ACWR_Status'] || '').trim().toUpperCase() || null;\nlet acwr, acwrSource;\nif (acwrGarmin != null) {\n  acwr = acwrGarmin;\n  acwrSource = 'garmin';\n} else {\n  const acute = loadMean(7), chronic = loadMean(28);\n  acwr = (acute != null && chronic) ? Math.round((acute / chronic) * 100) / 100 : null;\n  acwrSource = acwr != null ? 'self' : null;\n}\n// «перегруз»: Garmin говорит HIGH, либо (на самодельном ACWR) отношение > 1.5\nconst loadHigh = acwrStatusG ? acwrStatusG === 'HIGH' : (acwr != null && acwr > 1.5);\n\n// ---------------------------------------------------------------------\n// ГЕЙТ БЕЗОПАСНОСТИ (Этап 1). Fail-safe: нет данных о снятии → ограничение действует.\n// Авторитетный источник — Patient_State; если пуст/недоступен — читаем профиль.\n// Возвращает медицинский потолок нагрузки, который НЕЛЬЗЯ превысить,\n// что бы ни показывали Body Battery / ВСР.\n// Уровни: 0 отдых · 1 ходьба · 2 +плавание · 3 умеренная аэробика · 4 интенсив\n// ---------------------------------------------------------------------\nconst HERNIA_RX = /грыж|радикулопат|протру[зи]|экструз|модик|modic|корешк/i;\nfunction loadGate() {\n  const active = pstate.filter(x =>\n    String(x.Status || '').toLowerCase() === 'active' &&\n    String(x.Contra_Load || '').trim());\n  if (active.length) {\n    const x = active.sort((a, b) => String(b.Confirmed_Date).localeCompare(String(a.Confirmed_Date)))[0];\n    const swim = /плаван/i.test(x.Allowed || '');\n    return {\n      cap: swim ? 2 : 1, blocked: true, condition: x.Condition,\n      contra: x.Contra_Load, allowed: x.Allowed || '', provokers: x.Provokers || '',\n      review_due: x.Review_Due || null,\n      source: (x.Source || 'карта пациента') + (x.Confirmed_Date ? ' от ' + x.Confirmed_Date : ''),\n    };\n  }\n  const oda = String(profile['ОДА и неврология'] || profile['ОДА и неврология '] || '');\n  const profHernia = HERNIA_RX.test(oda) && !/ремисси|снят|полн(ое|ая) восстановлен|разрешена нагрузка/i.test(oda);\n  const profSwim = profHernia && /плаван|бассейн/i.test(oda);\n\n  // A6 fail-safe (ревью Opus 5, 2026-09-09): Patient_State ЗАСИЖЕН строкой про грыжу\n  // (_setup helper sheets, state_id=hernia_l5s1). 0 строк там = чтение НЕ ПРОШЛО (rate-limit),\n  // а НЕ «ограничений нет». Это верно НЕЗАВИСИМО от того, прочитался ли профиль.\n  if (pstate.length === 0) {\n    return {\n      cap: profSwim ? 2 : 1, blocked: true, degraded: true,\n      condition: profHernia\n        ? 'Грыжа/радикулопатия — Patient_State не прочитан, профиль подтверждает'\n        : 'Карта пациента не прочитана (Patient_State пуст)',\n      contra: 'осевая нагрузка, подъём тяжестей, скручивания, бег, прыжки, интервалы',\n      allowed: 'ходьба' + (profSwim ? ', плавание' : ''),\n      provokers: '', review_due: null,\n      source: '⚠️ PATIENT_STATE НЕ ПРОЧИТАН' + (profHernia ? ' (профиль подтверждает грыжу)' : ''),\n    };\n  }\n\n  // Patient_State прочитан, активных ограничений нет — но профиль страхует (belt-and-suspenders).\n  if (profHernia) {\n    return {\n      cap: profSwim ? 2 : 1, blocked: true,\n      condition: 'Грыжа/радикулопатия (из профиля; в Patient_State активных ограничений нет)',\n      contra: 'осевая нагрузка, подъём тяжестей, скручивания, бег/прыжки/интенсив',\n      allowed: 'ходьба' + (profSwim ? ', плавание' : ''),\n      provokers: '', review_due: null,\n      source: 'User_Profile (Patient_State без активных ограничений)',\n    };\n  }\n\n  return { cap: 4, blocked: false, condition: null, contra: null, allowed: '', provokers: '', review_due: null, source: null };\n}\nconst gate = loadGate();\n\nconst reasons = [];\nif (bb != null) reasons.push({ label: 'Body Battery', value: bb, judgment: bb >= 70 ? 'good' : bb >= 40 ? 'neutral' : 'bad' });\nif (hrvDelta != null) reasons.push({\n  label: 'ВСР к базе', value: (hrvDelta > 0 ? '+' : '') + r1(hrvDelta) + ' мс',\n  judgment: Math.abs(hrvDelta) < 6 ? 'neutral' : hrvDelta > 0 ? 'good' : 'bad',\n});\nif (acwr != null) reasons.push({\n  label: acwrSource === 'garmin' ? 'ACWR (Garmin)' : 'Нагрузка 7д/28д',\n  value: acwrStatusG ? `${acwr} · ${acwrStatusG}` : acwr,\n  judgment: loadHigh ? 'bad' : (acwrStatusG === 'LOW' || acwr < 0.8) ? 'neutral' : 'good',\n});\n\n// физиологическая готовность (по восстановлению) -> потолок 1..4\nlet readiness = 0;\nif (bb != null) {\n  const hrvBad = hrvDelta != null && hrvDelta <= -6;\n  readiness = (bb >= 70 && !hrvBad && !loadHigh) ? 4 : (bb >= 40 && !loadHigh) ? 3 : 1;\n}\n// Нет свежих данных Garmin (часы не синхронизировались / пропущен ночной прогон / строка-заглушка).\n// Фаза 1.2: без данных о восстановлении — потолок «ходьба и плавание», не собираем вердикт из нулей.\nconst noGarminToday = bb == null && hrv == null && num(last['Чистый_сон_мин']) == null;\n\n// финальный потолок — минимум из медицинского и физиологического\nlet finalCap;\nif (noGarminToday) finalCap = Math.min(gate.blocked ? gate.cap : 2, 2);\nelse if (bb == null) finalCap = gate.blocked ? gate.cap : 0;\nelse finalCap = Math.min(gate.cap, readiness);\nconst CAP_LABEL = { 0: 'нет данных', 1: 'только ходьба', 2: 'ходьба и плавание', 3: 'умеренная аэробика', 4: 'можно интенсив' };\nconst verdict = CAP_LABEL[finalCap];\n\nlet verdictNote;\nif (noGarminToday) {\n  verdictNote = gate.blocked\n    ? `Нет свежих данных Garmin + ${gate.condition}. Режим: ${verdict}, ничего сверх, пока часы не синхронизируются.`\n    : 'Нет свежих данных Garmin (часы не синхронизировались?). Режим: ходьба и плавание, пока данные не появятся — вердикт по восстановлению не строим.';\n} else if (bb == null && !gate.blocked) {\n  verdictNote = 'Не хватает данных Garmin за сегодня — держись лёгкой активности.';\n} else if (gate.blocked && gate.cap <= readiness) {\n  // медицинское ограничение — главная причина\n  verdictNote = `${gate.condition}: ${gate.contra}. По восстановлению запас ${readiness >= 4 ? 'полный' : readiness >= 3 ? 'средний' : 'низкий'}, но это не отменяет ограничение по спине.`;\n} else if (finalCap >= 4) {\n  verdictNote = 'Резерв восстановления есть, ВСР не просела, нагрузка не накоплена. Ограничений по здоровью нет.';\n} else if (finalCap === 3) {\n  verdictNote = (hrvDelta != null && hrvDelta <= -6)\n    ? 'ВСР ниже твоей базы — аэробная работа без ударных интервалов.'\n    : 'Резерв средний: аэробная работа без интенсива.';\n} else {\n  verdictNote = loadHigh\n    ? 'Накоплена нагрузка — сегодня разгрузочный день.'\n    : 'Низкий резерв восстановления — сегодня только лёгкая активность.';\n}\n\nconst decision = {\n  verdict, note: verdictNote, reasons,\n  gate: {\n    blocked: gate.blocked, condition: gate.condition, contra: gate.contra,\n    allowed: gate.allowed, provokers: gate.provokers,\n    review_due: gate.review_due, source: gate.source, degraded: !!gate.degraded,\n  },\n  readiness_cap: readiness, medical_cap: gate.cap, final_cap: finalCap,\n  no_garmin_today: noGarminToday,\n  acwr, acwr_status: acwrStatusG, acwr_source: acwrSource, load_high: loadHigh,\n  garmin_device: last['Garmin_устройство'] || null,\n  training_status: last['Training_Status'] || null,\n  // старые поля — для совместимости с текущим фронтендом\n  caution: gate.blocked ? `${gate.condition}. Разрешено: ${gate.allowed || 'ходьба'}` : null,\n  limit: gate.blocked ? gate.contra : null,\n};\n\n// =====================================================================\n// 2. ОКНА ДНЯ\n// =====================================================================\n// Целевой отбой: если советник дал действие со временем — берём его, иначе 23:30.\nfunction parseActions(txt) {\n  const m = String(txt || '').match(/<<<ACTIONS\\s*([\\s\\S]*?)\\s*ACTIONS>>>/);\n  if (!m) return null;\n  try { const o = JSON.parse(m[1].trim()); return (o && Array.isArray(o.actions)) ? o : null; } catch (e) { return null; }\n}\nconst recSorted = recs.filter(r => r.Recommendation_Text && dkey(r.Date) <= todayISO)\n  .sort((a, b) => dkey(b.Date).localeCompare(dkey(a.Date)));\nconst latestRec = recSorted[0] || null;\nconst latestParsed = latestRec ? parseActions(latestRec.Recommendation_Text) : null;\nconst latestActions = latestParsed ? latestParsed.actions : [];\n\nlet bedMin = 23 * 60 + 30;\nfor (const a of latestActions) {\n  const m = String(a.title || '').match(/(\\d{1,2})[:.](\\d{2})/);\n  if (m && /отбо|спат|лож|сон/i.test(a.title)) { bedMin = (+m[1]) * 60 + (+m[2]); break; }\n}\nconst coffeeMin = bedMin - 8 * 60;   // кофеин: период полувыведения ~5–6 ч\nconst mealMin   = bedMin - 3 * 60;   // последняя еда за 3 ч до сна\n\n// ВАЖНО: обратный отсчёт здесь НЕ считаем — это кэш, значение протухнет к моменту просмотра.\n// Бэкенд отдаёт только целевое время, «сколько осталось» считает браузер при отрисовке.\nfunction windowOf(key, label, targetMin, hint) {\n  return { key, label, until: hhmm(targetMin), target_min: targetMin, hint };\n}\nconst windows = [\n  windowOf('coffee', 'Последний кофе', coffeeMin, 'за 8 ч до отбоя'),\n  windowOf('meal', 'Последняя еда', mealMin, 'за 3 ч до отбоя'),\n  windowOf('bed', 'Отбой', bedMin, latestActions.some(a => /отбо|спат/i.test(a.title || '')) ? 'из плана советника' : 'цель по умолчанию'),\n];\n\n// серии: сколько ночей подряд сон в целевой зоне 7–9 ч\nconst SLEEP_MIN_OK = 420, SLEEP_MAX_OK = 540;\nlet sleepStreak = 0;\nfor (let i = rows.length - 1; i >= 0; i--) {\n  const v = num(rows[i]['Чистый_сон_мин']);\n  if (v != null && v >= SLEEP_MIN_OK && v <= SLEEP_MAX_OK) sleepStreak++; else break;\n}\nconst streaks = [];\nif (sleepStreak > 0) streaks.push({ label: 'Сон в зоне 7–9 ч', count: sleepStreak, unit: 'ночей' });\n\n// =====================================================================\n// 3. БЮДЖЕТ ДНЯ — сколько ещё можно / сколько добрать\n// =====================================================================\nfunction parseTargetNum(v) {\n  if (v == null) return null;\n  const s = String(v).trim();\n  if (/^не\\s/i.test(s)) return null;\n  const m = s.match(/-?\\d+(?:[.,]\\d+)?/);\n  return m ? parseFloat(m[0].replace(',', '.')) : null;\n}\nconst todayMeals = meals.filter(m => m.Date && dkey(m.Date) === todayISO);\nfunction sumCol(col) {\n  return todayMeals.reduce((s, m) => s + (num(m[col]) || 0), 0);\n}\n// что показываем в бюджете: лимиты, которые легко пробить, и цели, которые обычно недобираются\nconst BUDGET_KEYS = ['Насыщенные жиры', 'Добавленный сахар', 'Натрий', 'Кофеин', 'Клетчатка', 'Витамин D', 'Кальций'];\nconst budget = [];\nfor (const t of targets) {\n  const name = t['Нутриент'];\n  if (!BUDGET_KEYS.includes(name)) continue;\n  const col = t['Колонка_в_Meals'];\n  if (!col) continue;\n  const isLimit = String(t['Категория'] || '').includes('Риск избытка');\n  const rda = parseTargetNum(t['Норма_RDA_AI']);\n  const ul  = parseTargetNum(t['Верхний_предел_UL']);\n  const cap = isLimit ? ul : rda;\n  if (!cap) continue;\n  const consumed = Math.round(sumCol(col) * 100) / 100;\n  const pct = Math.round((consumed / cap) * 100);\n  budget.push({\n    label: name, unit: t['Единица'] || '', kind: isLimit ? 'limit' : 'goal',\n    consumed, cap, pct,\n    remaining: Math.round((cap - consumed) * 100) / 100,\n    status: isLimit ? (pct > 100 ? 'over' : pct >= 80 ? 'close' : 'ok')\n                    : (pct >= 100 ? 'done' : pct >= 60 ? 'partial' : 'low'),\n  });\n}\nbudget.sort((a, b) => (a.kind === b.kind ? b.pct - a.pct : a.kind === 'limit' ? -1 : 1));\n\n// протеин/калории за сегодня — из тех же Meals\nconst kcalToday = Math.round(sumCol('Calories'));\nconst protToday = Math.round(sumCol('Proteins'));\n\n// =====================================================================\n// 4. ПЛАН НЕДЕЛИ + отметки выполнения\n// =====================================================================\n// Без отметки «сделал» замер эффекта в «Что сработало» measures совпадение, а не эффект.\nfunction actionId(issued, title) {\n  return (issued || '') + '|' + String(title || '').slice(0, 60).replace(/\\s+/g, ' ').trim();\n}\nconst doneMap = {};\nacts.forEach(a => {\n  if (a.Action_ID) doneMap[String(a.Action_ID)] = String(a.Done || '').toLowerCase() === 'да'\n    || String(a.Done || '').toLowerCase() === 'true' || a.Done === true;\n});\nconst issued = latestRec ? dkey(latestRec.Date) : null;\n// Блокировка гейтом — по ТИПУ действия из машинного блока советника (Фаза 1), не по regex.\n// Fail-safe: нет type / other + нагрузочно звучит → тоже блок.\nconst LOAD_RX = /интенсив|интервал|hiit|бег|пробеж|прыж|присед|становая|штанг|турник|подтяг|отжим|планк|скручиван|макгил|ротац|наклон|подним|тяж(?:есть|ести|[её]л|\\b)|спринт|силов|кроссфит|бадминтон|берпи|выпад|растяж|мобилити|йог|лфк|упражнен|качат|тренаж|скакалк|степ[- ]?аэроб|ударн|отягощ|гантел|гир(?:я|ю|ей)|планер/i;\nconst allowedLC = String(gate.allowed || '').toLowerCase();\nconst gAllowWalk = /ходьб|walk|прогул/.test(allowedLC);\nconst gAllowSwim = /плаван|бассейн|swim/.test(allowedLC);\nfunction actionConflicts(a) {\n  if (!gate.blocked) return false;\n  const t = String(a.type || '').toLowerCase();\n  if (t === 'load_high' || t === 'load_low') return true;\n  if (t === 'walk') return !gAllowWalk;\n  if (t === 'swim') return !gAllowSwim;\n  // Opus 5: regex по ВСЕМ типам (не только other/unknown) — type-метку ставит та же LLM.\n  if (LOAD_RX.test(String(a.title) + ' ' + String(a.why))) return true;\n  if (gate.degraded && (!t || t === 'unknown')) return true;   // карта недоступна → режем сомнительное\n  return false;\n}\nconst plan = {\n  date: issued,\n  actions: latestActions.map(a => {\n    const conflicts = actionConflicts(a);\n    return {\n      id: actionId(issued, a.title),\n      title: a.title, why: a.why || '', expect: a.expect || '',\n      priority: a.priority || 'средний', metric: a.metric || null, type: a.type || null,\n      done: !!doneMap[actionId(issued, a.title)],\n      blocked_by_gate: conflicts,\n      gate_note: conflicts ? `Противоречит ограничению: ${gate.condition}. Разрешено только: ${gate.allowed || 'ходьба'}` : null,\n    };\n  }),\n};\n\n// =====================================================================\n// 5. ДЛЯ ДОЛГОЛЕТИЯ — что из сегодняшнего реально двигает биовозраст\n// =====================================================================\nconst phenoValid = pheno.filter(p => num(p.phenoage) != null && dkey(p.date))\n  .sort((a, b) => dkey(b.date).localeCompare(dkey(a.date)));\nconst ph = phenoValid[0] || null;\nconst longevity = ph ? {\n  phenoage: num(ph.phenoage), chrono_age: num(ph.chrono_age), delta: num(ph.delta),\n  computed: dkey(ph.date),\n  // Честно: PhenoAge считается по крови. Сон и стресс за один день туда не попадают —\n  // попадает то, что системно меняет воспаление, обмен и картину крови.\n  affects_today: [\n    { what: 'Насыщенные жиры и сахар', how: 'через воспаление и липиды — попадает в СРБ и обмен', weight: 'да' },\n    { what: 'Регулярная нагрузка', how: 'через обмен глюкозы и состав крови', weight: 'да' },\n    { what: 'Сон и стресс за один день', how: 'на PhenoAge напрямую не влияют — это про самочувствие', weight: 'нет' },\n  ],\n} : null;\n\n// =====================================================================\n// 6. СПОКОЙНО — что проверено и в норме\n// =====================================================================\nconst quiet = [];\nconst REF = { 'SpO2_ночь_среднее': [95, 100], 'Дыхание_ночь_среднее': [12, 20] };\nfor (const [col, [lo, hi]] of Object.entries(REF)) {\n  const v = num(last[col]);\n  if (v != null && v >= lo && v <= hi) quiet.push(col === 'SpO2_ночь_среднее' ? 'SpO2' : 'дыхание');\n}\nif (num(last['Пульс_ночной_средний']) != null) {\n  const rb = baseline('Пульс_ночной_средний', 30);\n  const rv = num(last['Пульс_ночной_средний']);\n  if (rb != null && Math.abs(rv - rb) < 3) quiet.push('пульс покоя');\n}\nif (num(last['Стресс_дневной_средний']) != null) {\n  const sb = baseline('Стресс_дневной_средний', 30);\n  const sv = num(last['Стресс_дневной_средний']);\n  if (sb != null && sv - sb < 6) quiet.push('стресс');\n}\n\nconst result = {\n  updated_at: new Date().toISOString(),\n  date: todayISO,\n  now_local: hhmm(nowMin),\n  data_date: lastDate,\n  decision, windows, streaks,\n  budget, kcal_today: kcalToday, protein_today: protToday, meals_today: todayMeals.length,\n  plan, longevity, quiet,\n};\n\nconst sd = $getWorkflowStaticData('global');\n\n// A6 (ревью Opus 5): алерт на СНЯТИЕ гейта нагрузки. Снятие мед-ограничения обязано быть шумным —\n// сейчас оно бесшумное, независимо от причины (снял руками / сбой чтения / regex промахнулся).\nlet gate_transition_alert = '';\ntry {\n  const prevBlocked = !!(sd.todayDashboard && sd.todayDashboard.decision\n    && sd.todayDashboard.decision.gate && sd.todayDashboard.decision.gate.blocked);\n  const nowBlocked = !!(result.decision && result.decision.gate && result.decision.gate.blocked);\n  if (prevBlocked && !nowBlocked) {\n    gate_transition_alert = '🟢➡️ <b>Гейт нагрузки СНЯТ</b>\\n\\nВчера было ограничение по спине, сегодня — нет. '\n      + 'Источник сейчас: ' + ((result.decision.gate.source) || 'нет')\n      + '.\\n\\nЕсли ты это НЕ менял намеренно — проверь лист Patient_State (возможно, не прочитался или перезаписан).';\n  }\n  if (nowBlocked && !prevBlocked && sd.todayDashboard) {\n    gate_transition_alert = 'ℹ️ Гейт нагрузки снова активен (источник: ' + ((result.decision.gate.source) || '?') + ').';\n  }\n} catch (e) { /* нет прошлого снимка — не алертим */ }\nresult.gate_transition_alert = gate_transition_alert;\n\nsd.todayDashboard = result;\nreturn [{ json: result }];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          655,
+          -40
+        ],
+        "id": "49ac0ceb-1ad7-4c9b-bad7-1ec751540c62",
+        "name": "Build Today JSON"
+      },
+      {
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "today-dashboard",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -1100,
+          220
+        ],
+        "id": "96a05c6d-6768-43d6-9eff-1294b627b685",
+        "name": "Webhook",
+        "webhookId": "ede01975-5d65-4c99-b4fc-2b26067e2af1"
+      },
+      {
+        "parameters": {
+          "jsCode": "const token = ($input.first().json.query || {}).token;\nif (token !== 'blS1Chm38kO5wab2zPVC') return [{ json: { error: 'forbidden' } }];\nconst sd = $getWorkflowStaticData('global');\nif (!sd.todayDashboard) return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован, подождите до 10 минут.' } }];\nreturn [{ json: sd.todayDashboard }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -900,
+          220
+        ],
+        "id": "dfcd9ec3-904a-472b-8488-2a52c473ce37",
+        "name": "Read Static Data"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, POST, OPTIONS"
+                },
+                {
+                  "name": "Access-Control-Allow-Headers",
+                  "value": "content-type"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -700,
+          220
+        ],
+        "id": "7e3d99ee-d87f-415c-bbc2-91c7bb22135e",
+        "name": "Respond"
+      },
+      {
+        "id": "af512ae0-c428-481c-80c0-ef91c008c7ea",
+        "name": "Gate Alert?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          860,
+          -40
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "42c77fc2-f884-4469-9223-009746679a3a",
+                "leftValue": "={{ $json.gate_transition_alert }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "9a4bc3ed-2ca3-4487-a29a-1873a20076df",
+        "name": "Send Gate Alert",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          1060,
+          -60
+        ],
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        },
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $json.gate_transition_alert }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Every 10 min": {
+        "main": [
+          [
+            {
+              "node": "Get Daily_Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily_Trends": {
+        "main": [
+          [
+            {
+              "node": "Get Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Meals": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrient_Targets",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrient_Targets": {
+        "main": [
+          [
+            {
+              "node": "Get Doctor_Notes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Doctor_Notes": {
+        "main": [
+          [
+            {
+              "node": "Get Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Get PhenoAge_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get PhenoAge_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Action_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Action_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Patient_State",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Patient_State": {
+        "main": [
+          [
+            {
+              "node": "Get User_Profile",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get User_Profile": {
+        "main": [
+          [
+            {
+              "node": "Build Today JSON",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Read Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Static Data": {
+        "main": [
+          [
+            {
+              "node": "Respond",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Today JSON": {
+        "main": [
+          [
+            {
+              "node": "Gate Alert?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Gate Alert?": {
+        "main": [
+          [
+            {
+              "node": "Send Gate Alert",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: C2-1 today-dashboard PhenoAge_Log reader to PG)",
+    "name": "Patch 6ab7f1b7 — C2-1 today-dashboard PhenoAge_Log reader to PG",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
