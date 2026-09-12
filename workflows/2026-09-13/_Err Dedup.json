@@ -1,0 +1,323 @@
+{
+  "updatedAt": "2026-09-09T01:37:18.000Z",
+  "createdAt": "2026-09-08T23:42:05.727Z",
+  "id": "ErrDedup01",
+  "name": "_Err Dedup",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "70cf3e20-919e-46d0-85e7-5b6f2704cb81",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "056ee399-9c4d-48e0-89cd-116f64fa6590",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "err-dedup",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "9bbff227-db67-4bbf-82ec-58830051f259",
+      "name": "Dedup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst sd = $getWorkflowStaticData('global');\nsd.seen = sd.seen || {};\nconst b = $json.body || $json;\nconst __tok = b.token;\nif (__tok !== '8beNA4tqEdqhpjtUqCUM') return [{ json: { send: false, text: '', silent: true } }];\nconst wf = String(b.wf || '?'), node = String(b.node || '?');\nconst key = wf + '|' + node;\nconst now = Date.now();\nconst last = sd.seen[key] || 0;\nconst mins = (now - last) / 60000;\nconst suppress = mins < 60;\nsd.seen[key] = now;\nif (suppress) sd.seen[key + ':burst'] = (sd.seen[key + ':burst'] || 0) + 1;\nelse sd.seen[key + ':burst'] = 0;\nconst burst = sd.seen[key + ':burst'] || 0;\n\nlet raw = String(b.telegram || ('Ошибка: ' + wf + ' / ' + node));\nlet send = !suppress;\nif (suppress && burst > 0 && mins >= 55) {\n  raw = '🔁 ' + wf + ' / ' + node + ' — серия ошибок продолжается (' + burst + ' за ~час). Загляни в Error_Log.';\n  sd.seen[key] = now; sd.seen[key + ':burst'] = 0;\n  send = true;\n}\n// экранируем под parse_mode=HTML (текст ошибок содержит _ * [ ] < > и т.п.)\nconst text = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nreturn [{ json: { send, text, silent: !!b.silent, burst } }];\n"
+      }
+    },
+    {
+      "id": "aa4e8bea-6193-4aef-b4b8-4f7f6ef1f69c",
+      "name": "Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b6dda809-a385-45fb-8bd2-16a7c3b02ce2",
+              "leftValue": "={{ $json.send }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "b98d8927-8280-4e90-8fd3-3928df5c86eb",
+      "name": "Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        660,
+        -40
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_notification": "={{ $json.silent }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Dedup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedup": {
+      "main": [
+        [
+          {
+            "node": "Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send?": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": {
+    "global": {
+      "seen": {
+        "_setup helper sheets|?": 1789018978356,
+        "_setup helper sheets|?:burst": 6,
+        "_errtest|Boom": 1788911018994,
+        "_errtest|Boom:burst": 2,
+        "_manualtest|X": 1788911185981,
+        "_manualtest|X:burst": 0,
+        "🚨Capitan|Call 'Sub-Agent: AI Doctor'": 1789009653997,
+        "🚨Capitan|Call 'Sub-Agent: AI Doctor':burst": 0,
+        "🚨Capitan|Ответ в Telegram1": 1788923417975,
+        "🚨Capitan|Ответ в Telegram1:burst": 0,
+        "Collect_Biohacking_Data|Code in JavaScript": 1788996101627,
+        "Collect_Biohacking_Data|Code in JavaScript:burst": 0,
+        "🍽️ Food dairy_v5|?": 1789002728816,
+        "🍽️ Food dairy_v5|?:burst": 0,
+        "Sub-Agent: AI Doctor|Code in JavaScript": 1789009654268,
+        "Sub-Agent: AI Doctor|Code in JavaScript:burst": 0,
+        "Sub-Agent: AI Doctor|Стоп: ошибка доктора": 1789021778353,
+        "Sub-Agent: AI Doctor|Стоп: ошибка доктора:burst": 0,
+        "🚨Capitan|Стоп: ошибка доктора": 1789021778640,
+        "🚨Capitan|Стоп: ошибка доктора:burst": 0,
+        "Collect_Biohacking_Data|Write DT PG": 1789165862750,
+        "Collect_Biohacking_Data|Write DT PG:burst": 0,
+        "Health Watchdog|Save Note": 1789167708398,
+        "Health Watchdog|Save Note:burst": 0
+      }
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "b367f7d3-f359-4d7a-8bc9-9fd6d35a7862",
+  "activeVersionId": "b367f7d3-f359-4d7a-8bc9-9fd6d35a7862",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-08T23:42:05.727Z",
+      "createdAt": "2026-09-08T23:42:05.727Z",
+      "role": "workflow:owner",
+      "workflowId": "ErrDedup01",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-09T01:37:12.031Z",
+    "createdAt": "2026-09-09T01:37:12.031Z",
+    "versionId": "b367f7d3-f359-4d7a-8bc9-9fd6d35a7862",
+    "workflowId": "ErrDedup01",
+    "nodes": [
+      {
+        "id": "70cf3e20-919e-46d0-85e7-5b6f2704cb81",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "webhookId": "056ee399-9c4d-48e0-89cd-116f64fa6590",
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "err-dedup",
+          "responseMode": "onReceived",
+          "options": {}
+        }
+      },
+      {
+        "id": "9bbff227-db67-4bbf-82ec-58830051f259",
+        "name": "Dedup",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "jsCode": "\nconst sd = $getWorkflowStaticData('global');\nsd.seen = sd.seen || {};\nconst b = $json.body || $json;\nconst __tok = b.token;\nif (__tok !== '8beNA4tqEdqhpjtUqCUM') return [{ json: { send: false, text: '', silent: true } }];\nconst wf = String(b.wf || '?'), node = String(b.node || '?');\nconst key = wf + '|' + node;\nconst now = Date.now();\nconst last = sd.seen[key] || 0;\nconst mins = (now - last) / 60000;\nconst suppress = mins < 60;\nsd.seen[key] = now;\nif (suppress) sd.seen[key + ':burst'] = (sd.seen[key + ':burst'] || 0) + 1;\nelse sd.seen[key + ':burst'] = 0;\nconst burst = sd.seen[key + ':burst'] || 0;\n\nlet raw = String(b.telegram || ('Ошибка: ' + wf + ' / ' + node));\nlet send = !suppress;\nif (suppress && burst > 0 && mins >= 55) {\n  raw = '🔁 ' + wf + ' / ' + node + ' — серия ошибок продолжается (' + burst + ' за ~час). Загляни в Error_Log.';\n  sd.seen[key] = now; sd.seen[key + ':burst'] = 0;\n  send = true;\n}\n// экранируем под parse_mode=HTML (текст ошибок содержит _ * [ ] < > и т.п.)\nconst text = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nreturn [{ json: { send, text, silent: !!b.silent, burst } }];\n"
+        }
+      },
+      {
+        "id": "aa4e8bea-6193-4aef-b4b8-4f7f6ef1f69c",
+        "name": "Send?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "b6dda809-a385-45fb-8bd2-16a7c3b02ce2",
+                "leftValue": "={{ $json.send }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        }
+      },
+      {
+        "id": "b98d8927-8280-4e90-8fd3-3928df5c86eb",
+        "name": "Send",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          660,
+          -40
+        ],
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        },
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $json.text }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML",
+            "disable_notification": "={{ $json.silent }}"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Dedup",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Dedup": {
+        "main": [
+          [
+            {
+              "node": "Send?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send?": {
+        "main": [
+          [
+            {
+              "node": "Send",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: internal webhook tokens)",
+    "name": "Patch b367f7d3 — internal webhook tokens",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
