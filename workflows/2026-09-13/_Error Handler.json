@@ -1,0 +1,468 @@
+{
+  "updatedAt": "2026-09-09T01:37:25.000Z",
+  "createdAt": "2026-09-02T23:03:52.424Z",
+  "id": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+  "name": "_Error Handler",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "e002ee9e-e4ff-4fdf-93ff-b9cf411bb7e3",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst ex = j.execution || {};\nconst wf = j.workflow || {};\nconst err = ex.error || {};\n\nconst vla = new Date(new Date().getTime() + 10 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19);\nconst url = ex.url || '';\nconst errMsg = String(err.message || err.description || 'неизвестная ошибка').slice(0, 900);\nconst stack = String(err.stack || '').slice(0, 1800);\nconst node = (err.node && err.node.name) ? err.node.name : (ex.lastNodeExecuted || '?');\nconst wfName = wf.name || wf.id || '?';\n\n// A5: инфра-ошибки — тихо (disable_notification), здоровье/безопасность — со звуком.\nconst HEALTH_SAFETY = /watchdog|advisor|доктор|doctor|capitan|капитан|registrar|регистратор|reports|backup alert|system check|anamnesis|анамнез|phenoage/i;\nconst silent = !HEALTH_SAFETY.test(wfName);\n\nconst tg =\n  (silent ? '🔇 ' : '🔴 ') + 'ОШИБКА workflow\\n\\n' +\n  'Workflow: ' + wfName + '\\n' +\n  'Нода: ' + node + '\\n' +\n  'Время (Влад): ' + vla + '\\n\\n' +\n  'Ошибка: ' + errMsg + '\\n\\n' +\n  (url ? ('Прогон: ' + url) : ('Execution ID: ' + ex.id));\n\nreturn [{ json: {\n  Timestamp: vla, Workflow: wfName, Node: node, Error_Message: errMsg,\n  Execution_ID: String(ex.id || ''), Execution_URL: url, Stack: stack, Status: 'новая',\n  _telegram: tg, _silent: silent,\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        0
+      ],
+      "id": "0129cef5-3be3-40d9-9bd4-4f7c5d2d1caa",
+      "name": "Format Error"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Error_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json[\"Timestamp\"] }}",
+            "Workflow": "={{ $json[\"Workflow\"] }}",
+            "Node": "={{ $json[\"Node\"] }}",
+            "Error_Message": "={{ $json[\"Error_Message\"] }}",
+            "Execution_ID": "={{ $json[\"Execution_ID\"] }}",
+            "Execution_URL": "={{ $json[\"Execution_URL\"] }}",
+            "Stack": "={{ $json[\"Stack\"] }}",
+            "Status": "={{ $json[\"Status\"] }}"
+          },
+          "matchingColumns": [
+            "Execution_ID"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Workflow",
+              "displayName": "Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Node",
+              "displayName": "Node",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Error_Message",
+              "displayName": "Error_Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Execution_ID",
+              "displayName": "Execution_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Execution_URL",
+              "displayName": "Execution_URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Stack",
+              "displayName": "Stack",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        300,
+        0
+      ],
+      "id": "36f21b38-df12-4779-a849-7cd908b6cf8c",
+      "name": "Log to Error_Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "e244458f-f751-4bca-bf97-8a3ac406ad83",
+      "name": "Notify Dedup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://144.31.194.174.nip.io/webhook/err-dedup",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ wf: $(\"Format Error\").first().json.Workflow, node: $(\"Format Error\").first().json.Node, telegram: $(\"Format Error\").first().json._telegram, silent: $(\"Format Error\").first().json._silent, token: '8beNA4tqEdqhpjtUqCUM' }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Log to Error_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Error_Log": {
+      "main": [
+        [
+          {
+            "node": "Notify Dedup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "7e17d3d9-3407-4e5e-838f-b517adf7bd4f",
+  "activeVersionId": "7e17d3d9-3407-4e5e-838f-b517adf7bd4f",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-02T23:03:52.432Z",
+      "createdAt": "2026-09-02T23:03:52.432Z",
+      "role": "workflow:owner",
+      "workflowId": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-09T01:37:18.879Z",
+    "createdAt": "2026-09-09T01:37:18.879Z",
+    "versionId": "7e17d3d9-3407-4e5e-838f-b517adf7bd4f",
+    "workflowId": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "nodes": [
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.errorTrigger",
+        "typeVersion": 1,
+        "position": [
+          -400,
+          0
+        ],
+        "id": "e002ee9e-e4ff-4fdf-93ff-b9cf411bb7e3",
+        "name": "Error Trigger"
+      },
+      {
+        "parameters": {
+          "jsCode": "const j = $input.first().json;\nconst ex = j.execution || {};\nconst wf = j.workflow || {};\nconst err = ex.error || {};\n\nconst vla = new Date(new Date().getTime() + 10 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19);\nconst url = ex.url || '';\nconst errMsg = String(err.message || err.description || 'неизвестная ошибка').slice(0, 900);\nconst stack = String(err.stack || '').slice(0, 1800);\nconst node = (err.node && err.node.name) ? err.node.name : (ex.lastNodeExecuted || '?');\nconst wfName = wf.name || wf.id || '?';\n\n// A5: инфра-ошибки — тихо (disable_notification), здоровье/безопасность — со звуком.\nconst HEALTH_SAFETY = /watchdog|advisor|доктор|doctor|capitan|капитан|registrar|регистратор|reports|backup alert|system check|anamnesis|анамнез|phenoage/i;\nconst silent = !HEALTH_SAFETY.test(wfName);\n\nconst tg =\n  (silent ? '🔇 ' : '🔴 ') + 'ОШИБКА workflow\\n\\n' +\n  'Workflow: ' + wfName + '\\n' +\n  'Нода: ' + node + '\\n' +\n  'Время (Влад): ' + vla + '\\n\\n' +\n  'Ошибка: ' + errMsg + '\\n\\n' +\n  (url ? ('Прогон: ' + url) : ('Execution ID: ' + ex.id));\n\nreturn [{ json: {\n  Timestamp: vla, Workflow: wfName, Node: node, Error_Message: errMsg,\n  Execution_ID: String(ex.id || ''), Execution_URL: url, Stack: stack, Status: 'новая',\n  _telegram: tg, _silent: silent,\n} }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -180,
+          0
+        ],
+        "id": "0129cef5-3be3-40d9-9bd4-4f7c5d2d1caa",
+        "name": "Format Error"
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Error_Log",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Timestamp": "={{ $json[\"Timestamp\"] }}",
+              "Workflow": "={{ $json[\"Workflow\"] }}",
+              "Node": "={{ $json[\"Node\"] }}",
+              "Error_Message": "={{ $json[\"Error_Message\"] }}",
+              "Execution_ID": "={{ $json[\"Execution_ID\"] }}",
+              "Execution_URL": "={{ $json[\"Execution_URL\"] }}",
+              "Stack": "={{ $json[\"Stack\"] }}",
+              "Status": "={{ $json[\"Status\"] }}"
+            },
+            "matchingColumns": [
+              "Execution_ID"
+            ],
+            "schema": [
+              {
+                "id": "Timestamp",
+                "displayName": "Timestamp",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Workflow",
+                "displayName": "Workflow",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Node",
+                "displayName": "Node",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Error_Message",
+                "displayName": "Error_Message",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Execution_ID",
+                "displayName": "Execution_ID",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Execution_URL",
+                "displayName": "Execution_URL",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Stack",
+                "displayName": "Stack",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Status",
+                "displayName": "Status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          300,
+          0
+        ],
+        "id": "36f21b38-df12-4779-a849-7cd908b6cf8c",
+        "name": "Log to Error_Log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "e244458f-f751-4bca-bf97-8a3ac406ad83",
+        "name": "Notify Dedup",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          520,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://144.31.194.174.nip.io/webhook/err-dedup",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ wf: $(\"Format Error\").first().json.Workflow, node: $(\"Format Error\").first().json.Node, telegram: $(\"Format Error\").first().json._telegram, silent: $(\"Format Error\").first().json._silent, token: '8beNA4tqEdqhpjtUqCUM' }) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "Error Trigger": {
+        "main": [
+          [
+            {
+              "node": "Format Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Error": {
+        "main": [
+          [
+            {
+              "node": "Log to Error_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log to Error_Log": {
+        "main": [
+          [
+            {
+              "node": "Notify Dedup",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: internal webhook tokens)",
+    "name": "Patch 7e17d3d9 — internal webhook tokens",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
