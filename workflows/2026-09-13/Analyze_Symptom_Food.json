@@ -1,0 +1,298 @@
+{
+  "updatedAt": "2026-09-08T07:31:33.000Z",
+  "createdAt": "2026-09-07T11:48:26.574Z",
+  "id": "AnalyzeSympFood",
+  "name": "Analyze_Symptom_Food",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "3f595c95-34cd-4a2d-aafd-c0eb922de65a",
+      "name": "Analyze trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "e1be4ea0-d0d7-48a1-ac33-8b94009d3d72",
+      "name": "Get Symptom_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Symptom_Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "82568566-a6c3-4369-b0e9-611cad1ba319",
+      "name": "Get Meals",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+          "mode": "list",
+          "cachedResultName": "Nutrition"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 403788598,
+          "mode": "list",
+          "cachedResultName": "Meals"
+        },
+        "options": {},
+        "filtersUI": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "0532dcda-c1a5-43d0-a890-b85674bed6db",
+      "name": "Analyze",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Analyze_Symptom_Food — ассоциативный анализ «эпизоды симптома ↔ еда до них».\n// Вход: symptom_id (из executeWorkflowTrigger). Читает Symptom_Log + Meals.\n// НЕ доказательство — генератор кандидатов для элиминационного теста.\n// Run Once for All Items.\n// v2 (Батч 4 Гр.5): база = приёмы пищи в ТО ЖЕ время суток, что и pre-приёмы.\n//   Эпизоды кучкуются по времени дня → pre смещён к ужину; сравнение со всеми приёмами\n//   ложно поднимало «жиры/алкоголь/сахар» просто потому, что ужин ≠ завтрак.\n\nfunction safeAll(n) { try { return $(n).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v == null || v === '') return null;\n  const x = parseFloat(String(v).replace(',', '.'));\n  return isNaN(x) ? null : x;\n}\nfunction round(x) { return x == null ? null : Math.round(x * 100) / 100; }\nfunction ts(v) {\n  let s = String(v == null ? '' : v).trim();\n  if (!s) return null;\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) s += 'T12:00:00+10:00';           // дата без времени → полдень\n  else s = s.replace(' ', 'T');\n  if (!/[+Z]/.test(s.slice(10))) s += '+10:00';                        // без TZ → Владивосток\n  const d = new Date(s);\n  return isNaN(d.getTime()) ? null : d.getTime();\n}\n\nconst symId = String(($json && $json.symptom_id) || ($('Analyze trigger').first().json.symptom_id) || '').trim();\nconst symRows = safeAll('Get Symptom_Log');\nconst mealRows = safeAll('Get Meals');\n\nconst WINDOW_H = 6;   // еда в пределах 6 ч ДО начала эпизода\nconst NUTR = ['Calories', 'Proteins', 'Carbs', 'Fats', 'Насыщенные жиры', 'Трансжиры',\n  'Добавленный сахар', 'Кофеин', 'Алкоголь', 'Клетчатка', 'Холестерин', 'Натрий'];\n\nif (!symId) return [{ json: { error: 'no symptom_id' } }];\n\nconst episodes = symRows\n  .filter(r => String(r.Symptom_ID) === symId && ts(r.Date))\n  .map(r => ({ at: ts(r.Date), severity: num(r.Severity), note: r.Note || r.Symptom || '' }))\n  .sort((a, b) => a.at - b.at);\n\nif (!episodes.length) {\n  return [{ json: { symptom_id: symId, episodes: 0, note: 'Нет записанных эпизодов этого симптома в Symptom_Log.' } }];\n}\n\nconst meals = mealRows\n  .map(m => {\n    const at = ts(m.Date);\n    if (at == null) return null;\n    const n = {}; NUTR.forEach(k => { n[k] = num(m[k]); });\n    return { at, desc: String(m.Meal_description || ''), n };\n  })\n  .filter(Boolean)\n  .sort((a, b) => a.at - b.at);\n\n// разметка: попадает ли приём пищи в pre-окно хотя бы одного эпизода\nconst preIdx = new Set();\nconst perEpisodeHits = [];\nfor (const ep of episodes) {\n  const hits = [];\n  for (let i = 0; i < meals.length; i++) {\n    if (meals[i].at <= ep.at && meals[i].at >= ep.at - WINDOW_H * 3600000) { preIdx.add(i); hits.push(i); }\n  }\n  perEpisodeHits.push(hits.length);\n}\nfunction vlHour(atMs) { return new Date(atMs + 10 * 3600000).getUTCHours(); }\nfunction todBucket(atMs) {\n  const h = vlHour(atMs);\n  if (h >= 5 && h < 11) return 'утро';\n  if (h >= 11 && h < 16) return 'день';\n  if (h >= 16 && h < 23) return 'вечер';\n  return 'ночь';\n}\nconst pre = meals.filter((_, i) => preIdx.has(i));\nconst preBuckets = new Set(pre.map(m => todBucket(m.at)));\nlet base = meals.filter((_, i) => !preIdx.has(i) && preBuckets.has(todBucket(meals[i].at)));\nlet base_matched_by = 'то же время суток (' + [...preBuckets].join('/') + ')';\nif (base.length < 3) {\n  base = meals.filter((_, i) => !preIdx.has(i));\n  base_matched_by = 'все приёмы — в то же время суток данных мало, возможна смещённость по времени дня';\n}\n\nif (pre.length < 2) {\n  return [{ json: { symptom_id: symId, episodes: episodes.length, pre_meals: pre.length,\n    note: 'Слишком мало приёмов пищи в окнах перед эпизодами (нет времени эпизодов в Symptom_Log?). Проси пациента отмечать время боли.' } }];\n}\n\n// ---- нутриенты: среднее на приём в pre vs base ----\nfunction meanOf(arr, k) {\n  const v = arr.map(m => m.n[k]).filter(x => x != null);\n  return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;\n}\nconst nutrient_candidates = NUTR.map(k => {\n  const p = meanOf(pre, k), b = meanOf(base, k);\n  if (p == null || b == null) return null;\n  // база 0, а перед эпизодом есть — сильнейший сигнал (напр. кофеин/алкоголь/сахар)\n  const ratio = b === 0 ? (p > 0 ? 99 : 1) : p / b;\n  return { factor: k, pre_mean: round(p), base_mean: round(b), ratio: ratio === 99 ? '∞' : round(ratio),\n    direction: (b === 0 ? p > 0 : ratio >= 1) ? 'выше/есть перед эпизодом' : 'ниже перед эпизодом',\n    _abs: Math.abs(Math.log(ratio === 99 ? 20 : ratio || 1)) };\n}).filter(x => x && (x.ratio === '∞' || x.ratio >= 1.4 || x.ratio <= 0.7))\n  .sort((a, b) => b._abs - a._abs)\n  .map(({ _abs, ...x }) => x);\n\n// ---- продукты: частота слова в описаниях pre vs base ----\nconst STOP = new Set(['около', 'грамм', 'граммов', 'штук', 'штука', 'ложка', 'ложки', 'ложек', 'стакан',\n  'порция', 'порции', 'вес', 'итого', 'примерно', 'свежий', 'свежая', 'свежие', 'сырой', 'сырая',\n  'домашний', 'домашняя', 'кусок', 'кусочек', 'большой', 'маленький', 'средний', 'salad', 'штуки']);\nfunction words(s) {\n  return [...new Set((String(s).toLowerCase().match(/[а-яёa-z]{4,}/gi) || [])\n    .map(w => w.replace(/(ый|ая|ое|ые|ой|ов|ам|ах|у|е|а|ы|и|я)$/, '')).filter(w => w.length >= 4 && !STOP.has(w)))];\n}\nconst preW = {}, baseW = {};\npre.forEach(m => words(m.desc).forEach(w => preW[w] = (preW[w] || 0) + 1));\nbase.forEach(m => words(m.desc).forEach(w => baseW[w] = (baseW[w] || 0) + 1));\nconst food_candidates = Object.keys(preW).map(w => {\n  const pf = preW[w] / pre.length;\n  const bf = (baseW[w] || 0) / Math.max(base.length, 1);\n  return { food: w, in_pre_meals: preW[w], pre_freq: round(pf), base_freq: round(bf),\n    lift: bf > 0 ? round(pf / bf) : (pf > 0 ? 99 : 0) };\n}).filter(x => x.in_pre_meals >= 2 && x.lift >= 1.8)\n  .sort((a, b) => b.lift - a.lift).slice(0, 10);\n\nconst enough = episodes.length >= 4 && pre.length >= 4;\n\nreturn [{\n  json: {\n    symptom_id: symId,\n    episodes: episodes.length,\n    episodes_with_meal_data: perEpisodeHits.filter(h => h > 0).length,\n    pre_meals: pre.length,\n    base_meals: base.length,\n    base_matched_by,\n    window_hours: WINDOW_H,\n    nutrient_candidates: nutrient_candidates.slice(0, 8),\n    food_candidates,\n    confidence: enough ? 'предварительно' : 'очень низкая (мало эпизодов)',\n    note: 'Ассоциативный анализ, НЕ доказательство причинности. Каждый кандидат проверяется элиминационным тестом (убрать на 2 недели → вернуть). При <4 эпизодах выводы почти случайны — нужно больше данных.',\n  },\n}];\n"
+      }
+    }
+  ],
+  "connections": {
+    "Analyze trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Symptom_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Symptom_Log": {
+      "main": [
+        [
+          {
+            "node": "Get Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Meals": {
+      "main": [
+        [
+          {
+            "node": "Analyze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "e419dd29-8010-480c-88fe-644ef1bc1d9d",
+  "activeVersionId": "e419dd29-8010-480c-88fe-644ef1bc1d9d",
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-07T11:48:26.574Z",
+      "createdAt": "2026-09-07T11:48:26.574Z",
+      "role": "workflow:owner",
+      "workflowId": "AnalyzeSympFood",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-08T07:31:25.834Z",
+    "createdAt": "2026-09-08T07:31:25.834Z",
+    "versionId": "e419dd29-8010-480c-88fe-644ef1bc1d9d",
+    "workflowId": "AnalyzeSympFood",
+    "nodes": [
+      {
+        "id": "3f595c95-34cd-4a2d-aafd-c0eb922de65a",
+        "name": "Analyze trigger",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "inputSource": "passthrough"
+        }
+      },
+      {
+        "id": "e1be4ea0-d0d7-48a1-ac33-8b94009d3d72",
+        "name": "Get Symptom_Log",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          200,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Symptom_Log",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "executeOnce": true
+      },
+      {
+        "id": "82568566-a6c3-4369-b0e9-611cad1ba319",
+        "name": "Get Meals",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          400,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1NCiBHlbl-nx99kRe8uaqpsAdVV_i6MTw6Bl43LMbCkU",
+            "mode": "list",
+            "cachedResultName": "Nutrition"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 403788598,
+            "mode": "list",
+            "cachedResultName": "Meals"
+          },
+          "options": {},
+          "filtersUI": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true,
+        "executeOnce": true
+      },
+      {
+        "id": "0532dcda-c1a5-43d0-a890-b85674bed6db",
+        "name": "Analyze",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          600,
+          0
+        ],
+        "parameters": {
+          "jsCode": "// Analyze_Symptom_Food — ассоциативный анализ «эпизоды симптома ↔ еда до них».\n// Вход: symptom_id (из executeWorkflowTrigger). Читает Symptom_Log + Meals.\n// НЕ доказательство — генератор кандидатов для элиминационного теста.\n// Run Once for All Items.\n// v2 (Батч 4 Гр.5): база = приёмы пищи в ТО ЖЕ время суток, что и pre-приёмы.\n//   Эпизоды кучкуются по времени дня → pre смещён к ужину; сравнение со всеми приёмами\n//   ложно поднимало «жиры/алкоголь/сахар» просто потому, что ужин ≠ завтрак.\n\nfunction safeAll(n) { try { return $(n).all().map(i => i.json); } catch (e) { return []; } }\nfunction num(v) {\n  if (v == null || v === '') return null;\n  const x = parseFloat(String(v).replace(',', '.'));\n  return isNaN(x) ? null : x;\n}\nfunction round(x) { return x == null ? null : Math.round(x * 100) / 100; }\nfunction ts(v) {\n  let s = String(v == null ? '' : v).trim();\n  if (!s) return null;\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) s += 'T12:00:00+10:00';           // дата без времени → полдень\n  else s = s.replace(' ', 'T');\n  if (!/[+Z]/.test(s.slice(10))) s += '+10:00';                        // без TZ → Владивосток\n  const d = new Date(s);\n  return isNaN(d.getTime()) ? null : d.getTime();\n}\n\nconst symId = String(($json && $json.symptom_id) || ($('Analyze trigger').first().json.symptom_id) || '').trim();\nconst symRows = safeAll('Get Symptom_Log');\nconst mealRows = safeAll('Get Meals');\n\nconst WINDOW_H = 6;   // еда в пределах 6 ч ДО начала эпизода\nconst NUTR = ['Calories', 'Proteins', 'Carbs', 'Fats', 'Насыщенные жиры', 'Трансжиры',\n  'Добавленный сахар', 'Кофеин', 'Алкоголь', 'Клетчатка', 'Холестерин', 'Натрий'];\n\nif (!symId) return [{ json: { error: 'no symptom_id' } }];\n\nconst episodes = symRows\n  .filter(r => String(r.Symptom_ID) === symId && ts(r.Date))\n  .map(r => ({ at: ts(r.Date), severity: num(r.Severity), note: r.Note || r.Symptom || '' }))\n  .sort((a, b) => a.at - b.at);\n\nif (!episodes.length) {\n  return [{ json: { symptom_id: symId, episodes: 0, note: 'Нет записанных эпизодов этого симптома в Symptom_Log.' } }];\n}\n\nconst meals = mealRows\n  .map(m => {\n    const at = ts(m.Date);\n    if (at == null) return null;\n    const n = {}; NUTR.forEach(k => { n[k] = num(m[k]); });\n    return { at, desc: String(m.Meal_description || ''), n };\n  })\n  .filter(Boolean)\n  .sort((a, b) => a.at - b.at);\n\n// разметка: попадает ли приём пищи в pre-окно хотя бы одного эпизода\nconst preIdx = new Set();\nconst perEpisodeHits = [];\nfor (const ep of episodes) {\n  const hits = [];\n  for (let i = 0; i < meals.length; i++) {\n    if (meals[i].at <= ep.at && meals[i].at >= ep.at - WINDOW_H * 3600000) { preIdx.add(i); hits.push(i); }\n  }\n  perEpisodeHits.push(hits.length);\n}\nfunction vlHour(atMs) { return new Date(atMs + 10 * 3600000).getUTCHours(); }\nfunction todBucket(atMs) {\n  const h = vlHour(atMs);\n  if (h >= 5 && h < 11) return 'утро';\n  if (h >= 11 && h < 16) return 'день';\n  if (h >= 16 && h < 23) return 'вечер';\n  return 'ночь';\n}\nconst pre = meals.filter((_, i) => preIdx.has(i));\nconst preBuckets = new Set(pre.map(m => todBucket(m.at)));\nlet base = meals.filter((_, i) => !preIdx.has(i) && preBuckets.has(todBucket(meals[i].at)));\nlet base_matched_by = 'то же время суток (' + [...preBuckets].join('/') + ')';\nif (base.length < 3) {\n  base = meals.filter((_, i) => !preIdx.has(i));\n  base_matched_by = 'все приёмы — в то же время суток данных мало, возможна смещённость по времени дня';\n}\n\nif (pre.length < 2) {\n  return [{ json: { symptom_id: symId, episodes: episodes.length, pre_meals: pre.length,\n    note: 'Слишком мало приёмов пищи в окнах перед эпизодами (нет времени эпизодов в Symptom_Log?). Проси пациента отмечать время боли.' } }];\n}\n\n// ---- нутриенты: среднее на приём в pre vs base ----\nfunction meanOf(arr, k) {\n  const v = arr.map(m => m.n[k]).filter(x => x != null);\n  return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;\n}\nconst nutrient_candidates = NUTR.map(k => {\n  const p = meanOf(pre, k), b = meanOf(base, k);\n  if (p == null || b == null) return null;\n  // база 0, а перед эпизодом есть — сильнейший сигнал (напр. кофеин/алкоголь/сахар)\n  const ratio = b === 0 ? (p > 0 ? 99 : 1) : p / b;\n  return { factor: k, pre_mean: round(p), base_mean: round(b), ratio: ratio === 99 ? '∞' : round(ratio),\n    direction: (b === 0 ? p > 0 : ratio >= 1) ? 'выше/есть перед эпизодом' : 'ниже перед эпизодом',\n    _abs: Math.abs(Math.log(ratio === 99 ? 20 : ratio || 1)) };\n}).filter(x => x && (x.ratio === '∞' || x.ratio >= 1.4 || x.ratio <= 0.7))\n  .sort((a, b) => b._abs - a._abs)\n  .map(({ _abs, ...x }) => x);\n\n// ---- продукты: частота слова в описаниях pre vs base ----\nconst STOP = new Set(['около', 'грамм', 'граммов', 'штук', 'штука', 'ложка', 'ложки', 'ложек', 'стакан',\n  'порция', 'порции', 'вес', 'итого', 'примерно', 'свежий', 'свежая', 'свежие', 'сырой', 'сырая',\n  'домашний', 'домашняя', 'кусок', 'кусочек', 'большой', 'маленький', 'средний', 'salad', 'штуки']);\nfunction words(s) {\n  return [...new Set((String(s).toLowerCase().match(/[а-яёa-z]{4,}/gi) || [])\n    .map(w => w.replace(/(ый|ая|ое|ые|ой|ов|ам|ах|у|е|а|ы|и|я)$/, '')).filter(w => w.length >= 4 && !STOP.has(w)))];\n}\nconst preW = {}, baseW = {};\npre.forEach(m => words(m.desc).forEach(w => preW[w] = (preW[w] || 0) + 1));\nbase.forEach(m => words(m.desc).forEach(w => baseW[w] = (baseW[w] || 0) + 1));\nconst food_candidates = Object.keys(preW).map(w => {\n  const pf = preW[w] / pre.length;\n  const bf = (baseW[w] || 0) / Math.max(base.length, 1);\n  return { food: w, in_pre_meals: preW[w], pre_freq: round(pf), base_freq: round(bf),\n    lift: bf > 0 ? round(pf / bf) : (pf > 0 ? 99 : 0) };\n}).filter(x => x.in_pre_meals >= 2 && x.lift >= 1.8)\n  .sort((a, b) => b.lift - a.lift).slice(0, 10);\n\nconst enough = episodes.length >= 4 && pre.length >= 4;\n\nreturn [{\n  json: {\n    symptom_id: symId,\n    episodes: episodes.length,\n    episodes_with_meal_data: perEpisodeHits.filter(h => h > 0).length,\n    pre_meals: pre.length,\n    base_meals: base.length,\n    base_matched_by,\n    window_hours: WINDOW_H,\n    nutrient_candidates: nutrient_candidates.slice(0, 8),\n    food_candidates,\n    confidence: enough ? 'предварительно' : 'очень низкая (мало эпизодов)',\n    note: 'Ассоциативный анализ, НЕ доказательство причинности. Каждый кандидат проверяется элиминационным тестом (убрать на 2 недели → вернуть). При <4 эпизодах выводы почти случайны — нужно больше данных.',\n  },\n}];\n"
+        }
+      }
+    ],
+    "connections": {
+      "Analyze trigger": {
+        "main": [
+          [
+            {
+              "node": "Get Symptom_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Symptom_Log": {
+        "main": [
+          [
+            {
+              "node": "Get Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Meals": {
+        "main": [
+          [
+            {
+              "node": "Analyze",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: g5: symptom-food base = same time of day)",
+    "name": "Patch e419dd29 — g5: symptom-food base = same time of day",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
