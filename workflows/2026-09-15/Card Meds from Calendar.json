@@ -1,0 +1,299 @@
+{
+  "updatedAt": "2026-09-13T22:54:52.000Z",
+  "createdAt": "2026-09-13T22:52:28.999Z",
+  "id": "CardMedsCal01",
+  "name": "Card: Meds from Calendar",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "3a993b80-2a87-46bd-8d5d-1c18af50efac",
+      "name": "Every day 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9ddf6307-5ed0-449b-839e-a60208c77a65",
+      "name": "Get Today Events",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "vasukvladislav@gmail.com",
+          "mode": "list"
+        },
+        "timeMin": "={{ $now.setZone('Asia/Vladivostok').startOf('day').toUTC().toISO() }}",
+        "timeMax": "={{ $now.setZone('Asia/Vladivostok').endOf('day').toUTC().toISO() }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "PqacoYjKhCXLSGf8",
+          "name": "Google Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "28c1dd96-8e64-44c7-b31a-8d850ef133d1",
+      "name": "Filter Medication-like",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Медикамент-подобные события: единицы дозировки или явные слова \"таблетка/капсула/доза\".\nconst MED_RE = /\\d+(\\.\\d+)?\\s*(mg|mcg|iu)\\b|\\d+(\\.\\d+)?\\s*(ме|мкг|мг)(?![а-яёa-z])|таблетк|капсул|доз[аыу]/i;\nconst items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const j = item.json;\n  const summary = j.summary || '';\n  if (!MED_RE.test(summary)) continue;\n  const startTs = (j.start && (j.start.dateTime || j.start.date)) || null;\n  results.push({ json: {\n    name: summary,\n    source_ref: j.recurringEventId || j.id,\n    started_ts: startTs,\n  }});\n}\nreturn results;"
+      }
+    },
+    {
+      "id": "711d3d76-e67c-440d-964f-f8432b0aa5a3",
+      "name": "Sync to card-service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://card-service:8080/interventions/sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.name, source_ref: $json.source_ref, started_ts: $json.started_ts, kind: 'supplement' }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Every day 09:00": {
+      "main": [
+        [
+          {
+            "node": "Get Today Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Today Events": {
+      "main": [
+        [
+          {
+            "node": "Filter Medication-like",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Medication-like": {
+      "main": [
+        [
+          {
+            "node": "Sync to card-service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "node:Every day 09:00": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "lock": 0
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "e8d8e831-a95c-44ab-a324-c67d12a133c5",
+  "activeVersionId": "e8d8e831-a95c-44ab-a324-c67d12a133c5",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-13T22:52:29.026Z",
+      "createdAt": "2026-09-13T22:52:29.026Z",
+      "role": "workflow:owner",
+      "workflowId": "CardMedsCal01",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-13T22:54:44.689Z",
+    "createdAt": "2026-09-13T22:54:44.689Z",
+    "versionId": "e8d8e831-a95c-44ab-a324-c67d12a133c5",
+    "workflowId": "CardMedsCal01",
+    "nodes": [
+      {
+        "id": "3a993b80-2a87-46bd-8d5d-1c18af50efac",
+        "name": "Every day 09:00",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "triggerAtHour": 9
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "9ddf6307-5ed0-449b-839e-a60208c77a65",
+        "name": "Get Today Events",
+        "type": "n8n-nodes-base.googleCalendar",
+        "typeVersion": 1.3,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "operation": "getAll",
+          "calendar": {
+            "__rl": true,
+            "value": "vasukvladislav@gmail.com",
+            "mode": "list"
+          },
+          "timeMin": "={{ $now.setZone('Asia/Vladivostok').startOf('day').toUTC().toISO() }}",
+          "timeMax": "={{ $now.setZone('Asia/Vladivostok').endOf('day').toUTC().toISO() }}",
+          "options": {}
+        },
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "PqacoYjKhCXLSGf8",
+            "name": "Google Calendar account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 3000
+      },
+      {
+        "id": "28c1dd96-8e64-44c7-b31a-8d850ef133d1",
+        "name": "Filter Medication-like",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "jsCode": "// Медикамент-подобные события: единицы дозировки или явные слова \"таблетка/капсула/доза\".\nconst MED_RE = /\\d+(\\.\\d+)?\\s*(mg|mcg|iu)\\b|\\d+(\\.\\d+)?\\s*(ме|мкг|мг)(?![а-яёa-z])|таблетк|капсул|доз[аыу]/i;\nconst items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const j = item.json;\n  const summary = j.summary || '';\n  if (!MED_RE.test(summary)) continue;\n  const startTs = (j.start && (j.start.dateTime || j.start.date)) || null;\n  results.push({ json: {\n    name: summary,\n    source_ref: j.recurringEventId || j.id,\n    started_ts: startTs,\n  }});\n}\nreturn results;"
+        }
+      },
+      {
+        "id": "711d3d76-e67c-440d-964f-f8432b0aa5a3",
+        "name": "Sync to card-service",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          660,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://card-service:8080/interventions/sync",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ name: $json.name, source_ref: $json.source_ref, started_ts: $json.started_ts, kind: 'supplement' }) }}",
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "onError": "continueRegularOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    ],
+    "connections": {
+      "Every day 09:00": {
+        "main": [
+          [
+            {
+              "node": "Get Today Events",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Today Events": {
+        "main": [
+          [
+            {
+              "node": "Filter Medication-like",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter Medication-like": {
+        "main": [
+          [
+            {
+              "node": "Sync to card-service",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: fix Cyrillic \\b regex bug)",
+    "name": "Patch e8d8e831 — fix Cyrillic \\b regex bug",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
