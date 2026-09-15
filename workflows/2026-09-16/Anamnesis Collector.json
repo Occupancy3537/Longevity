@@ -1,0 +1,807 @@
+{
+  "updatedAt": "2026-09-08T07:19:33.000Z",
+  "createdAt": "2026-09-07T05:54:00.625Z",
+  "id": "anamCollect01",
+  "name": "Anamnesis Collector",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "46f50668-f19a-4785-a97d-b9f2bd32f28e",
+      "name": "Daily 11:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 11
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a6ff7a00-68d9-4721-ad95-fe1f278d5107",
+      "name": "Get Anamnesis",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Anamnesis",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "76810b41-e94a-4b91-8d11-cef99c4623b0",
+      "name": "Pick Next",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Выбор следующего вопроса анамнеза (Батч 4, Группа 2а).\n// Порядок = приоритет категории: препараты → аллергии → наследственность → личный анамнез\n//   → образ жизни → профилактика → происхождение (последним). Внутри категории — по Q_ID.\n// Кап попыток: 3 неотвеченных запроса одного вопроса → он помечается skipped, идём дальше.\nfunction d(v){ const s=String(v||'').trim().slice(0,10); return s.match(/^\\d{4}-\\d{2}-\\d{2}$/)?s:''; }\nfunction catRank(cat){\n  const c = String(cat||'').toLowerCase().trim();\n  if (c.startsWith('препарат') || c.includes('лекарств') || c.includes('добавк')) return 0;\n  if (c.startsWith('аллерг')) return 1;\n  if (c.startsWith('наследственн')) return 2;\n  if (c.startsWith('личный анамнез') || c.startsWith('личн')) return 3;\n  if (c.startsWith('образ жизни')) return 4;\n  if (c.startsWith('профилактика') || c.startsWith('скрин')) return 5;\n  if (c.startsWith('происхожд')) return 9;\n  return 6;\n}\nconst rows = $('Get Anamnesis').all().map(i=>i.json).filter(r=>r.Q_ID);\nrows.sort((a,b)=> (catRank(a.Category)-catRank(b.Category)) || String(a.Q_ID).localeCompare(String(b.Q_ID)));\nconst total = rows.length;\nconst done = rows.filter(r=> ['answered','skipped'].includes(String(r.Status))).length;\nconst answeredReal = rows.filter(r=> String(r.Status)==='answered').length;\nconst today = new Date(Date.now()+10*3600*1000).toISOString().slice(0,10);\nconst daysBetween = (a,b)=> a&&b ? Math.round((new Date(b)-new Date(a))/86400000) : 999;\n\nconst askedRow = rows.find(r=> String(r.Status)==='asked');\nlet pick=null, attempt=1, skip_q_id='';\nif (askedRow){\n  const curAtt = parseInt(askedRow.Attempts,10) || 1;\n  const since = daysBetween(d(askedRow.Asked_Date), today);\n  if (since < 2){\n    return [{ json:{ action:'wait', reason:'ждём ответа на '+askedRow.Q_ID+' ('+since+'д, попытка '+curAtt+'/3)', total, answered:answeredReal } }];\n  }\n  if (curAtt >= 3){\n    skip_q_id = askedRow.Q_ID;                      // 3 запроса без ответа → пропускаем\n    pick = rows.find(r=> String(r.Status)==='pending');\n    attempt = 1;\n  } else {\n    pick = askedRow;                                // повторный запрос того же\n    attempt = curAtt + 1;\n  }\n} else {\n  pick = rows.find(r=> String(r.Status)==='pending');\n  attempt = 1;\n}\nif (!pick){\n  if (skip_q_id) return [{ json:{ action:'skip_only', skip_q_id, today, total, answered:answeredReal, reason:'вопрос пропущен, пул закрыт' } }];\n  return [{ json:{ action:'done', reason:'все вопросы закрыты ('+done+'/'+total+')', total, answered:answeredReal } }];\n}\nconst num = answeredReal + 1;\nconst text = '🧬 Анамнез '+num+'/'+total+'\\n\\n'+pick.Question\n  + '\\n\\n↩️ Ответь на это сообщение (reply / свайп влево). Или просто напиши ответ — я пойму по тегу #'+pick.Q_ID+' ниже.'\n  + (attempt>1 ? '\\n\\n(повторяю — не увидел ответа, попытка '+attempt+'/3)' : '')\n  + '\\n\\n#'+pick.Q_ID;\nreturn [{ json:{ action:'ask', q_id:pick.Q_ID, category:pick.Category, text, attempt, num, total, answered:answeredReal, today, skip_q_id } }];\n"
+      }
+    },
+    {
+      "id": "9fd00ca8-f407-4ea1-b7f4-dae596310a7a",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b9dc5295-f99c-4c96-899b-9377bacb8cc9",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ask",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ask"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6ef77985-d56f-468d-aea4-eb2f730bc170",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "skip_only",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "skip"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a8ed985b-1084-4287-93f1-22f8929a424e",
+      "name": "Send Question",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        -60
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "replyMarkup": "forceReply",
+        "forceReply": {
+          "force_reply": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+          "name": "AI_VVK_Doctor_bot"
+        }
+      }
+    },
+    {
+      "id": "1d80eeb8-99da-4949-8e33-3bbe1b2a9ebf",
+      "name": "Mark Asked",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        -60
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Anamnesis",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Q_ID"
+          ],
+          "value": {
+            "Q_ID": "={{ $(\"Pick Next\").item.json.q_id }}",
+            "Status": "asked",
+            "Asked_Date": "={{ $(\"Pick Next\").item.json.today }}",
+            "Attempts": "={{ $(\"Pick Next\").item.json.attempt }}"
+          },
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "f15517cb-0678-42a6-ba31-5e48e56fedae",
+      "name": "Skip Prev?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1260,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f4ef1673-e773-485b-ae24-df1e25fdd9a7",
+              "leftValue": "={{ $(\"Pick Next\").item.json.skip_q_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "227f272a-17db-40b1-8d42-773a189fa20c",
+      "name": "Mark Skipped",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1480,
+        40
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      },
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+          "mode": "list",
+          "cachedResultName": "Health_DB"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Anamnesis",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Q_ID"
+          ],
+          "schema": [],
+          "value": {
+            "Q_ID": "={{ $(\"Pick Next\").item.json.skip_q_id }}",
+            "Status": "skipped",
+            "Answer": "(нет ответа после 3 запросов — пропущено)",
+            "Answered_Date": "={{ $(\"Pick Next\").item.json.today }}"
+          }
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Daily 11:00": {
+      "main": [
+        [
+          {
+            "node": "Get Anamnesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Anamnesis": {
+      "main": [
+        [
+          {
+            "node": "Pick Next",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Next": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask?": {
+      "main": [
+        [
+          {
+            "node": "Send Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send Question": {
+      "main": [
+        [
+          {
+            "node": "Mark Asked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Send Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Asked": {
+      "main": [
+        [
+          {
+            "node": "Skip Prev?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Prev?": {
+      "main": [
+        [
+          {
+            "node": "Mark Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": {
+    "node:Daily 11:00": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "0aa9df8e-21e9-4904-99cd-aaec0752517d",
+  "activeVersionId": "0aa9df8e-21e9-4904-99cd-aaec0752517d",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-07T05:54:00.625Z",
+      "createdAt": "2026-09-07T05:54:00.625Z",
+      "role": "workflow:owner",
+      "workflowId": "anamCollect01",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-08T07:19:26.202Z",
+    "createdAt": "2026-09-08T07:19:26.202Z",
+    "versionId": "0aa9df8e-21e9-4904-99cd-aaec0752517d",
+    "workflowId": "anamCollect01",
+    "nodes": [
+      {
+        "id": "46f50668-f19a-4785-a97d-b9f2bd32f28e",
+        "name": "Daily 11:00",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "triggerAtHour": 11
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "a6ff7a00-68d9-4721-ad95-fe1f278d5107",
+        "name": "Get Anamnesis",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          200,
+          0
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Anamnesis",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "alwaysOutputData": true
+      },
+      {
+        "id": "76810b41-e94a-4b91-8d11-cef99c4623b0",
+        "name": "Pick Next",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          400,
+          0
+        ],
+        "parameters": {
+          "jsCode": "// Выбор следующего вопроса анамнеза (Батч 4, Группа 2а).\n// Порядок = приоритет категории: препараты → аллергии → наследственность → личный анамнез\n//   → образ жизни → профилактика → происхождение (последним). Внутри категории — по Q_ID.\n// Кап попыток: 3 неотвеченных запроса одного вопроса → он помечается skipped, идём дальше.\nfunction d(v){ const s=String(v||'').trim().slice(0,10); return s.match(/^\\d{4}-\\d{2}-\\d{2}$/)?s:''; }\nfunction catRank(cat){\n  const c = String(cat||'').toLowerCase().trim();\n  if (c.startsWith('препарат') || c.includes('лекарств') || c.includes('добавк')) return 0;\n  if (c.startsWith('аллерг')) return 1;\n  if (c.startsWith('наследственн')) return 2;\n  if (c.startsWith('личный анамнез') || c.startsWith('личн')) return 3;\n  if (c.startsWith('образ жизни')) return 4;\n  if (c.startsWith('профилактика') || c.startsWith('скрин')) return 5;\n  if (c.startsWith('происхожд')) return 9;\n  return 6;\n}\nconst rows = $('Get Anamnesis').all().map(i=>i.json).filter(r=>r.Q_ID);\nrows.sort((a,b)=> (catRank(a.Category)-catRank(b.Category)) || String(a.Q_ID).localeCompare(String(b.Q_ID)));\nconst total = rows.length;\nconst done = rows.filter(r=> ['answered','skipped'].includes(String(r.Status))).length;\nconst answeredReal = rows.filter(r=> String(r.Status)==='answered').length;\nconst today = new Date(Date.now()+10*3600*1000).toISOString().slice(0,10);\nconst daysBetween = (a,b)=> a&&b ? Math.round((new Date(b)-new Date(a))/86400000) : 999;\n\nconst askedRow = rows.find(r=> String(r.Status)==='asked');\nlet pick=null, attempt=1, skip_q_id='';\nif (askedRow){\n  const curAtt = parseInt(askedRow.Attempts,10) || 1;\n  const since = daysBetween(d(askedRow.Asked_Date), today);\n  if (since < 2){\n    return [{ json:{ action:'wait', reason:'ждём ответа на '+askedRow.Q_ID+' ('+since+'д, попытка '+curAtt+'/3)', total, answered:answeredReal } }];\n  }\n  if (curAtt >= 3){\n    skip_q_id = askedRow.Q_ID;                      // 3 запроса без ответа → пропускаем\n    pick = rows.find(r=> String(r.Status)==='pending');\n    attempt = 1;\n  } else {\n    pick = askedRow;                                // повторный запрос того же\n    attempt = curAtt + 1;\n  }\n} else {\n  pick = rows.find(r=> String(r.Status)==='pending');\n  attempt = 1;\n}\nif (!pick){\n  if (skip_q_id) return [{ json:{ action:'skip_only', skip_q_id, today, total, answered:answeredReal, reason:'вопрос пропущен, пул закрыт' } }];\n  return [{ json:{ action:'done', reason:'все вопросы закрыты ('+done+'/'+total+')', total, answered:answeredReal } }];\n}\nconst num = answeredReal + 1;\nconst text = '🧬 Анамнез '+num+'/'+total+'\\n\\n'+pick.Question\n  + '\\n\\n↩️ Ответь на это сообщение (reply / свайп влево). Или просто напиши ответ — я пойму по тегу #'+pick.Q_ID+' ниже.'\n  + (attempt>1 ? '\\n\\n(повторяю — не увидел ответа, попытка '+attempt+'/3)' : '')\n  + '\\n\\n#'+pick.Q_ID;\nreturn [{ json:{ action:'ask', q_id:pick.Q_ID, category:pick.Category, text, attempt, num, total, answered:answeredReal, today, skip_q_id } }];\n"
+        }
+      },
+      {
+        "id": "9fd00ca8-f407-4ea1-b7f4-dae596310a7a",
+        "name": "Route",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          600,
+          0
+        ],
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "b9dc5295-f99c-4c96-899b-9377bacb8cc9",
+                      "leftValue": "={{ $json.action }}",
+                      "rightValue": "ask",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "ask"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "id": "6ef77985-d56f-468d-aea4-eb2f730bc170",
+                      "leftValue": "={{ $json.action }}",
+                      "rightValue": "skip_only",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "skip"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "a8ed985b-1084-4287-93f1-22f8929a424e",
+        "name": "Send Question",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          820,
+          -60
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $json.text }}",
+          "additionalFields": {
+            "appendAttribution": false
+          },
+          "replyMarkup": "forceReply",
+          "forceReply": {
+            "force_reply": true
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "7f4f4e03-5939-44b8-80b0-238bc494f787",
+            "name": "AI_VVK_Doctor_bot"
+          }
+        }
+      },
+      {
+        "id": "1d80eeb8-99da-4949-8e33-3bbe1b2a9ebf",
+        "name": "Mark Asked",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1040,
+          -60
+        ],
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Anamnesis",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "matchingColumns": [
+              "Q_ID"
+            ],
+            "value": {
+              "Q_ID": "={{ $(\"Pick Next\").item.json.q_id }}",
+              "Status": "asked",
+              "Asked_Date": "={{ $(\"Pick Next\").item.json.today }}",
+              "Attempts": "={{ $(\"Pick Next\").item.json.attempt }}"
+            },
+            "schema": []
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "f15517cb-0678-42a6-ba31-5e48e56fedae",
+        "name": "Skip Prev?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          1260,
+          -60
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "f4ef1673-e773-485b-ae24-df1e25fdd9a7",
+                "leftValue": "={{ $(\"Pick Next\").item.json.skip_q_id }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "227f272a-17db-40b1-8d42-773a189fa20c",
+        "name": "Mark Skipped",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1480,
+          40
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "LLwuPzJuom1ek7BZ",
+            "name": "Google Sheets account"
+          }
+        },
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1M8focgZBHCbhLEQb4GoyxTYxedA-FcdjQ_XakX5SG2w",
+            "mode": "list",
+            "cachedResultName": "Health_DB"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "Anamnesis",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "matchingColumns": [
+              "Q_ID"
+            ],
+            "schema": [],
+            "value": {
+              "Q_ID": "={{ $(\"Pick Next\").item.json.skip_q_id }}",
+              "Status": "skipped",
+              "Answer": "(нет ответа после 3 запросов — пропущено)",
+              "Answered_Date": "={{ $(\"Pick Next\").item.json.today }}"
+            }
+          },
+          "options": {}
+        }
+      }
+    ],
+    "connections": {
+      "Daily 11:00": {
+        "main": [
+          [
+            {
+              "node": "Get Anamnesis",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Anamnesis": {
+        "main": [
+          [
+            {
+              "node": "Pick Next",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pick Next": {
+        "main": [
+          [
+            {
+              "node": "Route",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ask?": {
+        "main": [
+          [
+            {
+              "node": "Send Question",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Send Question": {
+        "main": [
+          [
+            {
+              "node": "Mark Asked",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Route": {
+        "main": [
+          [
+            {
+              "node": "Send Question",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mark Skipped",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mark Asked": {
+        "main": [
+          [
+            {
+              "node": "Skip Prev?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Skip Prev?": {
+        "main": [
+          [
+            {
+              "node": "Mark Skipped",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: g2b step2: strip TMP Make Meds branch)",
+    "name": "Patch 0aa9df8e — g2b step2: strip TMP Make Meds branch",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
