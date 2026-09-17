@@ -1,0 +1,227 @@
+{
+  "updatedAt": "2026-09-13T20:38:01.000Z",
+  "createdAt": "2026-09-13T20:37:44.580Z",
+  "id": "CardProcessor01",
+  "name": "Card Processor",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "69f02d40-6096-409c-8ab5-34da65dae393",
+      "name": "Every 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "4497133c-8a5d-49ca-b643-e5728ef04277",
+      "name": "Get Pending",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM card.source_message WHERE status = 'received' ORDER BY ts_received LIMIT 20",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "535ef7f8-adcb-40a2-b8ec-dfc28b48a323",
+      "name": "Process Each",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://card-service:8080/process/{{ $json.id }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Every 5 min": {
+      "main": [
+        [
+          {
+            "node": "Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending": {
+      "main": [
+        [
+          {
+            "node": "Process Each",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "node:Every 5 min": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "lock": 0
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "97439fc2-3b96-4756-9253-05089804e59a",
+  "activeVersionId": "97439fc2-3b96-4756-9253-05089804e59a",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-13T20:48:33.182Z",
+      "createdAt": "2026-09-13T20:48:33.182Z",
+      "role": "workflow:owner",
+      "workflowId": "CardProcessor01",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-13T20:37:53.492Z",
+    "createdAt": "2026-09-13T20:37:53.492Z",
+    "versionId": "97439fc2-3b96-4756-9253-05089804e59a",
+    "workflowId": "CardProcessor01",
+    "nodes": [
+      {
+        "id": "69f02d40-6096-409c-8ab5-34da65dae393",
+        "name": "Every 5 min",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 5
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "4497133c-8a5d-49ca-b643-e5728ef04277",
+        "name": "Get Pending",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          220,
+          0
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT id FROM card.source_message WHERE status = 'received' ORDER BY ts_received LIMIT 20",
+          "options": {}
+        },
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "535ef7f8-adcb-40a2-b8ec-dfc28b48a323",
+        "name": "Process Each",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          440,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "=http://card-service:8080/process/{{ $json.id }}",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "onError": "continueRegularOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    ],
+    "connections": {
+      "Every 5 min": {
+        "main": [
+          [
+            {
+              "node": "Get Pending",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Pending": {
+        "main": [
+          [
+            {
+              "node": "Process Each",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: initial creation)",
+    "name": "Patch 97439fc2 — initial creation",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
