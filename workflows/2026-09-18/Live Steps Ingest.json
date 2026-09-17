@@ -1,0 +1,109 @@
+{
+  "updatedAt": "2026-09-14T01:06:21.000Z",
+  "createdAt": "2026-09-14T01:04:39.896Z",
+  "id": "LiveStepsIngest1",
+  "name": "Live Steps Ingest",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "live-steps",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-live-steps",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -500,
+        0
+      ],
+      "webhookId": "a1c2e3f4-live-steps-webhook-0001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO health.live_steps_today (date, steps, updated_at)\nVALUES ($1::date, $2::int, now())\nON CONFLICT (date) DO UPDATE SET steps = EXCLUDED.steps, updated_at = now()\nRETURNING date, steps;",
+        "options": {
+          "queryReplacement": "={{ [ ($json.body.date ?? ''), ($json.body.steps ?? '') ] }}"
+        }
+      },
+      "id": "upsert-live-steps",
+      "name": "Upsert Live Steps",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -280,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, date: $json.date, steps: $json.steps } }}",
+        "options": {}
+      },
+      "id": "respond-live-steps",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -60,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Upsert Live Steps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Live Steps": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": {},
+  "pinData": null,
+  "versionId": "e9cbe793-44fe-4f54-b045-81bd40142e55",
+  "activeVersionId": null,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-14T01:04:39.896Z",
+      "createdAt": "2026-09-14T01:04:39.896Z",
+      "role": "workflow:owner",
+      "workflowId": "LiveStepsIngest1",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": null,
+  "tags": []
+}
