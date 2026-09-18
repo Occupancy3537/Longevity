@@ -1,0 +1,1983 @@
+{
+  "updatedAt": "2026-09-17T05:20:54.000Z",
+  "createdAt": "2026-08-19T03:24:56.703Z",
+  "id": "usRTE72PxH0WlgOy",
+  "name": "Получение данных питания в кэш для Дашборда",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -128,
+        0
+      ],
+      "id": "7436bca7-624b-4822-8458-68439b3f4c27",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, to_char(d.\"Date\", 'YYYY-MM-DD') AS \"Date\" FROM health.day_sum d ORDER BY d.\"Date\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        80,
+        0
+      ],
+      "id": "cfe85176-cf52-4282-9949-691e9bb44840",
+      "name": "Get day_sum",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.\"Нутриент\", t.\"Колонка_в_Meals\", t.\"Единица\", t.\"Норма_RDA_AI\", t.\"Верхний_предел_UL\", t.\"Категория\", t.\"Источник\", t.\"Примечание\" FROM health.nutrient_targets t ORDER BY t.\"Нутриент\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        288,
+        0
+      ],
+      "id": "66b56710-a107-4a54-a373-d7739ea8d649",
+      "name": "Get Nutrient_Targets",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "path": "weekly-nutrients",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        256
+      ],
+      "id": "970eb7e5-4719-4a3e-a229-364ef2122c0e",
+      "name": "Webhook",
+      "webhookId": "c7f33ff4-868d-46fe-9367-6d2db1f7737f"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        256
+      ],
+      "id": "ab9d12f6-0fcd-44b0-aa62-850cc7ca3f56",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const __t = ($input.first().json.query || {}).token;\nif (__t !== '8j1bXp92BF5VabxNq2VN') return [{ json: { error: 'forbidden' } }];\n// Нода подключена напрямую к Webhook в той же workflow, что и Schedule Trigger-ветка.\n// Static Data общая на весь workflow, поэтому здесь доступны данные,\n// записанные веткой с Schedule Trigger.\n\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.weeklyNutrients;\n\nif (!cached) {\n  // Кэш ещё ни разу не считался (например, сразу после создания workflow) —\n  // отдаём понятную заглушку вместо ошибки.\n  return [{\n    json: {\n      error: 'no_data_yet',\n      message: 'Данные ещё не посчитаны. Дождитесь первого запуска по расписанию.'\n    }\n  }];\n}\n\nreturn [{ json: cached }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        256
+      ],
+      "id": "39d92fc3-fff9-4be0-a31b-32e3cdf46d73",
+      "name": "Code (читает Static Data)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Нода подключена к прямому выходу \"Get Meals\" (последняя в цепочке Schedule Trigger).\n// Ссылается на \"Get day_sum\" и \"Get Nutrient_Targets\" по имени — обе идут раньше в цепочке:\n// Schedule Trigger → Get day_sum → Get Nutrient_Targets → Get Meals → Code\n\n// Достаёт первое число из строки-ячейки. Возвращает null, если значение\n// начинается с \"не \" (не установлен / не применимо / не задана) — иначе\n// регэксп нашёл бы случайное число из справочного текста в скобках.\nfunction parseNum(v) {\n  if (v === undefined || v === null) return null;\n  const s = String(v).trim();\n  if (/^не\\s/i.test(s)) return null;\n  const m = s.match(/-?\\d+(?:[.,]\\d+)?/);\n  if (!m) return null;\n  return parseFloat(m[0].replace(',', '.'));\n}\n\nfunction toNum(v) {\n  if (v === undefined || v === null || v === '') return 0;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? 0 : n;\n}\n\n// 1. Дни за неделю — обращаемся к \"Get day_sum\" по имени.\n// ВАЖНО: в отличие от wellness-домена (Daily_Trends, колонка 'Дата', кириллица),\n// у day_sum дата хранится в колонке 'Date' (латиница) — известная особенность проекта.\nconst dayRows = $('Get day_sum').all()\n  .map(r => r.json)\n  .filter(r => r['Date'])\n  .sort((a, b) => (a['Date'] < b['Date']) ? 1 : (a['Date'] > b['Date']) ? -1 : 0)\n  .slice(0, 7)\n  .reverse(); // от старых к новым\n\nconst weekDateSet = new Set(dayRows.map(r => r['Date'].slice(0, 10))); // YYYY-MM-DD\n\n// 2. Справочник целей — обращаемся к \"Get Nutrient_Targets\" по имени\nconst targets = $('Get Nutrient_Targets').all().map(r => r.json);\n\n// 3. Сырые приёмы пищи за ту же неделю — по имени, НЕ прямой вход: между Get Meals\n// и этой нодой теперь стоит Get Recommendations_Log (добавлен 14.09.2026 для\n// nutrition_loops), прямой $input.all() был бы уже неверен.\nconst weekMeals = $('Get Meals').all()\n  .map(r => r.json)\n  .filter(r => r['Date'] && weekDateSet.has(String(r['Date']).slice(0, 10)));\n\n// Топ-3 продукта-источника нутриента ЗА КОНКРЕТНЫЙ ДЕНЬ (не за неделю), сгруппированные\n// по описанию блюда. % считается от ДНЕВНОЙ нормы/лимита — так сумма топ-3 напрямую\n// объясняет цифру в самой ячейке heatmap за этот день, а не абстрактную \"долю от недели\".\nfunction topSourcesForDay(col, dateStr, dailyTarget) {\n  if (!dailyTarget) return [];\n  const dayMeals = weekMeals.filter(m => String(m['Date']).slice(0, 10) === dateStr);\n  const byName = {};\n  dayMeals.forEach(m => {\n    const v = toNum(m[col]);\n    if (v <= 0) return;\n    const name = m['Meal_description'] || 'Без описания';\n    byName[name] = (byName[name] || 0) + v;\n  });\n  return Object.entries(byName)\n    .sort((a, b) => b[1] - a[1])\n    .slice(0, 3)\n    .map(([name, val]) => ({ name, pct: Math.round((val / dailyTarget) * 100) }));\n}\n\nconst HEAT_METRICS = [];\nconst NORMAL_METRICS = [];\nconst CATEGORY_SCORES = {}; // { \"Здоровье костей\": [pct, pct, ...] }\nconst CATEGORY_DETAILS = {}; // { \"Здоровье костей\": [{label, pct}, ...] } — для карточек с разбивкой\nconst BULLETS = [];\nconst SOURCES = {}; // { \"Витамин D\": [{name, pct}, ...] }\n\ntargets.forEach(t => {\n  const col = t['Колонка_в_Meals'];\n  if (!col) return;\n\n  const rda = parseNum(t['Норма_RDA_AI']);\n  const ul = parseNum(t['Верхний_предел_UL']);\n  const categories = (t['Категория'] || '').split(';').map(c => c.trim()).filter(Boolean);\n  const isLimitType = categories.includes('Риск избытка');\n\n  // UL некоторых нутриентов (магний и т.п.) относится ТОЛЬКО к добавкам, не к пище —\n  // см. поле Примечание в справочнике. Такой UL не применяем к дневному рациону.\n  const ulAppliesToDiet = !/добав/i.test(String(t['Верхний_предел_UL'] || ''));\n\n  const dailyValues = dayRows.map(r => toNum(r[col]));\n  const dailyPct = dailyValues.map(v => {\n    if (isLimitType) return ul ? Math.round((v / ul) * 100) : null;\n    return rda ? Math.round((v / rda) * 100) : null;\n  }).filter(p => p !== null);\n\n  if (dailyPct.length === 0) return; // нет ни цели, ни UL — пропускаем\n\n  const avgPct = Math.round(dailyPct.reduce((a, b) => a + b, 0) / dailyPct.length);\n\n  // Показываем в heatmap только ГЕНУИННЫЕ недельные паттерны, не разовые всплески дня:\n  // - дефицит — если недельное СРЕДНЕЕ ниже нормы (не просто один плохой день)\n  // - избыток — только для goal-type нутриентов (магний, витамин D и т.п.), и только если\n  //   минимум 2 дня подряд/за неделю реально вышли за порог (один разовый приём — не система)\n  // Risk-type нутриенты (натрий, сахар и т.п.) в heatmap не попадают вообще — они и так\n  // всегда видны в \"Риск избытка\", дублировать их здесь — просто шум.\n  const upperBoundPct = (ul && rda) ? Math.round((ul / rda) * 100) : null;\n  const daysOverThreshold = (upperBoundPct && ulAppliesToDiet)\n    ? dailyPct.filter(p => p > upperBoundPct).length\n    : 0;\n  const deviates = !isLimitType && (avgPct < 85 || daysOverThreshold >= 2);\n\n  // --- Фаза 6: абсолютные величины, расстояние до верхнего предела, уровень сигнала ---\n  // Процент без базы и единиц не интерпретируем, поэтому отдаём и абсолюты, и UL.\n  const avgAbs = dailyValues.length\n    ? Math.round((dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length) * 100) / 100\n    : null;\n  const ulEffective = (ul && ulAppliesToDiet) ? ul : null;\n  const ulRatio = (ulEffective && avgAbs != null && ulEffective > 0) ? avgAbs / ulEffective : null;\n  const ulRatioR = ulRatio != null ? Math.round(ulRatio * 100) / 100 : null;\n  const ulNote = (ul && !ulAppliesToDiet) ? 'верхний предел относится только к добавкам, не к пище' : null;\n  const daysBelow = dailyPct.filter(p => p < 85).length;\n\n  // Лестница сигналов: 0 норма · 1 дефицит · 2 устойчивый дефицит · 3 подход к пределу · 4 выше предела\n  // Важно: дефицит определяется по НЕДЕЛЬНОМУ среднему. Отдельные «плохие» дни есть\n  // у любого нутриента (обычные колебания) и сами по себе сигналом не являются —\n  // они лишь усиливают уже подтверждённый средним дефицит до «устойчивого».\n  const lastDayPct = dailyPct.length ? dailyPct[dailyPct.length - 1] : null;\n  let level = 0;\n  if (isLimitType) {\n    if (avgPct > 100) level = 4;            // систематически выше лимита\n    else if (avgPct >= 80) level = 3;       // подходит к лимиту\n  } else {\n    if (ulRatio != null && ulRatio > 1) level = 4;\n    else if (ulRatio != null && ulRatio >= 0.8) level = 3;\n    else if (avgPct < 85 && daysBelow >= 3) level = 2;\n    else if (avgPct < 85) level = 1;\n  }\n\n\n  if (isLimitType) {\n    BULLETS.push({\n      label: t['Нутриент'],\n      unit: t['Единица'],\n      value: dailyValues[dailyValues.length - 1],\n      limit: ul,\n      avgPct,\n      avgAbs,\n      level,\n      lastDayPct\n    });\n  } else {\n    categories.forEach(cat => {\n      if (!CATEGORY_SCORES[cat]) CATEGORY_SCORES[cat] = [];\n      CATEGORY_SCORES[cat].push(Math.min(avgPct, 100));\n      if (!CATEGORY_DETAILS[cat]) CATEGORY_DETAILS[cat] = [];\n      CATEGORY_DETAILS[cat].push({ label: t['Нутриент'], pct: avgPct });\n    });\n  }\n\n  const metricEntry = { label: t['Нутриент'], values: dailyPct, avgPct,\n    upperBoundPct: (upperBoundPct && ulAppliesToDiet) ? upperBoundPct : null, isExcess: isLimitType,\n    unit: t['Единица'] || '', avgAbs, rda, ul: ulEffective, ulRatio: ulRatioR, ulNote, level, lastDayPct,\n    note: t['Примечание'] || null };\n  const dailyTarget = isLimitType ? ul : rda;\n\n  if (deviates) {\n    HEAT_METRICS.push(metricEntry);\n    SOURCES[t['Нутриент']] = {\n      isExcess: isLimitType,\n      dayPct: dailyPct, // % от нормы за каждый день — чтобы шторка знала факт по конкретному дню, а не гадала\n      byDay: dayRows.map(r => topSourcesForDay(col, r['Date'].slice(0, 10), dailyTarget))\n    };\n  } else if (!isLimitType) {\n    NORMAL_METRICS.push({ label: t['Нутриент'], avg: avgPct,\n      unit: t['Единица'] || '', avgAbs, rda, ul: ulEffective, ulRatio: ulRatioR, ulNote, level });\n  }\n\n  if (isLimitType && !SOURCES[t['Нутриент']]) {\n    SOURCES[t['Нутриент']] = {\n      isExcess: true,\n      dayPct: dailyPct,\n      byDay: dayRows.map(r => topSourcesForDay(col, r['Date'].slice(0, 10), dailyTarget))\n    };\n  }\n});\n\nconst scores = Object.entries(CATEGORY_SCORES).map(([label, arr]) => ({\n  label,\n  pct: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length),\n  // Топ-4 нутриента категории по вкладу (для карточки с разбивкой) — не все подряд,\n  // чтобы карточка не расползалась, если в категории окажется много нутриентов\n  nutrients: (CATEGORY_DETAILS[label] || []).sort((a, b) => b.pct - a.pct).slice(0, 4)\n}));\n\n\n// ===== Качество рациона: AHEI-2010 / NOVA / Plant Diversity (Chiuve 2012, пороги сверены) =====\nfunction computeDietQuality(dayRows, weekMeals, toNum, opts) {\n  opts = opts || {};\n  const MALE = opts.male !== false;\n\n  // --- конфиг (приближения, документированы; вынести в лист при желании тюнить) ---\n  const SRV = { veg_g: 80, fruit_g: 100, legnut_g: 50, redmeat_g: 100, ssb_ml: 240, drink_g: 14 };\n  // AHEI-2010: [значение → 0 баллов, значение → 10 баллов]\n  const A = {\n    veg:        [0, 5],        // порций/сут\n    fruit:      [0, 4],        // порций/сут\n    wholegrain: [0, MALE ? 90 : 75], // г/сут\n    ssb:        [1, 0],        // порций/сут (обратная)\n    legnut:     [0, 1],        // порций/сут\n    redmeat:    [1.5, 0],      // порций/сут (обратная)\n    transfat:   [4, 0.5],      // % энергии (обратная)\n    epadha:     [0, 250],      // мг/сут\n    pufa:       [2, 10],       // % энергии\n    sodium:     [3020, 1130],  // мг/2000ккал (обратная; приближение децилей Chiuve)\n  };\n  const lin = (v, lo, hi) => {\n    if (hi === lo) return v >= hi ? 10 : 0;\n    const s = ((v - lo) / (hi - lo)) * 10;\n    return Math.max(0, Math.min(10, s));\n  };\n  const alcoholPts = (drinks) => {\n    if (MALE) {\n      if (drinks <= 0) return 2.5;\n      if (drinks < 0.5) return 2.5 + (drinks / 0.5) * 7.5;\n      if (drinks <= 2.0) return 10;\n      if (drinks < 3.5) return 10 - ((drinks - 2.0) / 1.5) * 10;\n      return 0;\n    }\n    if (drinks <= 0) return 2.5;\n    if (drinks < 0.5) return 2.5 + (drinks / 0.5) * 7.5;\n    if (drinks <= 1.5) return 10;\n    if (drinks < 2.5) return 10 - ((drinks - 1.5) / 1.0) * 10;\n    return 0;\n  };\n\n  const dayList = dayRows.map(r => {\n    const ds = String(r['Date']).slice(0, 10);\n    const meals = weekMeals.filter(m => String(m['Date']).slice(0, 10) === ds);\n    const total = meals.length;\n    const tagged = meals.filter(m => String(m['NOVA'] || '').trim() !== '').length;\n    const sum = k => meals.reduce((a, m) => a + toNum(m[k]), 0);\n    const kcal = sum('Calories') || 1;\n\n    const c = {\n      veg:        lin(sum('veg_g') / SRV.veg_g, A.veg[0], A.veg[1]),\n      fruit:      lin(sum('fruit_g') / SRV.fruit_g, A.fruit[0], A.fruit[1]),\n      wholegrain: lin(sum('wholegrain_g'), A.wholegrain[0], A.wholegrain[1]),\n      ssb:        lin(sum('ssb_ml') / SRV.ssb_ml, A.ssb[0], A.ssb[1]),\n      legnut:     lin(sum('legume_nut_g') / SRV.legnut_g, A.legnut[0], A.legnut[1]),\n      redmeat:    lin(sum('redmeat_g') / SRV.redmeat_g, A.redmeat[0], A.redmeat[1]),\n      transfat:   lin(sum('Трансжиры') * 9 / kcal * 100, A.transfat[0], A.transfat[1]),\n      epadha:     lin(sum('Омега-3 (EPA/DHA)'), A.epadha[0], A.epadha[1]),\n      pufa:       lin(sum('ПНЖ') * 9 / kcal * 100, A.pufa[0], A.pufa[1]),\n      sodium:     lin(sum('Натрий') * 2000 / kcal, A.sodium[0], A.sodium[1]),\n      alcohol:    alcoholPts(sum('Алкоголь') / SRV.drink_g),\n    };\n    const ahei = Object.values(c).reduce((a, b) => a + b, 0); // 0..110\n\n    const nova = { 1: 0, 2: 0, 3: 0, 4: 0 };\n    meals.forEach(m => { const g = Math.max(1, Math.min(4, Math.round(toNum(m['NOVA']) || 1))); nova[g] += toNum(m['Calories']); });\n\n    return { date: ds, ahei: Math.round(ahei * 10) / 10, components: c, kcal, total, tagged, nova };\n  });\n\n  // дни с достаточной разметкой (≥60% приёмов) и хоть какой-то едой\n  const valid = dayList.filter(d => d.total > 0 && d.tagged / d.total >= 0.6);\n\n  const aheiWeek = valid.length ? Math.round(valid.reduce((a, d) => a + d.ahei, 0) / valid.length) : null;\n  const compWeek = {};\n  if (valid.length) {\n    Object.keys(A).concat('alcohol').forEach(k => {\n      compWeek[k] = Math.round((valid.reduce((a, d) => a + d.components[k], 0) / valid.length) * 10) / 10;\n    });\n  }\n\n  const novaCal = { 1: 0, 2: 0, 3: 0, 4: 0 }; let novaTot = 0;\n  valid.forEach(d => { [1, 2, 3, 4].forEach(g => novaCal[g] += d.nova[g]); novaTot += d.kcal; });\n  const novaPct = {};\n  [1, 2, 3, 4].forEach(g => novaPct[g] = novaTot ? Math.round(novaCal[g] / novaTot * 100) : 0);\n\n  // Plant Diversity — уникальные виды растений за окно.\n  // Нормализация: lower, ё→е, снять прилагательные-уточнения, синонимы, грубый стем.\n  const ADJ = /^(болгарск\\w*|репчат\\w*|зелен\\w*|красн\\w*|бел\\w*|бело\\w*|чёрн\\w*|черн\\w*|свеж\\w*|сушен\\w*|суш[её]н\\w*|морожен\\w*|отварн\\w*|варен\\w*|жарен\\w*|печён\\w*|печен\\w*|цельнозернов\\w*|стручков\\w*|листов\\w*|молот\\w*|молодо\\w*|крупнолистов\\w*)\\s+/;\n  const SYN = { 'горошек': 'горох', 'айсберг': 'салат', 'руккола': 'салат', 'латук': 'салат', 'кинза': 'кориандр', 'коф': 'кофе', 'кориц': 'корица', 'какао': 'какао', 'томатная паста': 'томат', 'помидор': 'томат', 'черри': 'томат', 'семечки': 'семена', 'семя': 'семена' };\n  const norm = s => {\n    let x = s.trim().toLowerCase().replace(/ё/g, 'е').replace(/[.()]/g, '').trim();\n    x = x.replace(ADJ, '').trim();\n    const w = x.split(/\\s+/);\n    x = w[0]; // первое слово (\"капуста белокочанная\"→\"капуста\", \"лук репчатый\"→\"лук\")\n    x = x.replace(/(ый|ая|ое|ые|ой|ую|ого|ым|ов|ами|ам|ах|а|ы|и|у|е|я|й)$/, '');\n    return SYN[x] || SYN[s.trim().toLowerCase()] || x;\n  };\n  const NOT_PLANT = new Set(['чук', 'нор', 'вода', 'бульон', 'молок', 'сыр', 'йогурт', 'творог', 'масл', 'мед', 'соус',\n    'куриц', 'курин', 'говядин', 'свинин', 'индейк', 'индюш', 'лосос', 'рыб', 'яйц', 'креветк', 'тунец', 'сельд', 'треск', 'мясо', 'бекон', 'колбас', 'ветчин', 'сосиск', 'печен', 'желатин', 'дрожж', 'злак',\n    // осколки прилагательных, которые LLM иногда отдаёт отдельной запятой\n    'болгарск', 'зелен', 'красн', 'бел', 'черн', 'свеж', 'сушен', 'молот', 'репчат', 'отварн', 'печ', 'жарен', 'варен', 'цельнозернов', 'водоросл']);\n  const SYN2 = { 'карр': 'карри', 'кабач': 'кабачок', 'помидорчик': 'томат', 'горош': 'горох' };\n  const plantSet = new Set();\n  weekMeals.forEach(m => String(m['plants'] || '').split(/[,;/]+/).map(norm)\n    .map(p => SYN2[p] || p)\n    .filter(p => p.length >= 3 && !NOT_PLANT.has(p)).forEach(p => plantSet.add(p)));\n\n  const daysWithFood = dayList.filter(d => d.total > 0).length;\n\n  return {\n    ahei: {\n      week_avg: aheiWeek, target: 80, ok: 65, max: 110,\n      days: dayList.map(d => ({ date: d.date, score: d.tagged / (d.total || 1) >= 0.6 ? d.ahei : null })),\n      components: compWeek,\n      coverage: valid.length + '/' + daysWithFood,\n    },\n    nova: { pct: novaPct, ultra_pct: novaPct[4], whole_pct: novaPct[1] },\n    plants: { count: plantSet.size, target: 30, list: [...plantSet].sort() },\n    computed_days: valid.length,\n  };\n}\nlet dietQuality = null;\ntry { dietQuality = computeDietQuality(dayRows, weekMeals, toNum, { male: true }); } catch (e) { dietQuality = { error: String(e && e.message || e) }; }\n\n// ===== Этап 1 нутришн-петли: \"сделал ли N из M дней\" по check-контракту действия =====\nfunction computeNutritionLoops(dayRows, toNum) {\n  let recRows = [];\n  try { recRows = $('Get Recommendations_Log').all().map(r => r.json); } catch (e) { return []; }\n  const weeklyRecs = recRows\n    .filter(r => r && r['Date'] && String(r['Period_Type'] || 'weekly') === 'weekly')\n    .sort((a, b) => String(b['Date']).localeCompare(String(a['Date'])));\n  const latestRec = weeklyRecs[0];\n  if (!latestRec || !latestRec['Recommendation_Text']) return [];\n\n  const m = String(latestRec['Recommendation_Text']).match(/<<<ACTIONS\\s*([\\s\\S]*?)\\s*ACTIONS>>>/);\n  if (!m) return [];\n  let tail;\n  try { tail = JSON.parse(m[1].trim()); } catch (e) { return []; }\n  const acts = Array.isArray(tail.actions) ? tail.actions : [];\n  const issuedDate = String(latestRec['Date']).slice(0, 10);\n\n  return acts\n    .filter(a => a && a.check && a.check.col)\n    .map(a => {\n      const c = a.check;\n      // считаем ТОЛЬКО дни ПОСЛЕ даты выдачи совета — до неё этого критерия ещё не существовало\n      const relevant = dayRows.filter(r => r['Date'] && r['Date'].slice(0, 10) > issuedDate);\n      const days = relevant.map(r => {\n        const v = toNum(r[c.col]);\n        const ok = c.op === '<=' ? v <= c.value : v >= c.value;\n        return { date: r['Date'].slice(0, 10), value: v, ok };\n      });\n      const doneDays = days.filter(d => d.ok).length;\n      // окно оценки — 7 дней (как и сам days_of_7); \"behind\" — только когда цель уже\n      // математически недостижима за оставшиеся дни, а не просто \"пока не набрал\".\n      const WINDOW_DAYS = 7;\n      const daysLeft = Math.max(0, WINDOW_DAYS - days.length);\n      let status;\n      if (days.length === 0) status = 'insufficient_data';\n      else if (doneDays >= c.days_of_7) status = 'on_track';\n      else if (doneDays + daysLeft >= c.days_of_7) status = 'on_track';\n      else status = 'behind';\n      return {\n        title: a.title, key: c.key, kind: c.kind, op: c.op, value: c.value, unit: c.unit,\n        target_days: c.days_of_7, evaluated_days: days.length, done_days: doneDays,\n        status, issued: issuedDate, days,\n      };\n    });\n}\nlet nutritionLoops = [];\ntry { nutritionLoops = computeNutritionLoops(dayRows, toNum); } catch (e) { nutritionLoops = [{ error: String(e && e.message || e) }]; }\n\nconst finalResult = {\n  period: {\n    from: dayRows[0] ? dayRows[0]['Date'] : null,\n    to: dayRows[dayRows.length - 1] ? dayRows[dayRows.length - 1]['Date'] : null\n  },\n  days: dayRows.map(r => r['Date']),\n  scores,\n  bullets: BULLETS,\n  heatmap: HEAT_METRICS,\n  diet_quality: dietQuality,\n  normal: NORMAL_METRICS,\n  sources: SOURCES,\n  computed_at: new Date().toISOString(),\n  nutrition_loops: nutritionLoops,\n};\n\n// Пишем в Static Data workflow'а — переживает между запусками, без файловой системы.\n// Причина такого решения: n8n по умолчанию блокирует запись файлов внутрь папки .n8n\n// (N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES), а другого примонтированного пути на сервере нет.\nconst staticData = $getWorkflowStaticData('global');\nstaticData.weeklyNutrients = finalResult;\n\nreturn [ { json: finalResult } ];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "8ad642d9-a62a-4852-b4e5-ffa800b2b653",
+      "name": "Code (пишет в Static Data)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT m.*, to_char(m.\"Date\" AT TIME ZONE 'Asia/Vladivostok', 'YYYY-MM-DD\"T\"HH24:MI') AS \"Date\" FROM health.meals m ORDER BY m.\"Date\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        464,
+        0
+      ],
+      "id": "1acc319e-7dd7-417f-84e2-7b0bb5a24213",
+      "name": "Get Meals",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.\"Date\", r.\"Period_Type\", r.\"Recommendation_Text\", r.\"Based_On\", r.\"Status\", r.\"Priority\", r.\"Telegram_Text\", r.\"Alert_Text\", r.\"Has_Alert\" FROM health.recommendations_log r ORDER BY r.\"Date\" DESC",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        656,
+        -160
+      ],
+      "id": "981e5b44-4463-4b26-98f8-340c2b03f5ee",
+      "name": "Get Recommendations_Log",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get day_sum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get day_sum": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrient_Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrient_Targets": {
+      "main": [
+        [
+          {
+            "node": "Get Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code (читает Static Data)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (читает Static Data)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code (пишет в Static Data)": {
+      "main": [
+        []
+      ]
+    },
+    "Get Meals": {
+      "main": [
+        [
+          {
+            "node": "Get Recommendations_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recommendations_Log": {
+      "main": [
+        [
+          {
+            "node": "Code (пишет в Static Data)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "saveDataSuccessExecution": "none",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        12
+      ]
+    },
+    "global": {
+      "weeklyNutrients": {
+        "period": {
+          "from": "2026-09-12",
+          "to": "2026-09-18"
+        },
+        "days": [
+          "2026-09-12",
+          "2026-09-13",
+          "2026-09-14",
+          "2026-09-15",
+          "2026-09-16",
+          "2026-09-17",
+          "2026-09-18"
+        ],
+        "scores": [
+          {
+            "label": "Энергия",
+            "pct": 100,
+            "nutrients": [
+              {
+                "label": "Витамин B12",
+                "pct": 315
+              },
+              {
+                "label": "Железо",
+                "pct": 174
+              },
+              {
+                "label": "Магний",
+                "pct": 108
+              }
+            ]
+          },
+          {
+            "label": "Здоровье костей",
+            "pct": 81,
+            "nutrients": [
+              {
+                "label": "Витамин К",
+                "pct": 113
+              },
+              {
+                "label": "Магний",
+                "pct": 108
+              },
+              {
+                "label": "Кальций",
+                "pct": 83
+              },
+              {
+                "label": "Витамин D",
+                "pct": 40
+              }
+            ]
+          },
+          {
+            "label": "Иммунитет",
+            "pct": 83,
+            "nutrients": [
+              {
+                "label": "Селен",
+                "pct": 264
+              },
+              {
+                "label": "Витамин Е",
+                "pct": 117
+              },
+              {
+                "label": "Цинк",
+                "pct": 108
+              },
+              {
+                "label": "Йод",
+                "pct": 75
+              }
+            ]
+          },
+          {
+            "label": "Здоровье волос и кожи",
+            "pct": 100,
+            "nutrients": [
+              {
+                "label": "Омега-3 (EPA/DHA)",
+                "pct": 220
+              },
+              {
+                "label": "Железо",
+                "pct": 174
+              },
+              {
+                "label": "Витамин Е",
+                "pct": 117
+              },
+              {
+                "label": "Цинк",
+                "pct": 108
+              }
+            ]
+          },
+          {
+            "label": "Сердце и сосуды",
+            "pct": 95,
+            "nutrients": [
+              {
+                "label": "Омега-3 (EPA/DHA)",
+                "pct": 220
+              },
+              {
+                "label": "Калий",
+                "pct": 111
+              },
+              {
+                "label": "Клетчатка",
+                "pct": 86
+              }
+            ]
+          }
+        ],
+        "bullets": [
+          {
+            "label": "Добавленный сахар",
+            "unit": "г",
+            "value": 20,
+            "limit": 50,
+            "avgPct": 42,
+            "avgAbs": 20.86,
+            "level": 0,
+            "lastDayPct": 40
+          },
+          {
+            "label": "Кофеин",
+            "unit": "мг",
+            "value": 160,
+            "limit": 400,
+            "avgPct": 42,
+            "avgAbs": 167,
+            "level": 0,
+            "lastDayPct": 40
+          },
+          {
+            "label": "Насыщенные жиры",
+            "unit": "г",
+            "value": 36,
+            "limit": 27,
+            "avgPct": 114,
+            "avgAbs": 30.86,
+            "level": 4,
+            "lastDayPct": 133
+          },
+          {
+            "label": "Натрий",
+            "unit": "мг",
+            "value": 3717,
+            "limit": 2800,
+            "avgPct": 100,
+            "avgAbs": 2813.86,
+            "level": 3,
+            "lastDayPct": 133
+          },
+          {
+            "label": "Трансжиры",
+            "unit": "г",
+            "value": 1,
+            "limit": 2,
+            "avgPct": 21,
+            "avgAbs": 0.43,
+            "level": 0,
+            "lastDayPct": 50
+          },
+          {
+            "label": "Холестерин",
+            "unit": "мг",
+            "value": 276,
+            "limit": 600,
+            "avgPct": 60,
+            "avgAbs": 362.71,
+            "level": 0,
+            "lastDayPct": 46
+          }
+        ],
+        "heatmap": [
+          {
+            "label": "Витамин D",
+            "values": [
+              47,
+              53,
+              7,
+              93,
+              53,
+              7,
+              20
+            ],
+            "avgPct": 40,
+            "upperBoundPct": 667,
+            "isExcess": false,
+            "unit": "мкг",
+            "avgAbs": 6,
+            "rda": 15,
+            "ul": 100,
+            "ulRatio": 0.06,
+            "ulNote": null,
+            "level": 2,
+            "lastDayPct": 20,
+            "note": "Для 19-70 лет; после 70 норма растёт до 20 мкг"
+          },
+          {
+            "label": "Йод",
+            "values": [
+              90,
+              45,
+              7,
+              77,
+              59,
+              36,
+              211
+            ],
+            "avgPct": 75,
+            "upperBoundPct": 733,
+            "isExcess": false,
+            "unit": "мкг",
+            "avgAbs": 112.43,
+            "rda": 150,
+            "ul": 1100,
+            "ulRatio": 0.1,
+            "ulNote": null,
+            "level": 2,
+            "lastDayPct": 211,
+            "note": null
+          },
+          {
+            "label": "Кальций",
+            "values": [
+              87,
+              51,
+              43,
+              71,
+              88,
+              140,
+              104
+            ],
+            "avgPct": 83,
+            "upperBoundPct": 250,
+            "isExcess": false,
+            "unit": "мг",
+            "avgAbs": 833.29,
+            "rda": 1000,
+            "ul": 2500,
+            "ulRatio": 0.33,
+            "ulNote": null,
+            "level": 2,
+            "lastDayPct": 104,
+            "note": "Для возраста 19-50; после 50 лет для мужчин остаётся 1000 до 70"
+          }
+        ],
+        "diet_quality": {
+          "ahei": {
+            "week_avg": 77,
+            "target": 80,
+            "ok": 65,
+            "max": 110,
+            "days": [
+              {
+                "date": "2026-09-12",
+                "score": 91.4
+              },
+              {
+                "date": "2026-09-13",
+                "score": 75.3
+              },
+              {
+                "date": "2026-09-14",
+                "score": 82
+              },
+              {
+                "date": "2026-09-15",
+                "score": 80.2
+              },
+              {
+                "date": "2026-09-16",
+                "score": 60.1
+              },
+              {
+                "date": "2026-09-17",
+                "score": 71.1
+              },
+              {
+                "date": "2026-09-18",
+                "score": 80.7
+              }
+            ],
+            "components": {
+              "veg": 7.7,
+              "fruit": 9.5,
+              "wholegrain": 5.2,
+              "ssb": 8.2,
+              "legnut": 7,
+              "redmeat": 8.1,
+              "transfat": 10,
+              "epadha": 8.9,
+              "pufa": 6.2,
+              "sodium": 3.9,
+              "alcohol": 2.5
+            },
+            "coverage": "7/7"
+          },
+          "nova": {
+            "pct": {
+              "1": 35,
+              "2": 5,
+              "3": 43,
+              "4": 18
+            },
+            "ultra_pct": 18,
+            "whole_pct": 35
+          },
+          "plants": {
+            "count": 52,
+            "target": 30,
+            "list": [
+              "авокадо",
+              "апельсин",
+              "баклажан",
+              "банан",
+              "броккол",
+              "ваниль",
+              "вермишель",
+              "водоросль",
+              "галангал",
+              "горох",
+              "горчиц",
+              "грецки",
+              "гриб",
+              "груш",
+              "зерно",
+              "какао",
+              "капуст",
+              "картофель",
+              "кешью",
+              "кив",
+              "кокос",
+              "кориандр",
+              "корица",
+              "кунжут",
+              "лайм",
+              "лемонграсс",
+              "лен",
+              "лук",
+              "манго",
+              "миндаль",
+              "морковь",
+              "нектарин",
+              "овес",
+              "огурец",
+              "перец",
+              "персик",
+              "подсолнечник",
+              "пшениц",
+              "рис",
+              "рожь",
+              "салат",
+              "свекл",
+              "семена",
+              "семечко",
+              "томат",
+              "тыкв",
+              "укроп",
+              "фрукт",
+              "хлеб",
+              "чеснок",
+              "чил",
+              "яблоко"
+            ]
+          },
+          "computed_days": 7
+        },
+        "normal": [
+          {
+            "label": "Витамин B12",
+            "avg": 315,
+            "unit": "мкг",
+            "avgAbs": 7.57,
+            "rda": 2.4,
+            "ul": null,
+            "ulRatio": null,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Витамин Е",
+            "avg": 117,
+            "unit": "мг",
+            "avgAbs": 17.57,
+            "rda": 15,
+            "ul": 1000,
+            "ulRatio": 0.02,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Витамин К",
+            "avg": 113,
+            "unit": "мкг",
+            "avgAbs": 135.57,
+            "rda": 120,
+            "ul": null,
+            "ulRatio": null,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Железо",
+            "avg": 174,
+            "unit": "мг",
+            "avgAbs": 13.86,
+            "rda": 8,
+            "ul": 45,
+            "ulRatio": 0.31,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Калий",
+            "avg": 111,
+            "unit": "мг",
+            "avgAbs": 3779.86,
+            "rda": 3400,
+            "ul": null,
+            "ulRatio": null,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Клетчатка",
+            "avg": 86,
+            "unit": "г",
+            "avgAbs": 32.71,
+            "rda": 38,
+            "ul": null,
+            "ulRatio": null,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Магний",
+            "avg": 108,
+            "unit": "мг",
+            "avgAbs": 452.43,
+            "rda": 420,
+            "ul": null,
+            "ulRatio": null,
+            "ulNote": "верхний предел относится только к добавкам, не к пище",
+            "level": 0
+          },
+          {
+            "label": "Омега-3 (EPA/DHA)",
+            "avg": 220,
+            "unit": "мг",
+            "avgAbs": 1100.43,
+            "rda": 500,
+            "ul": 3000,
+            "ulRatio": 0.37,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Селен",
+            "avg": 264,
+            "unit": "мкг",
+            "avgAbs": 145.43,
+            "rda": 55,
+            "ul": 400,
+            "ulRatio": 0.36,
+            "ulNote": null,
+            "level": 0
+          },
+          {
+            "label": "Цинк",
+            "avg": 108,
+            "unit": "мг",
+            "avgAbs": 11.86,
+            "rda": 11,
+            "ul": 40,
+            "ulRatio": 0.3,
+            "ulNote": null,
+            "level": 0
+          }
+        ],
+        "sources": {
+          "Витамин D": {
+            "isExcess": false,
+            "dayPct": [
+              47,
+              53,
+              7,
+              93,
+              53,
+              7,
+              20
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Два бутерброда с паштетом из печени минтая и порция отварной брокколи, 170г",
+                  "pct": 19
+                },
+                {
+                  "name": "Рыбный суп из белой рыбы с морковью и картофелем (350г) и два ломтика ржаного хлеба (60г). Общий вес: 410г",
+                  "pct": 13
+                },
+                {
+                  "name": "Макароны из твердых сортов пшеницы (150г) и консервированный тунец в собственном соку (120г)",
+                  "pct": 13
+                }
+              ],
+              [
+                {
+                  "name": "Бутерброды с слабосоленой неркой, пшеничным хлебом и свежим огурцом, примерный вес 130г (80г нерки, 30г хлеба, 20г огурца)",
+                  "pct": 43
+                },
+                {
+                  "name": "Суп Том Ям с креветками и курицей, подается с порцией риса жасмин, общий вес около 450г",
+                  "pct": 7
+                },
+                {
+                  "name": "Куриный суп с вермишелью, морковью и картофелем (250г), отварная куриная грудка (150г), одно вареное яйцо (50г), два кусочка ржаного хлеба (60г). Общий вес: 510г.",
+                  "pct": 3
+                }
+              ],
+              [
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 3
+                },
+                {
+                  "name": "Домашнее блюдо: отварные макароны из твердых сортов пшеницы и отварное куриное филе, около 250г",
+                  "pct": 1
+                }
+              ],
+              [
+                {
+                  "name": "Бутерброды из пшеничного багета, слабосоленой красной рыбы (семга/форель) и сливочного сыра, вес порции 180г",
+                  "pct": 53
+                },
+                {
+                  "name": "Поке-боул с лососем, рисом, авокадо, манго и водорослями чука, посыпанный нори. Домашнее приготовление, 350г",
+                  "pct": 33
+                },
+                {
+                  "name": "Черный кофе эспрессо (60г) и одно куриное яйцо в скорлупе, сваренное вкрутую (50г)",
+                  "pct": 7
+                }
+              ],
+              [
+                {
+                  "name": "Домашний пирог с брокколи и рыбой без соли, 120г (тесто, рыба, брокколи, яйцо), плюс греческий йогурт 120г",
+                  "pct": 20
+                },
+                {
+                  "name": "Том Ям (острый тайский суп с креветками, грибами, лемонграссом, галангалом, кокосовым молоком) с порцией белого риса, ~450г (суп ~300г, рис ~150г)",
+                  "pct": 20
+                },
+                {
+                  "name": "Рамен с уткой, куриным яйцом и пекинской капустой, 450г",
+                  "pct": 8
+                }
+              ],
+              [
+                {
+                  "name": "Говядина отварная нарезанная (75г) и соленые огурцы (60г). Домашнее приготовление. Порция уменьшена в 2 раза.",
+                  "pct": 2
+                },
+                {
+                  "name": "Отварной белый рис (200г) с отварным куриным филе (200г), всего 400г",
+                  "pct": 1
+                },
+                {
+                  "name": "Греческий йогурт натуральный без добавок (около 125г) и свежие фрукты: персик (около 80г) и киви (около 70г). Общий вес блюда 275г.",
+                  "pct": 1
+                }
+              ],
+              [
+                {
+                  "name": "Рыба по-капитански с запеченным картофелем, покупное блюдо, 250г. Состав: филе минтая, картофель, майонез (масло подсолнечное, сахар, соль, яичный желток), лук, морковь, масло растительное, сыр (молоко, бактериальная закваска).",
+                  "pct": 10
+                },
+                {
+                  "name": "Сэндвич на поджаренном на гриле белом хлебе с ветчиной, сыром, помидором и листьями салата, 180г",
+                  "pct": 3
+                },
+                {
+                  "name": "Морские гребешки сырые 150г с салатом чука (водоросли хияши вакаме) 10г, подается с соевым соусом (~10мл)",
+                  "pct": 3
+                }
+              ]
+            ]
+          },
+          "Добавленный сахар": {
+            "isExcess": true,
+            "dayPct": [
+              96,
+              46,
+              28,
+              20,
+              32,
+              30,
+              40
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Белевская яблочная пастила (около 30 г) и 5 штук детского фигурного печенья (около 25 г), чай (200 мл), итого 255г",
+                  "pct": 44
+                },
+                {
+                  "name": "Кусочек яблочного пирога из песочного теста (80г) и чашка кофе с молоком (150мл)",
+                  "pct": 36
+                },
+                {
+                  "name": "Кофе американо (200мл) и печенье в форме животных (фигурное, 30г). Апельсиновый фреш на фото отсутствует.",
+                  "pct": 16
+                }
+              ],
+              [
+                {
+                  "name": "Домашний пирог с фруктовой начинкой (50г) и смесь орехов: миндаль, грецкий орех, кешью (40г). Общий вес 90г.",
+                  "pct": 24
+                },
+                {
+                  "name": "Смесь орехов (грецкие, миндаль, кешью) и фигурного пшеничного печенья, общий вес около 50г",
+                  "pct": 16
+                },
+                {
+                  "name": "Суп Том Ям с креветками и курицей, подается с порцией риса жасмин, общий вес около 450г",
+                  "pct": 4
+                }
+              ],
+              [
+                {
+                  "name": "Восемь зерновых хлебцев с семенами (кунжут, лен, тыквенные семечки) и два квадратика темного шоколада, общий вес 70г",
+                  "pct": 16
+                },
+                {
+                  "name": "Шоколад горький 72% какао, 15г. Состав: тертое какао, сахар, масло какао, лецитин соевый, натуральная ваниль.",
+                  "pct": 8
+                },
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 4
+                }
+              ],
+              [
+                {
+                  "name": "Горький шоколад «Победа» 72% какао (около 15г) и два зерновых хлебца с семенами (около 20г). Итоговый вес: 35г.",
+                  "pct": 10
+                },
+                {
+                  "name": "Хлебец ржаной экструзионный (около 10г) и печенье овсяное (около 15г). Итого вес 25г.",
+                  "pct": 9
+                }
+              ],
+              [
+                {
+                  "name": "Зерновое печенье Белавитса (примерно 2 шт, 30г) и кофе с молоком 2.5% (150мл, кофе + ~30мл молока)",
+                  "pct": 16
+                },
+                {
+                  "name": "Завтрак: нектарин (~150г), греческий йогурт 120г, тёмный шоколад 72% 20г, кофе с молоком (~200мл, ~30мл молока), хлебцы с отрубями (~2 шт, 20г). Домашний/собранный самостоятельно",
+                  "pct": 6
+                },
+                {
+                  "name": "Том Ям (острый тайский суп с креветками, грибами, лемонграссом, галангалом, кокосовым молоком) с порцией белого риса, ~450г (суп ~300г, рис ~150г)",
+                  "pct": 6
+                }
+              ],
+              [
+                {
+                  "name": "Три печенья BelVita Утреннее мультизлаковое и чашка кофе с молоком, общий вес около 85г (60г печенье, 25г молоко)",
+                  "pct": 30
+                }
+              ],
+              [
+                {
+                  "name": "Кофе с молоком 2.5% (200мл, из них молоко ~50мл) и печенье овсяное промышленного производства, 30г",
+                  "pct": 18
+                },
+                {
+                  "name": "Две штуки галетного печенья с семенами подсолнечника, промышленного производства, общий вес 40г",
+                  "pct": 10
+                },
+                {
+                  "name": "Сэндвич на поджаренном на гриле белом хлебе с ветчиной, сыром, помидором и листьями салата, 180г",
+                  "pct": 4
+                }
+              ]
+            ]
+          },
+          "Йод": {
+            "isExcess": false,
+            "dayPct": [
+              90,
+              45,
+              7,
+              77,
+              59,
+              36,
+              211
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Два бутерброда с паштетом из печени минтая и порция отварной брокколи, 170г",
+                  "pct": 43
+                },
+                {
+                  "name": "Макароны из твердых сортов пшеницы (150г) и консервированный тунец в собственном соку (120г)",
+                  "pct": 27
+                },
+                {
+                  "name": "Рыбный суп из белой рыбы с морковью и картофелем (350г) и два ломтика ржаного хлеба (60г). Общий вес: 410г",
+                  "pct": 20
+                }
+              ],
+              [
+                {
+                  "name": "Суп Том Ям с креветками и курицей, подается с порцией риса жасмин, общий вес около 450г",
+                  "pct": 27
+                },
+                {
+                  "name": "Куриный суп с вермишелью, морковью и картофелем (250г), отварная куриная грудка (150г), одно вареное яйцо (50г), два кусочка ржаного хлеба (60г). Общий вес: 510г.",
+                  "pct": 10
+                },
+                {
+                  "name": "Бутерброды с слабосоленой неркой, пшеничным хлебом и свежим огурцом, примерный вес 130г (80г нерки, 30г хлеба, 20г огурца)",
+                  "pct": 8
+                }
+              ],
+              [
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 3
+                },
+                {
+                  "name": "Домашнее блюдо: отварные макароны из твердых сортов пшеницы и отварное куриное филе, около 250г",
+                  "pct": 3
+                },
+                {
+                  "name": "Домашняя овощная икра (баклажанная) с луком, морковью и томатами, тушенная на растительном масле, вес 150г",
+                  "pct": 1
+                }
+              ],
+              [
+                {
+                  "name": "Поке-боул с лососем, рисом, авокадо, манго и водорослями чука, посыпанный нори. Домашнее приготовление, 350г",
+                  "pct": 27
+                },
+                {
+                  "name": "Бутерброды из пшеничного багета, слабосоленой красной рыбы (семга/форель) и сливочного сыра, вес порции 180г",
+                  "pct": 20
+                },
+                {
+                  "name": "Черный кофе эспрессо (60г) и одно куриное яйцо в скорлупе, сваренное вкрутую (50г)",
+                  "pct": 16
+                }
+              ],
+              [
+                {
+                  "name": "Том Ям (острый тайский суп с креветками, грибами, лемонграссом, галангалом, кокосовым молоком) с порцией белого риса, ~450г (суп ~300г, рис ~150г)",
+                  "pct": 20
+                },
+                {
+                  "name": "Домашний пирог с брокколи и рыбой без соли, 120г (тесто, рыба, брокколи, яйцо), плюс греческий йогурт 120г",
+                  "pct": 17
+                },
+                {
+                  "name": "Рамен с уткой, куриным яйцом и пекинской капустой, 450г",
+                  "pct": 10
+                }
+              ],
+              [
+                {
+                  "name": "Греческий йогурт натуральный без добавок (около 125г) и свежие фрукты: персик (около 80г) и киви (около 70г). Общий вес блюда 275г.",
+                  "pct": 10
+                },
+                {
+                  "name": "Рассольный сыр (типа адыгейского или сулугуни) в нарезке, 150г, и плоды киви, 100г.",
+                  "pct": 8
+                },
+                {
+                  "name": "Греческий йогурт, 120г",
+                  "pct": 4
+                }
+              ],
+              [
+                {
+                  "name": "Морские гребешки сырые 150г с салатом чука (водоросли хияши вакаме) 10г, подается с соевым соусом (~10мл)",
+                  "pct": 167
+                },
+                {
+                  "name": "Рыба по-капитански с запеченным картофелем, покупное блюдо, 250г. Состав: филе минтая, картофель, майонез (масло подсолнечное, сахар, соль, яичный желток), лук, морковь, масло растительное, сыр (молоко, бактериальная закваска).",
+                  "pct": 27
+                },
+                {
+                  "name": "Творог (около 150г) с нарезанным свежим нектарином или персиком (около 80г), киви (около 75г) и чашка кофе с молоком (200мл), итого около 505г",
+                  "pct": 10
+                }
+              ]
+            ]
+          },
+          "Кальций": {
+            "isExcess": false,
+            "dayPct": [
+              87,
+              51,
+              43,
+              71,
+              88,
+              140,
+              104
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Греческий йогурт (470г) с персиком (160г)",
+                  "pct": 52
+                },
+                {
+                  "name": "Салат из томатов черри, огурцов и семян кунжута с добавлением нерафинированного масла авокадо, 220г",
+                  "pct": 7
+                },
+                {
+                  "name": "Миндаль сырой, 20г",
+                  "pct": 5
+                }
+              ],
+              [
+                {
+                  "name": "Йогурт греческий Простоквашино, густой, 2% жирности, масса нетто 235г",
+                  "pct": 27
+                },
+                {
+                  "name": "Домашний пирог с фруктовой начинкой (50г) и смесь орехов: миндаль, грецкий орех, кешью (40г). Общий вес 90г.",
+                  "pct": 5
+                },
+                {
+                  "name": "Куриный суп с вермишелью, морковью и картофелем (250г), отварная куриная грудка (150г), одно вареное яйцо (50г), два кусочка ржаного хлеба (60г). Общий вес: 510г.",
+                  "pct": 5
+                }
+              ],
+              [
+                {
+                  "name": "Творог (около 150г) с нарезанной свежей грушей (около 150г) и чашка черного кофе (200мл). Итоговый вес 500г.",
+                  "pct": 18
+                },
+                {
+                  "name": "Нектарин (150г), грецкие орехи (20г) и миндаль (20г). Общий вес: 190г.",
+                  "pct": 8
+                },
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 6
+                }
+              ],
+              [
+                {
+                  "name": "Творог с нарезанными свежими персиками, общий вес 250г",
+                  "pct": 20
+                },
+                {
+                  "name": "Кофе с молоком 2.5% (молоко 150 мл, предположительно заварной/растворимый кофе без сахара), ~160г",
+                  "pct": 18
+                },
+                {
+                  "name": "Бутерброды из пшеничного багета, слабосоленой красной рыбы (семга/форель) и сливочного сыра, вес порции 180г",
+                  "pct": 10
+                }
+              ],
+              [
+                {
+                  "name": "Завтрак: нектарин (~150г), греческий йогурт 120г, тёмный шоколад 72% 20г, кофе с молоком (~200мл, ~30мл молока), хлебцы с отрубями (~2 шт, 20г). Домашний/собранный самостоятельно",
+                  "pct": 30
+                },
+                {
+                  "name": "Творог классический рассыпчатый, ориентировочный вес 150г. Продукт промышленного производства.",
+                  "pct": 18
+                },
+                {
+                  "name": "Домашний пирог с брокколи и рыбой без соли, 120г (тесто, рыба, брокколи, яйцо), плюс греческий йогурт 120г",
+                  "pct": 18
+                }
+              ],
+              [
+                {
+                  "name": "Рассольный сыр (типа адыгейского или сулугуни) в нарезке, 150г, и плоды киви, 100г.",
+                  "pct": 75
+                },
+                {
+                  "name": "Греческий йогурт натуральный без добавок (около 125г) и свежие фрукты: персик (около 80г) и киви (около 70г). Общий вес блюда 275г.",
+                  "pct": 18
+                },
+                {
+                  "name": "Греческий йогурт, 120г",
+                  "pct": 12
+                }
+              ],
+              [
+                {
+                  "name": "Творог (около 150г) с нарезанным свежим нектарином или персиком (около 80г), киви (около 75г) и чашка кофе с молоком (200мл), итого около 505г",
+                  "pct": 30
+                },
+                {
+                  "name": "Рыба по-капитански с запеченным картофелем, покупное блюдо, 250г. Состав: филе минтая, картофель, майонез (масло подсолнечное, сахар, соль, яичный желток), лук, морковь, масло растительное, сыр (молоко, бактериальная закваска).",
+                  "pct": 18
+                },
+                {
+                  "name": "Сэндвич на поджаренном на гриле белом хлебе с ветчиной, сыром, помидором и листьями салата, 180г",
+                  "pct": 15
+                }
+              ]
+            ]
+          },
+          "Кофеин": {
+            "isExcess": true,
+            "dayPct": [
+              49,
+              54,
+              32,
+              63,
+              35,
+              20,
+              40
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Кофе американо (200мл) и печенье в форме животных (фигурное, 30г). Апельсиновый фреш на фото отсутствует.",
+                  "pct": 24
+                },
+                {
+                  "name": "Кусочек яблочного пирога из песочного теста (80г) и чашка кофе с молоком (150мл)",
+                  "pct": 20
+                },
+                {
+                  "name": "Белевская яблочная пастила (около 30 г) и 5 штук детского фигурного печенья (около 25 г), чай (200 мл), итого 255г",
+                  "pct": 5
+                }
+              ],
+              [
+                {
+                  "name": "Кофе американо (200г) и свежевыжатый апельсиновый сок (100г)",
+                  "pct": 30
+                },
+                {
+                  "name": "Кофе американо (200г) и свежевыжатый апельсиновый сок (100мл)",
+                  "pct": 24
+                }
+              ],
+              [
+                {
+                  "name": "Творог (около 150г) с нарезанной свежей грушей (около 150г) и чашка черного кофе (200мл). Итоговый вес 500г.",
+                  "pct": 24
+                },
+                {
+                  "name": "Восемь зерновых хлебцев с семенами (кунжут, лен, тыквенные семечки) и два квадратика темного шоколада, общий вес 70г",
+                  "pct": 5
+                },
+                {
+                  "name": "Шоколад горький 72% какао, 15г. Состав: тертое какао, сахар, масло какао, лецитин соевый, натуральная ваниль.",
+                  "pct": 3
+                }
+              ],
+              [
+                {
+                  "name": "Американо (эспрессо с горячей водой), ~250 мл",
+                  "pct": 25
+                },
+                {
+                  "name": "Кофе с молоком 2.5% (молоко 150 мл, предположительно заварной/растворимый кофе без сахара), ~160г",
+                  "pct": 20
+                },
+                {
+                  "name": "Черный кофе эспрессо (60г) и одно куриное яйцо в скорлупе, сваренное вкрутую (50г)",
+                  "pct": 15
+                }
+              ],
+              [
+                {
+                  "name": "Завтрак: нектарин (~150г), греческий йогурт 120г, тёмный шоколад 72% 20г, кофе с молоком (~200мл, ~30мл молока), хлебцы с отрубями (~2 шт, 20г). Домашний/собранный самостоятельно",
+                  "pct": 20
+                },
+                {
+                  "name": "Зерновое печенье Белавитса (примерно 2 шт, 30г) и кофе с молоком 2.5% (150мл, кофе + ~30мл молока)",
+                  "pct": 15
+                }
+              ],
+              [
+                {
+                  "name": "Три печенья BelVita Утреннее мультизлаковое и чашка кофе с молоком, общий вес около 85г (60г печенье, 25г молоко)",
+                  "pct": 20
+                }
+              ],
+              [
+                {
+                  "name": "Творог (около 150г) с нарезанным свежим нектарином или персиком (около 80г), киви (около 75г) и чашка кофе с молоком (200мл), итого около 505г",
+                  "pct": 20
+                },
+                {
+                  "name": "Кофе с молоком 2.5% (200мл, из них молоко ~50мл) и печенье овсяное промышленного производства, 30г",
+                  "pct": 20
+                }
+              ]
+            ]
+          },
+          "Насыщенные жиры": {
+            "isExcess": true,
+            "dayPct": [
+              107,
+              89,
+              104,
+              119,
+              130,
+              119,
+              133
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Греческий йогурт (470г) с персиком (160г)",
+                  "pct": 35
+                },
+                {
+                  "name": "Кусочек яблочного пирога из песочного теста (80г) и чашка кофе с молоком (150мл)",
+                  "pct": 22
+                },
+                {
+                  "name": "Два бутерброда с паштетом из печени минтая и порция отварной брокколи, 170г",
+                  "pct": 18
+                }
+              ],
+              [
+                {
+                  "name": "Суп Том Ям с креветками и курицей, подается с порцией риса жасмин, общий вес около 450г",
+                  "pct": 33
+                },
+                {
+                  "name": "Домашний пирог с фруктовой начинкой (50г) и смесь орехов: миндаль, грецкий орех, кешью (40г). Общий вес 90г.",
+                  "pct": 15
+                },
+                {
+                  "name": "Куриный суп с вермишелью, морковью и картофелем (250г), отварная куриная грудка (150г), одно вареное яйцо (50г), два кусочка ржаного хлеба (60г). Общий вес: 510г.",
+                  "pct": 14
+                }
+              ],
+              [
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 30
+                },
+                {
+                  "name": "Восемь зерновых хлебцев с семенами (кунжут, лен, тыквенные семечки) и два квадратика темного шоколада, общий вес 70г",
+                  "pct": 24
+                },
+                {
+                  "name": "Творог (около 150г) с нарезанной свежей грушей (около 150г) и чашка черного кофе (200мл). Итоговый вес 500г.",
+                  "pct": 22
+                }
+              ],
+              [
+                {
+                  "name": "Бутерброды из пшеничного багета, слабосоленой красной рыбы (семга/форель) и сливочного сыра, вес порции 180г",
+                  "pct": 33
+                },
+                {
+                  "name": "Горький шоколад «Победа» 72% какао (около 15г) и два зерновых хлебца с семенами (около 20г). Итоговый вес: 35г.",
+                  "pct": 22
+                },
+                {
+                  "name": "Творог с нарезанными свежими персиками, общий вес 250г",
+                  "pct": 13
+                }
+              ],
+              [
+                {
+                  "name": "Завтрак: нектарин (~150г), греческий йогурт 120г, тёмный шоколад 72% 20г, кофе с молоком (~200мл, ~30мл молока), хлебцы с отрубями (~2 шт, 20г). Домашний/собранный самостоятельно",
+                  "pct": 33
+                },
+                {
+                  "name": "Том Ям (острый тайский суп с креветками, грибами, лемонграссом, галангалом, кокосовым молоком) с порцией белого риса, ~450г (суп ~300г, рис ~150г)",
+                  "pct": 33
+                },
+                {
+                  "name": "Домашний пирог с брокколи и рыбой без соли, 120г (тесто, рыба, брокколи, яйцо), плюс греческий йогурт 120г",
+                  "pct": 26
+                }
+              ],
+              [
+                {
+                  "name": "Рассольный сыр (типа адыгейского или сулугуни) в нарезке, 150г, и плоды киви, 100г.",
+                  "pct": 48
+                },
+                {
+                  "name": "Говядина отварная нарезанная (75г) и соленые огурцы (60г). Домашнее приготовление. Порция уменьшена в 2 раза.",
+                  "pct": 13
+                },
+                {
+                  "name": "Греческий йогурт натуральный без добавок (около 125г) и свежие фрукты: персик (около 80г) и киви (около 70г). Общий вес блюда 275г.",
+                  "pct": 10
+                }
+              ],
+              [
+                {
+                  "name": "Сэндвич на поджаренном на гриле белом хлебе с ветчиной, сыром, помидором и листьями салата, 180г",
+                  "pct": 30
+                },
+                {
+                  "name": "Рыба по-капитански с запеченным картофелем, покупное блюдо, 250г. Состав: филе минтая, картофель, майонез (масло подсолнечное, сахар, соль, яичный желток), лук, морковь, масло растительное, сыр (молоко, бактериальная закваска).",
+                  "pct": 30
+                },
+                {
+                  "name": "Творог (около 150г) с нарезанным свежим нектарином или персиком (около 80г), киви (около 75г) и чашка кофе с молоком (200мл), итого около 505г",
+                  "pct": 20
+                }
+              ]
+            ]
+          },
+          "Натрий": {
+            "isExcess": true,
+            "dayPct": [
+              89,
+              108,
+              56,
+              82,
+              97,
+              138,
+              133
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Рыбный суп из белой рыбы с морковью и картофелем (350г) и два ломтика ржаного хлеба (60г). Общий вес: 410г",
+                  "pct": 30
+                },
+                {
+                  "name": "Два бутерброда с паштетом из печени минтая и порция отварной брокколи, 170г",
+                  "pct": 21
+                },
+                {
+                  "name": "Макароны из твердых сортов пшеницы (150г) и консервированный тунец в собственном соку (120г)",
+                  "pct": 21
+                }
+              ],
+              [
+                {
+                  "name": "Суп Том Ям с креветками и курицей, подается с порцией риса жасмин, общий вес около 450г",
+                  "pct": 43
+                },
+                {
+                  "name": "Куриный суп с вермишелью, морковью и картофелем (250г), отварная куриная грудка (150г), одно вареное яйцо (50г), два кусочка ржаного хлеба (60г). Общий вес: 510г.",
+                  "pct": 34
+                },
+                {
+                  "name": "Бутерброды с слабосоленой неркой, пшеничным хлебом и свежим огурцом, примерный вес 130г (80г нерки, 30г хлеба, 20г огурца)",
+                  "pct": 22
+                }
+              ],
+              [
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 34
+                },
+                {
+                  "name": "Домашняя овощная икра (баклажанная) с луком, морковью и томатами, тушенная на растительном масле, вес 150г",
+                  "pct": 8
+                },
+                {
+                  "name": "Восемь зерновых хлебцев с семенами (кунжут, лен, тыквенные семечки) и два квадратика темного шоколада, общий вес 70г",
+                  "pct": 8
+                }
+              ],
+              [
+                {
+                  "name": "Бутерброды из пшеничного багета, слабосоленой красной рыбы (семга/форель) и сливочного сыра, вес порции 180г",
+                  "pct": 35
+                },
+                {
+                  "name": "Поке-боул с лососем, рисом, авокадо, манго и водорослями чука, посыпанный нори. Домашнее приготовление, 350г",
+                  "pct": 16
+                },
+                {
+                  "name": "Овощная икра (вероятно, баклажанная с перцем, томатами, луком и морковью), тушеная на растительном масле, вес 200г",
+                  "pct": 14
+                }
+              ],
+              [
+                {
+                  "name": "Рамен с уткой, куриным яйцом и пекинской капустой, 450г",
+                  "pct": 50
+                },
+                {
+                  "name": "Том Ям (острый тайский суп с креветками, грибами, лемонграссом, галангалом, кокосовым молоком) с порцией белого риса, ~450г (суп ~300г, рис ~150г)",
+                  "pct": 32
+                },
+                {
+                  "name": "Завтрак: нектарин (~150г), греческий йогурт 120г, тёмный шоколад 72% 20г, кофе с молоком (~200мл, ~30мл молока), хлебцы с отрубями (~2 шт, 20г). Домашний/собранный самостоятельно",
+                  "pct": 5
+                }
+              ],
+              [
+                {
+                  "name": "Рассольный сыр (типа адыгейского или сулугуни) в нарезке, 150г, и плоды киви, 100г.",
+                  "pct": 34
+                },
+                {
+                  "name": "Куриный суп с вермишелью (300г), овощная аджика или томатный соус (50г) и кусок ржаного хлеба (30г). Домашнее приготовление.",
+                  "pct": 30
+                },
+                {
+                  "name": "Говядина отварная нарезанная (75г) и соленые огурцы (60г). Домашнее приготовление. Порция уменьшена в 2 раза.",
+                  "pct": 25
+                }
+              ],
+              [
+                {
+                  "name": "Сэндвич на поджаренном на гриле белом хлебе с ветчиной, сыром, помидором и листьями салата, 180г",
+                  "pct": 30
+                },
+                {
+                  "name": "Рыба по-капитански с запеченным картофелем, покупное блюдо, 250г. Состав: филе минтая, картофель, майонез (масло подсолнечное, сахар, соль, яичный желток), лук, морковь, масло растительное, сыр (молоко, бактериальная закваска).",
+                  "pct": 30
+                },
+                {
+                  "name": "Винегрет овощной, покупной в пластиковой упаковке, масса нетто 200г. Состав: свекла, картофель, морковь, огурцы корнишоны, чеснок, укроп, горчичные семена, соль, сахар, вода, зеленый горошек, масло растительное, лук зеленый.",
+                  "pct": 30
+                }
+              ]
+            ]
+          },
+          "Трансжиры": {
+            "isExcess": true,
+            "dayPct": [
+              50,
+              0,
+              50,
+              0,
+              0,
+              0,
+              50
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Греческий йогурт (470г) с персиком (160г)",
+                  "pct": 25
+                },
+                {
+                  "name": "Кусочек яблочного пирога из песочного теста (80г) и чашка кофе с молоком (150мл)",
+                  "pct": 10
+                }
+              ],
+              [],
+              [
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 25
+                }
+              ],
+              [],
+              [
+                {
+                  "name": "Домашний пирог с брокколи и рыбой без соли, 120г (тесто, рыба, брокколи, яйцо), плюс греческий йогурт 120г",
+                  "pct": 10
+                }
+              ],
+              [
+                {
+                  "name": "Говядина отварная нарезанная (75г) и соленые огурцы (60г). Домашнее приготовление. Порция уменьшена в 2 раза.",
+                  "pct": 10
+                }
+              ],
+              [
+                {
+                  "name": "Рыба по-капитански с запеченным картофелем, покупное блюдо, 250г. Состав: филе минтая, картофель, майонез (масло подсолнечное, сахар, соль, яичный желток), лук, морковь, масло растительное, сыр (молоко, бактериальная закваска).",
+                  "pct": 25
+                },
+                {
+                  "name": "Кофе с молоком 2.5% (200мл, из них молоко ~50мл) и печенье овсяное промышленного производства, 30г",
+                  "pct": 15
+                },
+                {
+                  "name": "Сэндвич на поджаренном на гриле белом хлебе с ветчиной, сыром, помидором и листьями салата, 180г",
+                  "pct": 10
+                }
+              ]
+            ]
+          },
+          "Холестерин": {
+            "isExcess": true,
+            "dayPct": [
+              75,
+              67,
+              33,
+              83,
+              73,
+              46,
+              46
+            ],
+            "byDay": [
+              [
+                {
+                  "name": "Два бутерброда с паштетом из печени минтая и порция отварной брокколи, 170г",
+                  "pct": 47
+                },
+                {
+                  "name": "Греческий йогурт (470г) с персиком (160г)",
+                  "pct": 8
+                },
+                {
+                  "name": "Рыбный суп из белой рыбы с морковью и картофелем (350г) и два ломтика ржаного хлеба (60г). Общий вес: 410г",
+                  "pct": 8
+                }
+              ],
+              [
+                {
+                  "name": "Куриный суп с вермишелью, морковью и картофелем (250г), отварная куриная грудка (150г), одно вареное яйцо (50г), два кусочка ржаного хлеба (60г). Общий вес: 510г.",
+                  "pct": 34
+                },
+                {
+                  "name": "Суп Том Ям с креветками и курицей, подается с порцией риса жасмин, общий вес около 450г",
+                  "pct": 18
+                },
+                {
+                  "name": "Бутерброды с слабосоленой неркой, пшеничным хлебом и свежим огурцом, примерный вес 130г (80г нерки, 30г хлеба, 20г огурца)",
+                  "pct": 10
+                }
+              ],
+              [
+                {
+                  "name": "Шаурма Классика с обжаренной курицей, помидорами, огурцами, красной капустой и чесночно-сметанным соусом в пшеничном лаваше, ориентировочный вес 350г",
+                  "pct": 14
+                },
+                {
+                  "name": "Домашнее блюдо: отварные макароны из твердых сортов пшеницы и отварное куриное филе, около 250г",
+                  "pct": 13
+                },
+                {
+                  "name": "Творог (около 150г) с нарезанной свежей грушей (около 150г) и чашка черного кофе (200мл). Итоговый вес 500г.",
+                  "pct": 6
+                }
+              ],
+              [
+                {
+                  "name": "Черный кофе эспрессо (60г) и одно куриное яйцо в скорлупе, сваренное вкрутую (50г)",
+                  "pct": 31
+                },
+                {
+                  "name": "Отварная куриная голень, филе куриной грудки, брокколи на пару и свежие помидоры черри, общий вес около 320г",
+                  "pct": 21
+                },
+                {
+                  "name": "Бутерброды из пшеничного багета, слабосоленой красной рыбы (семга/форель) и сливочного сыра, вес порции 180г",
+                  "pct": 16
+                }
+              ],
+              [
+                {
+                  "name": "Рамен с уткой, куриным яйцом и пекинской капустой, 450г",
+                  "pct": 32
+                },
+                {
+                  "name": "Том Ям (острый тайский суп с креветками, грибами, лемонграссом, галангалом, кокосовым молоком) с порцией белого риса, ~450г (суп ~300г, рис ~150г)",
+                  "pct": 20
+                },
+                {
+                  "name": "Домашний пирог с брокколи и рыбой без соли, 120г (тесто, рыба, брокколи, яйцо), плюс греческий йогурт 120г",
+                  "pct": 15
+                }
+              ],
+              [
+                {
+                  "name": "Отварной белый рис (200г) с отварным куриным филе (200г), всего 400г",
+                  "pct": 15
+                },
+                {
+                  "name": "Рассольный сыр (типа адыгейского или сулугуни) в нарезке, 150г, и плоды киви, 100г.",
+                  "pct": 11
+                },
+                {
+                  "name": "Говядина отварная нарезанная (75г) и соленые огурцы (60г). Домашнее приготовление. Порция уменьшена в 2 раза.",
+                  "pct": 8
+                }
+              ],
+              [
+                {
+                  "name": "Рыба по-капитански с запеченным картофелем, покупное блюдо, 250г. Состав: филе минтая, картофель, майонез (масло подсолнечное, сахар, соль, яичный желток), лук, морковь, масло растительное, сыр (молоко, бактериальная закваска).",
+                  "pct": 23
+                },
+                {
+                  "name": "Сэндвич на поджаренном на гриле белом хлебе с ветчиной, сыром, помидором и листьями салата, 180г",
+                  "pct": 8
+                },
+                {
+                  "name": "Морские гребешки сырые 150г с салатом чука (водоросли хияши вакаме) 10г, подается с соевым соусом (~10мл)",
+                  "pct": 6
+                }
+              ]
+            ]
+          }
+        },
+        "computed_at": "2026-09-18T16:00:04.306Z",
+        "nutrition_loops": []
+      }
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "99f94846-21ef-4ed9-8bc3-888e8c09f34b",
+  "activeVersionId": "99f94846-21ef-4ed9-8bc3-888e8c09f34b",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-08-19T03:24:56.710Z",
+      "createdAt": "2026-08-19T03:24:56.710Z",
+      "role": "workflow:owner",
+      "workflowId": "usRTE72PxH0WlgOy",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-17T05:20:47.139Z",
+    "createdAt": "2026-09-17T05:20:47.139Z",
+    "versionId": "99f94846-21ef-4ed9-8bc3-888e8c09f34b",
+    "workflowId": "usRTE72PxH0WlgOy",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 3
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          -128,
+          0
+        ],
+        "id": "7436bca7-624b-4822-8458-68439b3f4c27",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT d.*, to_char(d.\"Date\", 'YYYY-MM-DD') AS \"Date\" FROM health.day_sum d ORDER BY d.\"Date\"",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          80,
+          0
+        ],
+        "id": "cfe85176-cf52-4282-9949-691e9bb44840",
+        "name": "Get day_sum",
+        "executeOnce": true,
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT t.\"Нутриент\", t.\"Колонка_в_Meals\", t.\"Единица\", t.\"Норма_RDA_AI\", t.\"Верхний_предел_UL\", t.\"Категория\", t.\"Источник\", t.\"Примечание\" FROM health.nutrient_targets t ORDER BY t.\"Нутриент\"",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          288,
+          0
+        ],
+        "id": "66b56710-a107-4a54-a373-d7739ea8d649",
+        "name": "Get Nutrient_Targets",
+        "executeOnce": true,
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2
+      },
+      {
+        "parameters": {
+          "path": "weekly-nutrients",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          32,
+          256
+        ],
+        "id": "970eb7e5-4719-4a3e-a229-364ef2122c0e",
+        "name": "Webhook",
+        "webhookId": "c7f33ff4-868d-46fe-9367-6d2db1f7737f"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          448,
+          256
+        ],
+        "id": "ab9d12f6-0fcd-44b0-aa62-850cc7ca3f56",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "jsCode": "const __t = ($input.first().json.query || {}).token;\nif (__t !== '8j1bXp92BF5VabxNq2VN') return [{ json: { error: 'forbidden' } }];\n// Нода подключена напрямую к Webhook в той же workflow, что и Schedule Trigger-ветка.\n// Static Data общая на весь workflow, поэтому здесь доступны данные,\n// записанные веткой с Schedule Trigger.\n\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.weeklyNutrients;\n\nif (!cached) {\n  // Кэш ещё ни разу не считался (например, сразу после создания workflow) —\n  // отдаём понятную заглушку вместо ошибки.\n  return [{\n    json: {\n      error: 'no_data_yet',\n      message: 'Данные ещё не посчитаны. Дождитесь первого запуска по расписанию.'\n    }\n  }];\n}\n\nreturn [{ json: cached }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          240,
+          256
+        ],
+        "id": "39d92fc3-fff9-4be0-a31b-32e3cdf46d73",
+        "name": "Code (читает Static Data)"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Нода подключена к прямому выходу \"Get Meals\" (последняя в цепочке Schedule Trigger).\n// Ссылается на \"Get day_sum\" и \"Get Nutrient_Targets\" по имени — обе идут раньше в цепочке:\n// Schedule Trigger → Get day_sum → Get Nutrient_Targets → Get Meals → Code\n\n// Достаёт первое число из строки-ячейки. Возвращает null, если значение\n// начинается с \"не \" (не установлен / не применимо / не задана) — иначе\n// регэксп нашёл бы случайное число из справочного текста в скобках.\nfunction parseNum(v) {\n  if (v === undefined || v === null) return null;\n  const s = String(v).trim();\n  if (/^не\\s/i.test(s)) return null;\n  const m = s.match(/-?\\d+(?:[.,]\\d+)?/);\n  if (!m) return null;\n  return parseFloat(m[0].replace(',', '.'));\n}\n\nfunction toNum(v) {\n  if (v === undefined || v === null || v === '') return 0;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? 0 : n;\n}\n\n// 1. Дни за неделю — обращаемся к \"Get day_sum\" по имени.\n// ВАЖНО: в отличие от wellness-домена (Daily_Trends, колонка 'Дата', кириллица),\n// у day_sum дата хранится в колонке 'Date' (латиница) — известная особенность проекта.\nconst dayRows = $('Get day_sum').all()\n  .map(r => r.json)\n  .filter(r => r['Date'])\n  .sort((a, b) => (a['Date'] < b['Date']) ? 1 : (a['Date'] > b['Date']) ? -1 : 0)\n  .slice(0, 7)\n  .reverse(); // от старых к новым\n\nconst weekDateSet = new Set(dayRows.map(r => r['Date'].slice(0, 10))); // YYYY-MM-DD\n\n// 2. Справочник целей — обращаемся к \"Get Nutrient_Targets\" по имени\nconst targets = $('Get Nutrient_Targets').all().map(r => r.json);\n\n// 3. Сырые приёмы пищи за ту же неделю — по имени, НЕ прямой вход: между Get Meals\n// и этой нодой теперь стоит Get Recommendations_Log (добавлен 14.09.2026 для\n// nutrition_loops), прямой $input.all() был бы уже неверен.\nconst weekMeals = $('Get Meals').all()\n  .map(r => r.json)\n  .filter(r => r['Date'] && weekDateSet.has(String(r['Date']).slice(0, 10)));\n\n// Топ-3 продукта-источника нутриента ЗА КОНКРЕТНЫЙ ДЕНЬ (не за неделю), сгруппированные\n// по описанию блюда. % считается от ДНЕВНОЙ нормы/лимита — так сумма топ-3 напрямую\n// объясняет цифру в самой ячейке heatmap за этот день, а не абстрактную \"долю от недели\".\nfunction topSourcesForDay(col, dateStr, dailyTarget) {\n  if (!dailyTarget) return [];\n  const dayMeals = weekMeals.filter(m => String(m['Date']).slice(0, 10) === dateStr);\n  const byName = {};\n  dayMeals.forEach(m => {\n    const v = toNum(m[col]);\n    if (v <= 0) return;\n    const name = m['Meal_description'] || 'Без описания';\n    byName[name] = (byName[name] || 0) + v;\n  });\n  return Object.entries(byName)\n    .sort((a, b) => b[1] - a[1])\n    .slice(0, 3)\n    .map(([name, val]) => ({ name, pct: Math.round((val / dailyTarget) * 100) }));\n}\n\nconst HEAT_METRICS = [];\nconst NORMAL_METRICS = [];\nconst CATEGORY_SCORES = {}; // { \"Здоровье костей\": [pct, pct, ...] }\nconst CATEGORY_DETAILS = {}; // { \"Здоровье костей\": [{label, pct}, ...] } — для карточек с разбивкой\nconst BULLETS = [];\nconst SOURCES = {}; // { \"Витамин D\": [{name, pct}, ...] }\n\ntargets.forEach(t => {\n  const col = t['Колонка_в_Meals'];\n  if (!col) return;\n\n  const rda = parseNum(t['Норма_RDA_AI']);\n  const ul = parseNum(t['Верхний_предел_UL']);\n  const categories = (t['Категория'] || '').split(';').map(c => c.trim()).filter(Boolean);\n  const isLimitType = categories.includes('Риск избытка');\n\n  // UL некоторых нутриентов (магний и т.п.) относится ТОЛЬКО к добавкам, не к пище —\n  // см. поле Примечание в справочнике. Такой UL не применяем к дневному рациону.\n  const ulAppliesToDiet = !/добав/i.test(String(t['Верхний_предел_UL'] || ''));\n\n  const dailyValues = dayRows.map(r => toNum(r[col]));\n  const dailyPct = dailyValues.map(v => {\n    if (isLimitType) return ul ? Math.round((v / ul) * 100) : null;\n    return rda ? Math.round((v / rda) * 100) : null;\n  }).filter(p => p !== null);\n\n  if (dailyPct.length === 0) return; // нет ни цели, ни UL — пропускаем\n\n  const avgPct = Math.round(dailyPct.reduce((a, b) => a + b, 0) / dailyPct.length);\n\n  // Показываем в heatmap только ГЕНУИННЫЕ недельные паттерны, не разовые всплески дня:\n  // - дефицит — если недельное СРЕДНЕЕ ниже нормы (не просто один плохой день)\n  // - избыток — только для goal-type нутриентов (магний, витамин D и т.п.), и только если\n  //   минимум 2 дня подряд/за неделю реально вышли за порог (один разовый приём — не система)\n  // Risk-type нутриенты (натрий, сахар и т.п.) в heatmap не попадают вообще — они и так\n  // всегда видны в \"Риск избытка\", дублировать их здесь — просто шум.\n  const upperBoundPct = (ul && rda) ? Math.round((ul / rda) * 100) : null;\n  const daysOverThreshold = (upperBoundPct && ulAppliesToDiet)\n    ? dailyPct.filter(p => p > upperBoundPct).length\n    : 0;\n  const deviates = !isLimitType && (avgPct < 85 || daysOverThreshold >= 2);\n\n  // --- Фаза 6: абсолютные величины, расстояние до верхнего предела, уровень сигнала ---\n  // Процент без базы и единиц не интерпретируем, поэтому отдаём и абсолюты, и UL.\n  const avgAbs = dailyValues.length\n    ? Math.round((dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length) * 100) / 100\n    : null;\n  const ulEffective = (ul && ulAppliesToDiet) ? ul : null;\n  const ulRatio = (ulEffective && avgAbs != null && ulEffective > 0) ? avgAbs / ulEffective : null;\n  const ulRatioR = ulRatio != null ? Math.round(ulRatio * 100) / 100 : null;\n  const ulNote = (ul && !ulAppliesToDiet) ? 'верхний предел относится только к добавкам, не к пище' : null;\n  const daysBelow = dailyPct.filter(p => p < 85).length;\n\n  // Лестница сигналов: 0 норма · 1 дефицит · 2 устойчивый дефицит · 3 подход к пределу · 4 выше предела\n  // Важно: дефицит определяется по НЕДЕЛЬНОМУ среднему. Отдельные «плохие» дни есть\n  // у любого нутриента (обычные колебания) и сами по себе сигналом не являются —\n  // они лишь усиливают уже подтверждённый средним дефицит до «устойчивого».\n  const lastDayPct = dailyPct.length ? dailyPct[dailyPct.length - 1] : null;\n  let level = 0;\n  if (isLimitType) {\n    if (avgPct > 100) level = 4;            // систематически выше лимита\n    else if (avgPct >= 80) level = 3;       // подходит к лимиту\n  } else {\n    if (ulRatio != null && ulRatio > 1) level = 4;\n    else if (ulRatio != null && ulRatio >= 0.8) level = 3;\n    else if (avgPct < 85 && daysBelow >= 3) level = 2;\n    else if (avgPct < 85) level = 1;\n  }\n\n\n  if (isLimitType) {\n    BULLETS.push({\n      label: t['Нутриент'],\n      unit: t['Единица'],\n      value: dailyValues[dailyValues.length - 1],\n      limit: ul,\n      avgPct,\n      avgAbs,\n      level,\n      lastDayPct\n    });\n  } else {\n    categories.forEach(cat => {\n      if (!CATEGORY_SCORES[cat]) CATEGORY_SCORES[cat] = [];\n      CATEGORY_SCORES[cat].push(Math.min(avgPct, 100));\n      if (!CATEGORY_DETAILS[cat]) CATEGORY_DETAILS[cat] = [];\n      CATEGORY_DETAILS[cat].push({ label: t['Нутриент'], pct: avgPct });\n    });\n  }\n\n  const metricEntry = { label: t['Нутриент'], values: dailyPct, avgPct,\n    upperBoundPct: (upperBoundPct && ulAppliesToDiet) ? upperBoundPct : null, isExcess: isLimitType,\n    unit: t['Единица'] || '', avgAbs, rda, ul: ulEffective, ulRatio: ulRatioR, ulNote, level, lastDayPct,\n    note: t['Примечание'] || null };\n  const dailyTarget = isLimitType ? ul : rda;\n\n  if (deviates) {\n    HEAT_METRICS.push(metricEntry);\n    SOURCES[t['Нутриент']] = {\n      isExcess: isLimitType,\n      dayPct: dailyPct, // % от нормы за каждый день — чтобы шторка знала факт по конкретному дню, а не гадала\n      byDay: dayRows.map(r => topSourcesForDay(col, r['Date'].slice(0, 10), dailyTarget))\n    };\n  } else if (!isLimitType) {\n    NORMAL_METRICS.push({ label: t['Нутриент'], avg: avgPct,\n      unit: t['Единица'] || '', avgAbs, rda, ul: ulEffective, ulRatio: ulRatioR, ulNote, level });\n  }\n\n  if (isLimitType && !SOURCES[t['Нутриент']]) {\n    SOURCES[t['Нутриент']] = {\n      isExcess: true,\n      dayPct: dailyPct,\n      byDay: dayRows.map(r => topSourcesForDay(col, r['Date'].slice(0, 10), dailyTarget))\n    };\n  }\n});\n\nconst scores = Object.entries(CATEGORY_SCORES).map(([label, arr]) => ({\n  label,\n  pct: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length),\n  // Топ-4 нутриента категории по вкладу (для карточки с разбивкой) — не все подряд,\n  // чтобы карточка не расползалась, если в категории окажется много нутриентов\n  nutrients: (CATEGORY_DETAILS[label] || []).sort((a, b) => b.pct - a.pct).slice(0, 4)\n}));\n\n\n// ===== Качество рациона: AHEI-2010 / NOVA / Plant Diversity (Chiuve 2012, пороги сверены) =====\nfunction computeDietQuality(dayRows, weekMeals, toNum, opts) {\n  opts = opts || {};\n  const MALE = opts.male !== false;\n\n  // --- конфиг (приближения, документированы; вынести в лист при желании тюнить) ---\n  const SRV = { veg_g: 80, fruit_g: 100, legnut_g: 50, redmeat_g: 100, ssb_ml: 240, drink_g: 14 };\n  // AHEI-2010: [значение → 0 баллов, значение → 10 баллов]\n  const A = {\n    veg:        [0, 5],        // порций/сут\n    fruit:      [0, 4],        // порций/сут\n    wholegrain: [0, MALE ? 90 : 75], // г/сут\n    ssb:        [1, 0],        // порций/сут (обратная)\n    legnut:     [0, 1],        // порций/сут\n    redmeat:    [1.5, 0],      // порций/сут (обратная)\n    transfat:   [4, 0.5],      // % энергии (обратная)\n    epadha:     [0, 250],      // мг/сут\n    pufa:       [2, 10],       // % энергии\n    sodium:     [3020, 1130],  // мг/2000ккал (обратная; приближение децилей Chiuve)\n  };\n  const lin = (v, lo, hi) => {\n    if (hi === lo) return v >= hi ? 10 : 0;\n    const s = ((v - lo) / (hi - lo)) * 10;\n    return Math.max(0, Math.min(10, s));\n  };\n  const alcoholPts = (drinks) => {\n    if (MALE) {\n      if (drinks <= 0) return 2.5;\n      if (drinks < 0.5) return 2.5 + (drinks / 0.5) * 7.5;\n      if (drinks <= 2.0) return 10;\n      if (drinks < 3.5) return 10 - ((drinks - 2.0) / 1.5) * 10;\n      return 0;\n    }\n    if (drinks <= 0) return 2.5;\n    if (drinks < 0.5) return 2.5 + (drinks / 0.5) * 7.5;\n    if (drinks <= 1.5) return 10;\n    if (drinks < 2.5) return 10 - ((drinks - 1.5) / 1.0) * 10;\n    return 0;\n  };\n\n  const dayList = dayRows.map(r => {\n    const ds = String(r['Date']).slice(0, 10);\n    const meals = weekMeals.filter(m => String(m['Date']).slice(0, 10) === ds);\n    const total = meals.length;\n    const tagged = meals.filter(m => String(m['NOVA'] || '').trim() !== '').length;\n    const sum = k => meals.reduce((a, m) => a + toNum(m[k]), 0);\n    const kcal = sum('Calories') || 1;\n\n    const c = {\n      veg:        lin(sum('veg_g') / SRV.veg_g, A.veg[0], A.veg[1]),\n      fruit:      lin(sum('fruit_g') / SRV.fruit_g, A.fruit[0], A.fruit[1]),\n      wholegrain: lin(sum('wholegrain_g'), A.wholegrain[0], A.wholegrain[1]),\n      ssb:        lin(sum('ssb_ml') / SRV.ssb_ml, A.ssb[0], A.ssb[1]),\n      legnut:     lin(sum('legume_nut_g') / SRV.legnut_g, A.legnut[0], A.legnut[1]),\n      redmeat:    lin(sum('redmeat_g') / SRV.redmeat_g, A.redmeat[0], A.redmeat[1]),\n      transfat:   lin(sum('Трансжиры') * 9 / kcal * 100, A.transfat[0], A.transfat[1]),\n      epadha:     lin(sum('Омега-3 (EPA/DHA)'), A.epadha[0], A.epadha[1]),\n      pufa:       lin(sum('ПНЖ') * 9 / kcal * 100, A.pufa[0], A.pufa[1]),\n      sodium:     lin(sum('Натрий') * 2000 / kcal, A.sodium[0], A.sodium[1]),\n      alcohol:    alcoholPts(sum('Алкоголь') / SRV.drink_g),\n    };\n    const ahei = Object.values(c).reduce((a, b) => a + b, 0); // 0..110\n\n    const nova = { 1: 0, 2: 0, 3: 0, 4: 0 };\n    meals.forEach(m => { const g = Math.max(1, Math.min(4, Math.round(toNum(m['NOVA']) || 1))); nova[g] += toNum(m['Calories']); });\n\n    return { date: ds, ahei: Math.round(ahei * 10) / 10, components: c, kcal, total, tagged, nova };\n  });\n\n  // дни с достаточной разметкой (≥60% приёмов) и хоть какой-то едой\n  const valid = dayList.filter(d => d.total > 0 && d.tagged / d.total >= 0.6);\n\n  const aheiWeek = valid.length ? Math.round(valid.reduce((a, d) => a + d.ahei, 0) / valid.length) : null;\n  const compWeek = {};\n  if (valid.length) {\n    Object.keys(A).concat('alcohol').forEach(k => {\n      compWeek[k] = Math.round((valid.reduce((a, d) => a + d.components[k], 0) / valid.length) * 10) / 10;\n    });\n  }\n\n  const novaCal = { 1: 0, 2: 0, 3: 0, 4: 0 }; let novaTot = 0;\n  valid.forEach(d => { [1, 2, 3, 4].forEach(g => novaCal[g] += d.nova[g]); novaTot += d.kcal; });\n  const novaPct = {};\n  [1, 2, 3, 4].forEach(g => novaPct[g] = novaTot ? Math.round(novaCal[g] / novaTot * 100) : 0);\n\n  // Plant Diversity — уникальные виды растений за окно.\n  // Нормализация: lower, ё→е, снять прилагательные-уточнения, синонимы, грубый стем.\n  const ADJ = /^(болгарск\\w*|репчат\\w*|зелен\\w*|красн\\w*|бел\\w*|бело\\w*|чёрн\\w*|черн\\w*|свеж\\w*|сушен\\w*|суш[её]н\\w*|морожен\\w*|отварн\\w*|варен\\w*|жарен\\w*|печён\\w*|печен\\w*|цельнозернов\\w*|стручков\\w*|листов\\w*|молот\\w*|молодо\\w*|крупнолистов\\w*)\\s+/;\n  const SYN = { 'горошек': 'горох', 'айсберг': 'салат', 'руккола': 'салат', 'латук': 'салат', 'кинза': 'кориандр', 'коф': 'кофе', 'кориц': 'корица', 'какао': 'какао', 'томатная паста': 'томат', 'помидор': 'томат', 'черри': 'томат', 'семечки': 'семена', 'семя': 'семена' };\n  const norm = s => {\n    let x = s.trim().toLowerCase().replace(/ё/g, 'е').replace(/[.()]/g, '').trim();\n    x = x.replace(ADJ, '').trim();\n    const w = x.split(/\\s+/);\n    x = w[0]; // первое слово (\"капуста белокочанная\"→\"капуста\", \"лук репчатый\"→\"лук\")\n    x = x.replace(/(ый|ая|ое|ые|ой|ую|ого|ым|ов|ами|ам|ах|а|ы|и|у|е|я|й)$/, '');\n    return SYN[x] || SYN[s.trim().toLowerCase()] || x;\n  };\n  const NOT_PLANT = new Set(['чук', 'нор', 'вода', 'бульон', 'молок', 'сыр', 'йогурт', 'творог', 'масл', 'мед', 'соус',\n    'куриц', 'курин', 'говядин', 'свинин', 'индейк', 'индюш', 'лосос', 'рыб', 'яйц', 'креветк', 'тунец', 'сельд', 'треск', 'мясо', 'бекон', 'колбас', 'ветчин', 'сосиск', 'печен', 'желатин', 'дрожж', 'злак',\n    // осколки прилагательных, которые LLM иногда отдаёт отдельной запятой\n    'болгарск', 'зелен', 'красн', 'бел', 'черн', 'свеж', 'сушен', 'молот', 'репчат', 'отварн', 'печ', 'жарен', 'варен', 'цельнозернов', 'водоросл']);\n  const SYN2 = { 'карр': 'карри', 'кабач': 'кабачок', 'помидорчик': 'томат', 'горош': 'горох' };\n  const plantSet = new Set();\n  weekMeals.forEach(m => String(m['plants'] || '').split(/[,;/]+/).map(norm)\n    .map(p => SYN2[p] || p)\n    .filter(p => p.length >= 3 && !NOT_PLANT.has(p)).forEach(p => plantSet.add(p)));\n\n  const daysWithFood = dayList.filter(d => d.total > 0).length;\n\n  return {\n    ahei: {\n      week_avg: aheiWeek, target: 80, ok: 65, max: 110,\n      days: dayList.map(d => ({ date: d.date, score: d.tagged / (d.total || 1) >= 0.6 ? d.ahei : null })),\n      components: compWeek,\n      coverage: valid.length + '/' + daysWithFood,\n    },\n    nova: { pct: novaPct, ultra_pct: novaPct[4], whole_pct: novaPct[1] },\n    plants: { count: plantSet.size, target: 30, list: [...plantSet].sort() },\n    computed_days: valid.length,\n  };\n}\nlet dietQuality = null;\ntry { dietQuality = computeDietQuality(dayRows, weekMeals, toNum, { male: true }); } catch (e) { dietQuality = { error: String(e && e.message || e) }; }\n\n// ===== Этап 1 нутришн-петли: \"сделал ли N из M дней\" по check-контракту действия =====\nfunction computeNutritionLoops(dayRows, toNum) {\n  let recRows = [];\n  try { recRows = $('Get Recommendations_Log').all().map(r => r.json); } catch (e) { return []; }\n  const weeklyRecs = recRows\n    .filter(r => r && r['Date'] && String(r['Period_Type'] || 'weekly') === 'weekly')\n    .sort((a, b) => String(b['Date']).localeCompare(String(a['Date'])));\n  const latestRec = weeklyRecs[0];\n  if (!latestRec || !latestRec['Recommendation_Text']) return [];\n\n  const m = String(latestRec['Recommendation_Text']).match(/<<<ACTIONS\\s*([\\s\\S]*?)\\s*ACTIONS>>>/);\n  if (!m) return [];\n  let tail;\n  try { tail = JSON.parse(m[1].trim()); } catch (e) { return []; }\n  const acts = Array.isArray(tail.actions) ? tail.actions : [];\n  const issuedDate = String(latestRec['Date']).slice(0, 10);\n\n  return acts\n    .filter(a => a && a.check && a.check.col)\n    .map(a => {\n      const c = a.check;\n      // считаем ТОЛЬКО дни ПОСЛЕ даты выдачи совета — до неё этого критерия ещё не существовало\n      const relevant = dayRows.filter(r => r['Date'] && r['Date'].slice(0, 10) > issuedDate);\n      const days = relevant.map(r => {\n        const v = toNum(r[c.col]);\n        const ok = c.op === '<=' ? v <= c.value : v >= c.value;\n        return { date: r['Date'].slice(0, 10), value: v, ok };\n      });\n      const doneDays = days.filter(d => d.ok).length;\n      // окно оценки — 7 дней (как и сам days_of_7); \"behind\" — только когда цель уже\n      // математически недостижима за оставшиеся дни, а не просто \"пока не набрал\".\n      const WINDOW_DAYS = 7;\n      const daysLeft = Math.max(0, WINDOW_DAYS - days.length);\n      let status;\n      if (days.length === 0) status = 'insufficient_data';\n      else if (doneDays >= c.days_of_7) status = 'on_track';\n      else if (doneDays + daysLeft >= c.days_of_7) status = 'on_track';\n      else status = 'behind';\n      return {\n        title: a.title, key: c.key, kind: c.kind, op: c.op, value: c.value, unit: c.unit,\n        target_days: c.days_of_7, evaluated_days: days.length, done_days: doneDays,\n        status, issued: issuedDate, days,\n      };\n    });\n}\nlet nutritionLoops = [];\ntry { nutritionLoops = computeNutritionLoops(dayRows, toNum); } catch (e) { nutritionLoops = [{ error: String(e && e.message || e) }]; }\n\nconst finalResult = {\n  period: {\n    from: dayRows[0] ? dayRows[0]['Date'] : null,\n    to: dayRows[dayRows.length - 1] ? dayRows[dayRows.length - 1]['Date'] : null\n  },\n  days: dayRows.map(r => r['Date']),\n  scores,\n  bullets: BULLETS,\n  heatmap: HEAT_METRICS,\n  diet_quality: dietQuality,\n  normal: NORMAL_METRICS,\n  sources: SOURCES,\n  computed_at: new Date().toISOString(),\n  nutrition_loops: nutritionLoops,\n};\n\n// Пишем в Static Data workflow'а — переживает между запусками, без файловой системы.\n// Причина такого решения: n8n по умолчанию блокирует запись файлов внутрь папки .n8n\n// (N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES), а другого примонтированного пути на сервере нет.\nconst staticData = $getWorkflowStaticData('global');\nstaticData.weeklyNutrients = finalResult;\n\nreturn [ { json: finalResult } ];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          896,
+          0
+        ],
+        "id": "8ad642d9-a62a-4852-b4e5-ffa800b2b653",
+        "name": "Code (пишет в Static Data)"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT m.*, to_char(m.\"Date\" AT TIME ZONE 'Asia/Vladivostok', 'YYYY-MM-DD\"T\"HH24:MI') AS \"Date\" FROM health.meals m ORDER BY m.\"Date\"",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          464,
+          0
+        ],
+        "id": "1acc319e-7dd7-417f-84e2-7b0bb5a24213",
+        "name": "Get Meals",
+        "executeOnce": true,
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT r.\"Date\", r.\"Period_Type\", r.\"Recommendation_Text\", r.\"Based_On\", r.\"Status\", r.\"Priority\", r.\"Telegram_Text\", r.\"Alert_Text\", r.\"Has_Alert\" FROM health.recommendations_log r ORDER BY r.\"Date\" DESC",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          656,
+          -160
+        ],
+        "id": "981e5b44-4463-4b26-98f8-340c2b03f5ee",
+        "name": "Get Recommendations_Log",
+        "executeOnce": true,
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2
+      }
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get day_sum",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get day_sum": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrient_Targets",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrient_Targets": {
+        "main": [
+          [
+            {
+              "node": "Get Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Code (читает Static Data)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code (читает Static Data)": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code (пишет в Static Data)": {
+        "main": [
+          []
+        ]
+      },
+      "Get Meals": {
+        "main": [
+          [
+            {
+              "node": "Get Recommendations_Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Recommendations_Log": {
+        "main": [
+          [
+            {
+              "node": "Code (пишет в Static Data)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: wave1 rm tmp rebuild)",
+    "name": "Patch 99f94846 — wave1 rm tmp rebuild",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
