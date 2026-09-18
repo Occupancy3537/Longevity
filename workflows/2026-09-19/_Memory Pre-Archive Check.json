@@ -1,0 +1,305 @@
+{
+  "updatedAt": "2026-09-14T21:09:10.000Z",
+  "createdAt": "2026-09-14T21:00:35.547Z",
+  "id": "MemoryPreArchive1",
+  "name": "_Memory Pre-Archive Check",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "c77feecd-25dd-4ab1-b2ad-46998a233018",
+      "name": "Daily 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5630499e-3720-4d70-9e3a-034dec6f34cd",
+      "name": "Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Зовёт card-service /health-check/pre-archive (Phase П4 §6.2), не подключённый\n// к расписанию ни разу до сегодня. w3_question — эпизод с критическим паттерном,\n// молчавший 90+ дней: тихо забыть нельзя, нужен ответ Влада. \"archived\" — не шумим.\nfunction pluralRu(n, one, few, many) {\n  const n10 = Math.abs(n) % 10, n100 = Math.abs(n) % 100;\n  if (n100 > 10 && n100 < 20) return many;\n  if (n10 > 1 && n10 < 5) return few;\n  if (n10 === 1) return one;\n  return many;\n}\n\nlet items = null, callError = null;\ntry {\n  items = await this.helpers.httpRequest({\n    method: 'GET',\n    url: 'http://card-service:8080/health-check/pre-archive',\n    json: true,\n    timeout: 15000,\n  });\n} catch (e) {\n  callError = String((e && e.message) || e);\n}\n\nif (callError) {\n  return [{ json: { has_alert: true,\n    alert: '⚠️ Проверка памяти (pre-archive) не смогла достучаться до card-service: ' + callError } }];\n}\n\nconst w3 = (Array.isArray(items) ? items : []).filter(i => i && i.action === 'w3_question');\nif (!w3.length) return [{ json: { has_alert: false, alert: '' } }];\n\nconst lines = w3.map(i => '• ' + (i.symptom_key || '?') + ' (id ' + i.episode_id + ') — ' + i.reason);\nconst text = '🗂 Память: ' + w3.length + ' ' + pluralRu(w3.length, 'эпизод', 'эпизода', 'эпизодов') +\n  ' с критическим паттерном молчат 90+ дней. Тихо архивировать нельзя — подтверди, что можно забыть:\\n\\n' +\n  lines.join('\\n');\nreturn [{ json: { has_alert: true, alert: text } }];"
+      }
+    },
+    {
+      "id": "6c451cc8-3a20-48d8-aa44-ba55858b7f30",
+      "name": "Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0cf936ab-5630-434a-b8ae-84d9e5f8b8dc",
+              "leftValue": "={{ $json.has_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "52172ed7-29c9-4ae0-b4f4-0062e12e50f5",
+      "name": "Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8956401",
+        "text": "={{ $json.alert }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "waRQHViWZ0reo1qC",
+          "name": "Hermes Agent"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 08:00": {
+      "main": [
+        [
+          {
+            "node": "Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check": {
+      "main": [
+        [
+          {
+            "node": "Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert?": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "all"
+  },
+  "staticData": {
+    "node:Daily 08:00": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "86ae0573-8a71-45d8-b1a3-e4f4e1fda484",
+  "activeVersionId": "86ae0573-8a71-45d8-b1a3-e4f4e1fda484",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-09-14T21:00:35.000Z",
+      "createdAt": "2026-09-14T21:00:35.000Z",
+      "role": "workflow:owner",
+      "workflowId": "MemoryPreArchive1",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-14T21:09:02.855Z",
+    "createdAt": "2026-09-14T21:09:02.855Z",
+    "versionId": "86ae0573-8a71-45d8-b1a3-e4f4e1fda484",
+    "workflowId": "MemoryPreArchive1",
+    "nodes": [
+      {
+        "id": "c77feecd-25dd-4ab1-b2ad-46998a233018",
+        "name": "Daily 08:00",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          240,
+          300
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "triggerAtHour": 8
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "5630499e-3720-4d70-9e3a-034dec6f34cd",
+        "name": "Check",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          460,
+          300
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "// Зовёт card-service /health-check/pre-archive (Phase П4 §6.2), не подключённый\n// к расписанию ни разу до сегодня. w3_question — эпизод с критическим паттерном,\n// молчавший 90+ дней: тихо забыть нельзя, нужен ответ Влада. \"archived\" — не шумим.\nfunction pluralRu(n, one, few, many) {\n  const n10 = Math.abs(n) % 10, n100 = Math.abs(n) % 100;\n  if (n100 > 10 && n100 < 20) return many;\n  if (n10 > 1 && n10 < 5) return few;\n  if (n10 === 1) return one;\n  return many;\n}\n\nlet items = null, callError = null;\ntry {\n  items = await this.helpers.httpRequest({\n    method: 'GET',\n    url: 'http://card-service:8080/health-check/pre-archive',\n    json: true,\n    timeout: 15000,\n  });\n} catch (e) {\n  callError = String((e && e.message) || e);\n}\n\nif (callError) {\n  return [{ json: { has_alert: true,\n    alert: '⚠️ Проверка памяти (pre-archive) не смогла достучаться до card-service: ' + callError } }];\n}\n\nconst w3 = (Array.isArray(items) ? items : []).filter(i => i && i.action === 'w3_question');\nif (!w3.length) return [{ json: { has_alert: false, alert: '' } }];\n\nconst lines = w3.map(i => '• ' + (i.symptom_key || '?') + ' (id ' + i.episode_id + ') — ' + i.reason);\nconst text = '🗂 Память: ' + w3.length + ' ' + pluralRu(w3.length, 'эпизод', 'эпизода', 'эпизодов') +\n  ' с критическим паттерном молчат 90+ дней. Тихо архивировать нельзя — подтверди, что можно забыть:\\n\\n' +\n  lines.join('\\n');\nreturn [{ json: { has_alert: true, alert: text } }];"
+        }
+      },
+      {
+        "id": "6c451cc8-3a20-48d8-aa44-ba55858b7f30",
+        "name": "Alert?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          680,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "0cf936ab-5630-434a-b8ae-84d9e5f8b8dc",
+                "leftValue": "={{ $json.has_alert }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        }
+      },
+      {
+        "id": "52172ed7-29c9-4ae0-b4f4-0062e12e50f5",
+        "name": "Send",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          900,
+          300
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "8956401",
+          "text": "={{ $json.alert }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML"
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "waRQHViWZ0reo1qC",
+            "name": "Hermes Agent"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Daily 08:00": {
+        "main": [
+          [
+            {
+              "node": "Check",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check": {
+        "main": [
+          [
+            {
+              "node": "Alert?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Alert?": {
+        "main": [
+          [
+            {
+              "node": "Send",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: retry publish (2nd))",
+    "name": "Patch 86ae0573 — retry publish (2nd)",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
