@@ -1,0 +1,155 @@
+{
+  "updatedAt": "2026-09-03T05:56:54.666Z",
+  "createdAt": "2026-09-03T05:56:54.666Z",
+  "id": "b3e5a1d7-4c62-4a90-9f18-2c7e6b0d5a44",
+  "name": "_setup optimal ranges",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "55fd7d0c-3405-4861-9eab-f78753fb40a4",
+      "name": "When clicking Test"
+    },
+    {
+      "parameters": {
+        "jsCode": "const R = {\"M003\": [4.2, 5.0], \"M004\": [65, 100], \"M008\": [45, 50], \"M017\": [40, 90], \"M024\": [0, 1.0], \"M039\": [3.5, 7.0], \"M043\": [82, 90], \"M049\": [11.5, 13.0], \"M061\": [1.5, 3.0], \"M062\": [28, 40], \"M009\": [0.5, 1.1], \"M010\": [3.6, 5.2], \"M011\": [1.3, 2.5], \"M012\": [0, 2.6], \"M014\": [0, 3.4], \"M001\": [5, 21], \"M002\": [0, 5.0], \"M007\": [65, 80], \"M015\": [10, 30], \"M016\": [10, 30], \"M005\": [200, 350], \"M006\": [3.5, 7.0], \"M031\": [4.8, 5.4], \"M032\": [2, 6], \"M018\": [12, 19], \"M019\": [1.0, 2.5], \"M020\": [15, 30], \"M021\": [0, 2.5], \"M027\": [50, 150], \"M028\": [12, 28], \"M033\": [15, 40], \"M034\": [300, 650], \"M035\": [40, 60], \"M040\": [4.3, 5.5], \"M041\": [140, 160], \"M042\": [40, 48], \"M044\": [28, 33], \"M045\": [330, 355], \"M046\": [180, 320], \"M048\": [0, 10], \"M052\": [7.5, 11.0], \"M058\": [2.0, 5.0], \"M059\": [40, 60], \"M063\": [0.2, 0.6], \"M064\": [3, 8], \"M065\": [0.0, 0.3], \"M066\": [0, 4], \"M025\": [0, 14], \"M036\": [0, 100], \"M071\": [2.0, 4.0], \"M073\": [0.8, 1.2], \"M077\": [85, 110]};\nreturn Object.entries(R).map(([id, mm]) => ({\n  json: { Marker_ID: id, Optimal_Min: String(mm[0]), Optimal_Max: String(mm[1]) }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        0
+      ],
+      "id": "6d1c19ca-d7eb-4a0a-8418-69cc7a672d10",
+      "name": "Ranges"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1vtbObHKfiaXSLCYwhPkLj5M0qf4GR286GWWZgWXRYbY",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Markers",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Marker_ID": "={{ $json[\"Marker_ID\"] }}",
+            "Optimal_Min": "={{ $json[\"Optimal_Min\"] }}",
+            "Optimal_Max": "={{ $json[\"Optimal_Max\"] }}"
+          },
+          "matchingColumns": [
+            "Marker_ID"
+          ],
+          "schema": [
+            {
+              "id": "Marker_ID",
+              "displayName": "Marker_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Optimal_Min",
+              "displayName": "Optimal_Min",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "Optimal_Max",
+              "displayName": "Optimal_Max",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        40,
+        0
+      ],
+      "id": "adbf38ec-1838-4c7a-8bb9-f43eac87b076",
+      "name": "Write Optimal Ranges",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LLwuPzJuom1ek7BZ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking Test": {
+      "main": [
+        [
+          {
+            "node": "Ranges",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ranges": {
+      "main": [
+        [
+          {
+            "node": "Write Optimal Ranges",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Vladivostok",
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "d8a4a03d-a5a1-42d2-aae9-72a687d35bb4",
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-09-03T05:56:54.677Z",
+      "createdAt": "2026-09-03T05:56:54.677Z",
+      "role": "workflow:owner",
+      "workflowId": "b3e5a1d7-4c62-4a90-9f18-2c7e6b0d5a44",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": null,
+  "tags": []
+}
