@@ -1,0 +1,945 @@
+{
+  "updatedAt": "2026-09-17T05:10:31.000Z",
+  "createdAt": "2026-08-27T22:51:32.172Z",
+  "id": "tKHmhBfpzpREOc5S",
+  "name": "Dashboard Cached",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "today-nutrition",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        48
+      ],
+      "id": "4f89303c-dda5-41de-b411-92a585a2f39c",
+      "name": "Webhook",
+      "webhookId": "2e318495-2f0f-4400-b05e-0a6d048d35f8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "21cac095-2c71-4176-afb4-95a46b3dbd8c",
+              "leftValue": "={{ $json.query.token }}",
+              "rightValue": "UMJK6Fjj92tx5A6jOOMt",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        0
+      ],
+      "id": "6c91de35-ad91-4958-9351-dc93bf63b85c",
+      "name": "Token"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read cached dashboard data from Static Data\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.todayNutrition;\n\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован. Подождите несколько минут.' } }];\n}\n\n// Add computed_at to the response\nconst response = { ...cached };\nresponse.computed_at = staticData.computedAt;\nreturn [{ json: response }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "f5e2f685-3973-4151-9487-84dc220f54a5",
+      "name": "Read from Static Data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        592,
+        0
+      ],
+      "id": "12c7e77a-ae84-44a1-8fea-cb92bd224220",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        192
+      ],
+      "id": "01e4812e-6797-476a-96c9-7b9c153352b3",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT m.*, to_char(m.\"Date\" AT TIME ZONE 'Asia/Vladivostok', 'YYYY-MM-DD\"T\"HH24:MI') AS \"Date\" FROM health.meals m ORDER BY m.\"Date\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        192
+      ],
+      "id": "c658993c-d8bd-4f4c-947b-77cc0ebe550c",
+      "name": "Get Nutrition-Meals",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Получаем все данные из предыдущей ноды (Google Sheets — Meals)\nconst allMeals = $input.all();\n\n// 2. Формируем сегодняшнюю дату в формате 'YYYY-MM-DD' для поиска\n// $today доступен в объекте $env, но надежнее использовать объект DateTime\nconst todayStr = $now.toFormat('yyyy-MM-dd');\n\n// 3. Фильтруем массив: оставляем только те записи, где дата начинается с todayStr\nconst todayMeals = allMeals.filter(item => {\n  // Проверяем, существует ли поле Date и является ли оно строкой\n  if (item.json.Date && typeof item.json.Date === 'string') {\n    return item.json.Date.startsWith(todayStr);\n  }\n  return false;\n});\n\n// 4. (Опционально) Получаем данные профиля, если они вам нужны\n// Обратите внимание на точное совпадение имени ноды Profile!\n// const profileData = $('Google Sheets — Profile').first().json;\n\n// Возвращаем отфильтрованные данные дальше по цепочке\nreturn todayMeals;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        192
+      ],
+      "id": "e70f558a-cf53-4afc-992b-9084c69c94aa",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.\"User_ID\", p.\"Name\", p.\"Calories_target\", p.\"Protein_target\", p.\"Fat_target\", p.\"Carbs_target\", p.\"Date_of_birth\" FROM health.nutrition_profile p ORDER BY p.\"User_ID\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        784,
+        192
+      ],
+      "id": "26febd52-ad4a-4686-8e03-64cefde958f4",
+      "name": "Get Nutrition-Profile",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.date::text AS \"date\", a.anomaly_count, a.strong_count, a.raw_anomalies::text AS \"raw_anomalies\" FROM health.anomaly_log a ORDER BY a.date DESC",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        976,
+        192
+      ],
+      "id": "871965e2-2461-4aec-b69f-5bb655768f94",
+      "name": "Get Anomalies-Log",
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, to_char(d.\"Дата\", 'YYYY-MM-DD') AS \"Дата\" FROM health.daily_trends d ORDER BY d.\"Дата\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1152,
+        192
+      ],
+      "id": "92c0ad0b-732f-4939-b835-fc7d4e1e7285",
+      "name": "Get Daily-Trends",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "postgres": {
+          "id": "pgHealth0000001",
+          "name": "Postgres health"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Профиль (обращаемся по имени ноды)\nconst profileRows = $('Get Nutrition-Profile').all();\nconst profile = profileRows.length > 0 ? profileRows[0].json : {};\n\n// 2. Приёмы пищи за сегодня (нода фильтрации по её точному имени)\nconst mealsData = $('Code in JavaScript').all();\n\n// health.meals — колонки TEXT (Postgres), не число: без numToSum строка\n// конкатенируется вместо сложения, а .toFixed() на строке кидает TypeError\n// (наступили на это 2026-09-16 — Get Nutrition-Meals мигрирован на Postgres\n// раньше, эта нода не была обновлена вместе с ним, per-meal вывод ниже уже\n// был исправлен корректно, а этот аккумулятор — пропущен).\nfunction numToSum(v) {\n  if (v === undefined || v === null || v === '') return 0;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? 0 : n;\n}\n\nlet totalCalories = 0, totalProteins = 0, totalFats = 0, totalCarbs = 0;\nfor (const meal of mealsData) {\n  totalCalories += numToSum(meal.json.Calories);\n  totalProteins += numToSum(meal.json.Proteins);\n  totalFats += numToSum(meal.json.Fats);\n  totalCarbs += numToSum(meal.json.Carbs);\n}\n\nconst remainingCalories = (profile.Calories_target || 0) - totalCalories;\nconst remainingProteins = (profile.Protein_target || 0) - totalProteins;\nconst remainingFats = (profile.Fat_target || 0) - totalFats;\nconst remainingCarbs = (profile.Carbs_target || 0) - totalCarbs;\n\n// 3. Числовой парсер: в Daily_Trends значения хранятся как строки с запятой (\"24,3\"), не точкой\nfunction toNum(v) {\n  if (v === undefined || v === null || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\n\n// 4. Последний доступный отчёт из Anomalies_Log (обращаемся по имени — она больше не прямой вход)\n// ВАЖНО: поле date в Anomalies_Log — дата АНАЛИЗИРУЕМОГО дня (вчера), не дата генерации.\n// Поэтому берём не \"сегодня\", а самую свежую запись — актуальную до следующего расчёта.\nconst today = $now.toFormat('yyyy-MM-dd');\nconst anomaliesRows = $('Get Anomalies-Log').all();\nconst sortedAnomalies = [...anomaliesRows].sort((a, b) =>\n  (a.json.date < b.json.date) ? 1 : (a.json.date > b.json.date ? -1 : 0)\n);\nconst latestAnomalyRow = sortedAnomalies[0];\n\nlet anomalies = { count: 0, strong_count: 0, report_date: null, raw: [] };\n\nif (latestAnomalyRow) {\n  let rawList = [];\n  try {\n    rawList = JSON.parse(latestAnomalyRow.json.raw_anomalies || '[]');\n  } catch (e) {\n    rawList = [];\n  }\n\n  // 5. История за 7 дней из Daily_Trends (прямой вход этой ноды — $input)\n  // Wellness-домен использует 'Дата' (кириллица) как ключ даты — см. известные особенности проекта.\n  const trendsRows = $input.all()\n    .map(r => r.json)\n    .filter(r => r['Дата'])\n    .sort((a, b) => (a['Дата'] < b['Дата']) ? 1 : (a['Дата'] > b['Дата']) ? -1 : 0)\n    .slice(0, 7)\n    .reverse(); // от старых к новым — так график рисуется слева направо\n\n  // 6. Для каждой аномалии подтягиваем историю значений именно этой колонки\n  rawList = rawList.map(a => {\n    const history = trendsRows\n      .map(row => toNum(row[a.metric]))\n      .filter(v => v !== null);\n    return { ...a, history };\n  });\n\n  anomalies = {\n    count: Number(latestAnomalyRow.json.anomaly_count) || 0,\n    strong_count: Number(latestAnomalyRow.json.strong_count) || 0,\n    report_date: latestAnomalyRow.json.date || null,\n    raw: rawList\n  };\n}\n\n// 7. Итоговый JSON\nconst finalResult = {\n  date: today,\n  user: profile.Name || \"Неизвестный\",\n  summary: {\n    calories: {\n      consumed: totalCalories,\n      target: profile.Calories_target || 0,\n      remaining: remainingCalories\n    },\n    macros: {\n      proteins: { consumed: totalProteins, target: profile.Protein_target || 0, remaining: remainingProteins },\n      fats: { consumed: parseFloat(totalFats.toFixed(1)), target: profile.Fat_target || 0, remaining: parseFloat(remainingFats.toFixed(1)) },\n      carbs: { consumed: parseFloat(totalCarbs.toFixed(1)), target: profile.Carbs_target || 0, remaining: parseFloat(remainingCarbs.toFixed(1)) }\n    }\n  },\n  meals_count: mealsData.length,\n  meals: mealsData.map(m => ({\n    t: String(m.json.Date || '').replace('T', ' ').slice(11, 16),\n    d: String(m.json.Meal_description || '').trim(),\n    k: Math.round(Number(m.json.Calories) || 0),\n    p: Math.round(Number(m.json.Proteins) || 0),\n    f: Math.round(Number(m.json.Fats) || 0),\n    c: Math.round(Number(m.json.Carbs) || 0),\n  })).sort((a, b) => a.t.localeCompare(b.t)),\n  anomalies: anomalies\n};\n\nreturn [ { json: finalResult } ];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        192
+      ],
+      "id": "a1c2c592-2de2-4690-8337-60dee5ec1f70",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Write computed dashboard data to Static Data\nconst data = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.todayNutrition = data;\nstaticData.computedAt = new Date().toISOString();\nreturn [{ json: { success: true, computedAt: staticData.computedAt } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        192
+      ],
+      "id": "99ff5d9a-f202-45bf-8795-5d4cf09ccd7e",
+      "name": "Write to Static Data"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token": {
+      "main": [
+        [
+          {
+            "node": "Read from Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read from Static Data": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrition-Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrition-Meals": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get Nutrition-Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Nutrition-Profile": {
+      "main": [
+        [
+          {
+            "node": "Get Anomalies-Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Anomalies-Log": {
+      "main": [
+        [
+          {
+            "node": "Get Daily-Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily-Trends": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Write to Static Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Vladivostok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "24eee544-2f8a-4c95-90ee-6d83e52bf563",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    },
+    "global": {
+      "todayNutrition": {
+        "date": "2026-09-19",
+        "user": "Влад Васюк",
+        "summary": {
+          "calories": {
+            "consumed": 3089,
+            "target": "2400",
+            "remaining": -689
+          },
+          "macros": {
+            "proteins": {
+              "consumed": 184.6,
+              "target": "160",
+              "remaining": -24.599999999999994
+            },
+            "fats": {
+              "consumed": 125.8,
+              "target": "90",
+              "remaining": -35.8
+            },
+            "carbs": {
+              "consumed": 305.6,
+              "target": "270",
+              "remaining": -35.6
+            }
+          }
+        },
+        "meals_count": 13,
+        "meals": [
+          {
+            "t": "07:52",
+            "d": "Яичница из двух яиц, отварное/жареное куриное филе (~90г), тыква запеченная, брокколи, авокадо и листья салата, общий вес 400г (пересчет с 350г)",
+            "k": 463,
+            "p": 46,
+            "f": 25,
+            "c": 16
+          },
+          {
+            "t": "07:53",
+            "d": "Бамбл — напиток из эспрессо и свежевыжатого апельсинового сока, общий объём 200 мл (примерно 100 мл кофе и 100 мл фреша)",
+            "k": 60,
+            "p": 1,
+            "f": 0,
+            "c": 12
+          },
+          {
+            "t": "08:39",
+            "d": "Печенье фигурное (9 шт., ~67г), миндаль (8 шт., ~9г) и кусочек темного шоколада (~15г). Общий вес ~91г (порция увеличена в 1.5 раза).",
+            "k": 450,
+            "p": 7,
+            "f": 20,
+            "c": 60
+          },
+          {
+            "t": "10:06",
+            "d": "Нектарин свежий, 2 шт (~280г)",
+            "k": 126,
+            "p": 2,
+            "f": 1,
+            "c": 30
+          },
+          {
+            "t": "12:46",
+            "d": "Отварная гречневая крупа (150г), отварная куриная грудка (100г) и соус из протертых томатов с чесноком (50г). Общий вес 300г.",
+            "k": 365,
+            "p": 35,
+            "f": 5,
+            "c": 42
+          },
+          {
+            "t": "13:04",
+            "d": "Кофе (эспрессо/американо) 150мл, миндаль (20г), детское фигурное печенье (25г), кусочек темного шоколада (10г). Итого вес около 205г.",
+            "k": 355,
+            "p": 8,
+            "f": 24,
+            "c": 28
+          },
+          {
+            "t": "13:26",
+            "d": "Две груши свежие, 300г",
+            "k": 171,
+            "p": 1,
+            "f": 0,
+            "c": 46
+          },
+          {
+            "t": "13:30",
+            "d": "Свежая слива, 1 шт (~100г)",
+            "k": 46,
+            "p": 1,
+            "f": 0,
+            "c": 11
+          },
+          {
+            "t": "15:49",
+            "d": "Натуральный йогурт Савушкин без добавления сахара, 250г (покупной), плюс один нектарин (~150г)",
+            "k": 254,
+            "p": 22,
+            "f": 6,
+            "c": 24
+          },
+          {
+            "t": "15:50",
+            "d": "Сырой миндаль 15 г и грецкие орехи 15 г, без обработки",
+            "k": 194,
+            "p": 7,
+            "f": 18,
+            "c": 4
+          },
+          {
+            "t": "18:04",
+            "d": "Морские гребешки на пару, свежие (около 150г) с водорослями чука (50г) и соевым соусом с пониженным содержанием соли (20г). Общий вес порции 220г.",
+            "k": 145,
+            "p": 23,
+            "f": 2,
+            "c": 8
+          },
+          {
+            "t": "18:22",
+            "d": "Горсть орехов (грецкие орехи, миндаль, кешью) общим весом 30г и чашка чая или травяного настоя (150мл), сырые орехи, натуральный напиток",
+            "k": 215,
+            "p": 6,
+            "f": 19,
+            "c": 6
+          },
+          {
+            "t": "19:27",
+            "d": "Творог (около 150г) с нарезанным свежим персиком (около 100г). Итого 250г.",
+            "k": 245,
+            "p": 27,
+            "f": 7,
+            "c": 18
+          }
+        ],
+        "anomalies": {
+          "count": 1,
+          "strong_count": 0,
+          "report_date": "2026-09-19",
+          "raw": [
+            {
+              "z": 1.71,
+              "label": "Чистый сон",
+              "value": 509,
+              "metric": "Чистый_сон_мин",
+              "window": "7д",
+              "severity": "moderate",
+              "direction": "higher_better",
+              "baseline_mean": 455.43,
+              "interpretation": "улучшение",
+              "history": [
+                510,
+                463,
+                459,
+                447,
+                449,
+                464,
+                509
+              ]
+            }
+          ]
+        }
+      },
+      "computedAt": "2026-09-19T13:45:57.176Z"
+    }
+  },
+  "meta": null,
+  "pinData": {},
+  "versionId": "cbe2ebce-5cd5-48a6-95c7-6edc62504096",
+  "activeVersionId": "cbe2ebce-5cd5-48a6-95c7-6edc62504096",
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-08-27T22:51:32.181Z",
+      "createdAt": "2026-08-27T22:51:32.181Z",
+      "role": "workflow:owner",
+      "workflowId": "tKHmhBfpzpREOc5S",
+      "projectId": "Ay8ksmyHrv3MLhBy"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-09-17T05:10:13.894Z",
+    "createdAt": "2026-09-17T05:10:13.894Z",
+    "versionId": "cbe2ebce-5cd5-48a6-95c7-6edc62504096",
+    "workflowId": "tKHmhBfpzpREOc5S",
+    "nodes": [
+      {
+        "parameters": {
+          "path": "today-nutrition",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          32,
+          48
+        ],
+        "id": "4f89303c-dda5-41de-b411-92a585a2f39c",
+        "name": "Webhook",
+        "webhookId": "2e318495-2f0f-4400-b05e-0a6d048d35f8"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "21cac095-2c71-4176-afb4-95a46b3dbd8c",
+                "leftValue": "={{ $json.query.token }}",
+                "rightValue": "UMJK6Fjj92tx5A6jOOMt",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals",
+                  "name": "filter.operator.equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          192,
+          0
+        ],
+        "id": "6c91de35-ad91-4958-9351-dc93bf63b85c",
+        "name": "Token"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Read cached dashboard data from Static Data\nconst staticData = $getWorkflowStaticData('global');\nconst cached = staticData.todayNutrition;\n\nif (!cached) {\n  return [{ json: { error: 'no_data_yet', message: 'Кэш ещё не сформирован. Подождите несколько минут.' } }];\n}\n\n// Add computed_at to the response\nconst response = { ...cached };\nresponse.computed_at = staticData.computedAt;\nreturn [{ json: response }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          416,
+          0
+        ],
+        "id": "f5e2f685-3973-4151-9487-84dc220f54a5",
+        "name": "Read from Static Data"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                },
+                {
+                  "name": "Access-Control-Allow-Methods",
+                  "value": "GET, OPTIONS"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          592,
+          0
+        ],
+        "id": "12c7e77a-ae84-44a1-8fea-cb92bd224220",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.3,
+        "position": [
+          0,
+          192
+        ],
+        "id": "01e4812e-6797-476a-96c9-7b9c153352b3",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT m.*, to_char(m.\"Date\" AT TIME ZONE 'Asia/Vladivostok', 'YYYY-MM-DD\"T\"HH24:MI') AS \"Date\" FROM health.meals m ORDER BY m.\"Date\"",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          416,
+          192
+        ],
+        "id": "c658993c-d8bd-4f4c-947b-77cc0ebe550c",
+        "name": "Get Nutrition-Meals",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Получаем все данные из предыдущей ноды (Google Sheets — Meals)\nconst allMeals = $input.all();\n\n// 2. Формируем сегодняшнюю дату в формате 'YYYY-MM-DD' для поиска\n// $today доступен в объекте $env, но надежнее использовать объект DateTime\nconst todayStr = $now.toFormat('yyyy-MM-dd');\n\n// 3. Фильтруем массив: оставляем только те записи, где дата начинается с todayStr\nconst todayMeals = allMeals.filter(item => {\n  // Проверяем, существует ли поле Date и является ли оно строкой\n  if (item.json.Date && typeof item.json.Date === 'string') {\n    return item.json.Date.startsWith(todayStr);\n  }\n  return false;\n});\n\n// 4. (Опционально) Получаем данные профиля, если они вам нужны\n// Обратите внимание на точное совпадение имени ноды Profile!\n// const profileData = $('Google Sheets — Profile').first().json;\n\n// Возвращаем отфильтрованные данные дальше по цепочке\nreturn todayMeals;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          576,
+          192
+        ],
+        "id": "e70f558a-cf53-4afc-992b-9084c69c94aa",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT p.\"User_ID\", p.\"Name\", p.\"Calories_target\", p.\"Protein_target\", p.\"Fat_target\", p.\"Carbs_target\", p.\"Date_of_birth\" FROM health.nutrition_profile p ORDER BY p.\"User_ID\"",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          784,
+          192
+        ],
+        "id": "26febd52-ad4a-4686-8e03-64cefde958f4",
+        "name": "Get Nutrition-Profile",
+        "executeOnce": true,
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT a.date::text AS \"date\", a.anomaly_count, a.strong_count, a.raw_anomalies::text AS \"raw_anomalies\" FROM health.anomaly_log a ORDER BY a.date DESC",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          976,
+          192
+        ],
+        "id": "871965e2-2461-4aec-b69f-5bb655768f94",
+        "name": "Get Anomalies-Log",
+        "executeOnce": true,
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT d.*, to_char(d.\"Дата\", 'YYYY-MM-DD') AS \"Дата\" FROM health.daily_trends d ORDER BY d.\"Дата\"",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1152,
+          192
+        ],
+        "id": "92c0ad0b-732f-4939-b835-fc7d4e1e7285",
+        "name": "Get Daily-Trends",
+        "executeOnce": true,
+        "retryOnFail": true,
+        "maxTries": 2,
+        "credentials": {
+          "postgres": {
+            "id": "pgHealth0000001",
+            "name": "Postgres health"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Профиль (обращаемся по имени ноды)\nconst profileRows = $('Get Nutrition-Profile').all();\nconst profile = profileRows.length > 0 ? profileRows[0].json : {};\n\n// 2. Приёмы пищи за сегодня (нода фильтрации по её точному имени)\nconst mealsData = $('Code in JavaScript').all();\n\n// health.meals — колонки TEXT (Postgres), не число: без numToSum строка\n// конкатенируется вместо сложения, а .toFixed() на строке кидает TypeError\n// (наступили на это 2026-09-16 — Get Nutrition-Meals мигрирован на Postgres\n// раньше, эта нода не была обновлена вместе с ним, per-meal вывод ниже уже\n// был исправлен корректно, а этот аккумулятор — пропущен).\nfunction numToSum(v) {\n  if (v === undefined || v === null || v === '') return 0;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? 0 : n;\n}\n\nlet totalCalories = 0, totalProteins = 0, totalFats = 0, totalCarbs = 0;\nfor (const meal of mealsData) {\n  totalCalories += numToSum(meal.json.Calories);\n  totalProteins += numToSum(meal.json.Proteins);\n  totalFats += numToSum(meal.json.Fats);\n  totalCarbs += numToSum(meal.json.Carbs);\n}\n\nconst remainingCalories = (profile.Calories_target || 0) - totalCalories;\nconst remainingProteins = (profile.Protein_target || 0) - totalProteins;\nconst remainingFats = (profile.Fat_target || 0) - totalFats;\nconst remainingCarbs = (profile.Carbs_target || 0) - totalCarbs;\n\n// 3. Числовой парсер: в Daily_Trends значения хранятся как строки с запятой (\"24,3\"), не точкой\nfunction toNum(v) {\n  if (v === undefined || v === null || v === '') return null;\n  if (typeof v === 'number') return v;\n  const n = parseFloat(String(v).replace(',', '.'));\n  return isNaN(n) ? null : n;\n}\n\n// 4. Последний доступный отчёт из Anomalies_Log (обращаемся по имени — она больше не прямой вход)\n// ВАЖНО: поле date в Anomalies_Log — дата АНАЛИЗИРУЕМОГО дня (вчера), не дата генерации.\n// Поэтому берём не \"сегодня\", а самую свежую запись — актуальную до следующего расчёта.\nconst today = $now.toFormat('yyyy-MM-dd');\nconst anomaliesRows = $('Get Anomalies-Log').all();\nconst sortedAnomalies = [...anomaliesRows].sort((a, b) =>\n  (a.json.date < b.json.date) ? 1 : (a.json.date > b.json.date ? -1 : 0)\n);\nconst latestAnomalyRow = sortedAnomalies[0];\n\nlet anomalies = { count: 0, strong_count: 0, report_date: null, raw: [] };\n\nif (latestAnomalyRow) {\n  let rawList = [];\n  try {\n    rawList = JSON.parse(latestAnomalyRow.json.raw_anomalies || '[]');\n  } catch (e) {\n    rawList = [];\n  }\n\n  // 5. История за 7 дней из Daily_Trends (прямой вход этой ноды — $input)\n  // Wellness-домен использует 'Дата' (кириллица) как ключ даты — см. известные особенности проекта.\n  const trendsRows = $input.all()\n    .map(r => r.json)\n    .filter(r => r['Дата'])\n    .sort((a, b) => (a['Дата'] < b['Дата']) ? 1 : (a['Дата'] > b['Дата']) ? -1 : 0)\n    .slice(0, 7)\n    .reverse(); // от старых к новым — так график рисуется слева направо\n\n  // 6. Для каждой аномалии подтягиваем историю значений именно этой колонки\n  rawList = rawList.map(a => {\n    const history = trendsRows\n      .map(row => toNum(row[a.metric]))\n      .filter(v => v !== null);\n    return { ...a, history };\n  });\n\n  anomalies = {\n    count: Number(latestAnomalyRow.json.anomaly_count) || 0,\n    strong_count: Number(latestAnomalyRow.json.strong_count) || 0,\n    report_date: latestAnomalyRow.json.date || null,\n    raw: rawList\n  };\n}\n\n// 7. Итоговый JSON\nconst finalResult = {\n  date: today,\n  user: profile.Name || \"Неизвестный\",\n  summary: {\n    calories: {\n      consumed: totalCalories,\n      target: profile.Calories_target || 0,\n      remaining: remainingCalories\n    },\n    macros: {\n      proteins: { consumed: totalProteins, target: profile.Protein_target || 0, remaining: remainingProteins },\n      fats: { consumed: parseFloat(totalFats.toFixed(1)), target: profile.Fat_target || 0, remaining: parseFloat(remainingFats.toFixed(1)) },\n      carbs: { consumed: parseFloat(totalCarbs.toFixed(1)), target: profile.Carbs_target || 0, remaining: parseFloat(remainingCarbs.toFixed(1)) }\n    }\n  },\n  meals_count: mealsData.length,\n  meals: mealsData.map(m => ({\n    t: String(m.json.Date || '').replace('T', ' ').slice(11, 16),\n    d: String(m.json.Meal_description || '').trim(),\n    k: Math.round(Number(m.json.Calories) || 0),\n    p: Math.round(Number(m.json.Proteins) || 0),\n    f: Math.round(Number(m.json.Fats) || 0),\n    c: Math.round(Number(m.json.Carbs) || 0),\n  })).sort((a, b) => a.t.localeCompare(b.t)),\n  anomalies: anomalies\n};\n\nreturn [ { json: finalResult } ];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1344,
+          192
+        ],
+        "id": "a1c2c592-2de2-4690-8337-60dee5ec1f70",
+        "name": "Code in JavaScript1"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Write computed dashboard data to Static Data\nconst data = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.todayNutrition = data;\nstaticData.computedAt = new Date().toISOString();\nreturn [{ json: { success: true, computedAt: staticData.computedAt } }];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1520,
+          192
+        ],
+        "id": "99ff5d9a-f202-45bf-8795-5d4cf09ccd7e",
+        "name": "Write to Static Data"
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Token",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Token": {
+        "main": [
+          [
+            {
+              "node": "Read from Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read from Static Data": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrition-Meals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrition-Meals": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Get Nutrition-Profile",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Nutrition-Profile": {
+        "main": [
+          [
+            {
+              "node": "Get Anomalies-Log",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Anomalies-Log": {
+        "main": [
+          [
+            {
+              "node": "Get Daily-Trends",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Daily-Trends": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript1": {
+        "main": [
+          [
+            {
+              "node": "Write to Static Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Claude (patch: wave1 a2swap2 pg)",
+    "name": "Patch cbe2ebce — wave1 a2swap2 pg",
+    "description": "",
+    "autosaved": false
+  },
+  "tags": []
+}
